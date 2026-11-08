@@ -96,14 +96,15 @@ async function resolveLocalFile(rawPath) {
     for (const c of candidates) {
       try {
         const st = await chrome.antigem.stat({ path: c });
-        if (st && st.exists && !st.isDirectory) {
+        if (st && st.isFile !== false && !st.isDirectory) {
+          const mtimeVal = st.modified || st.mtime || 0;
           return {
             path: st.path || c,
             size: st.size || 0,
-            mtime: st.mtime || 0,
+            mtime: mtimeVal,
             mimeType: guessMimeType(c),
             filename: (st.path || c).split("/").pop() || "upload.bin",
-            fingerprint: `file:${st.path || c}:${st.size || 0}:${st.mtime || 0}`
+            fingerprint: `file:${st.path || c}:${st.size || 0}:${mtimeVal}`
           };
         }
       } catch (_) {}
@@ -223,7 +224,8 @@ async function waitForTabComplete(tabId, timeoutMs = 25000) {
         // Also confirm document.readyState inside the tab
         try {
           const [probe] = await chrome.scripting.executeScript({
-            target: { tabId },
+            world: "MAIN",
+        target: { tabId },
             func: () => ({
               readyState: document.readyState,
               href: location.href,
@@ -574,7 +576,8 @@ async function attachMediaFilesToMarkedInput(tabId, rawPaths) {
           });
           // Fire input & change events on the input element
           const [verify] = await chrome.scripting.executeScript({
-            target: { tabId },
+            world: "MAIN",
+        target: { tabId },
             func: () => {
               const inp = document.querySelector('input[type="file"][data-antigem-upload-target="1"]');
               if (!inp) return { ok: false };
@@ -608,7 +611,8 @@ async function attachMediaFilesToMarkedInput(tabId, rawPaths) {
     }
 
     const [dtRes] = await chrome.scripting.executeScript({
-      target: { tabId },
+      world: "MAIN",
+        target: { tabId },
       args: [filePayloads],
       func: (items) => {
         const inp =
@@ -681,7 +685,8 @@ async function executeFeedPostInBrowser(tabId, payload) {
 
   // 2. Locate and click Composer Trigger ("What's on your mind?" / "Create a post" / "Write something...")
   const [triggerRes] = await chrome.scripting.executeScript({
-    target: { tabId },
+    world: "MAIN",
+        target: { tabId },
     func: () => {
       // Check if composer dialog is already open
       const existingDialog = document.querySelector('div[role="dialog"]');
@@ -734,7 +739,8 @@ async function executeFeedPostInBrowser(tabId, payload) {
     await sleep(400);
     // Confirm dialog opened; if not, dispatch trusted tap
     const [checkDlg] = await chrome.scripting.executeScript({
-      target: { tabId },
+      world: "MAIN",
+        target: { tabId },
       func: () =>
         Boolean(
           document.querySelector('div[role="dialog"] div[role="textbox"][contenteditable="true"]') ||
@@ -754,7 +760,8 @@ async function executeFeedPostInBrowser(tabId, payload) {
     const wantVideo = media_paths.some((p) => isVideoPath(p)) || post_type === "video";
 
     const [markInputRes] = await chrome.scripting.executeScript({
-      target: { tabId },
+      world: "MAIN",
+        target: { tabId },
       args: [wantVideo],
       func: (preferVideo) => {
         document
@@ -793,6 +800,7 @@ async function executeFeedPostInBrowser(tabId, payload) {
     if (!markInputRes || !markInputRes.result || !markInputRes.result.ok) {
       await sleep(1000);
       await chrome.scripting.executeScript({
+        world: "MAIN",
         target: { tabId },
         func: () => {
           const inputs = Array.from(document.querySelectorAll('input[type="file"]'));
@@ -810,7 +818,8 @@ async function executeFeedPostInBrowser(tabId, payload) {
   // 4. Insert Caption into Composer Textbox (Strict Anti-Comment-Box Lock)
   if (caption && String(caption).trim().length > 0) {
     const [capRes] = await chrome.scripting.executeScript({
-      target: { tabId },
+      world: "MAIN",
+        target: { tabId },
       args: [String(caption)],
       func: (textToInsert) => {
         const dialog = document.querySelector('div[role="dialog"]') || document;
@@ -865,7 +874,8 @@ async function executeFeedPostInBrowser(tabId, payload) {
   const waitAttempts = media_paths && media_paths.some((p) => isVideoPath(p)) ? 30 : 12;
   for (let attempt = 0; attempt < waitAttempts; attempt++) {
     const [btnProbe] = await chrome.scripting.executeScript({
-      target: { tabId },
+      world: "MAIN",
+        target: { tabId },
       func: () => {
         const scope = document.querySelector('div[role="dialog"]') || document;
         const buttons = Array.from(scope.querySelectorAll('div[role="button"], button, input[type="submit"]'));
@@ -913,7 +923,8 @@ async function executeFeedPostInBrowser(tabId, payload) {
   // Wait for composer modal to dismiss; if still open after 2.5s, send a trusted tap on the Post button
   await sleep(2500);
   const [stillOpenProbe] = await chrome.scripting.executeScript({
-    target: { tabId },
+    world: "MAIN",
+        target: { tabId },
     func: () => Boolean(document.querySelector('div[role="dialog"]'))
   });
   if (stillOpenProbe && stillOpenProbe.result && postBtnResult.coords) {
@@ -923,7 +934,8 @@ async function executeFeedPostInBrowser(tabId, payload) {
   for (let i = 0; i < 20; i++) {
     await sleep(1000);
     const [dlgCheck] = await chrome.scripting.executeScript({
-      target: { tabId },
+      world: "MAIN",
+        target: { tabId },
       func: () => !document.querySelector('div[role="dialog"]')
     });
     if (dlgCheck && dlgCheck.result) break;
@@ -975,7 +987,8 @@ async function executeReelUploadInBrowser(tabId, payload) {
 
   // 2. Locate & mark <input type="file"> on the Reels create screen
   const [markRes] = await chrome.scripting.executeScript({
-    target: { tabId },
+    world: "MAIN",
+        target: { tabId },
     func: () => {
       document
         .querySelectorAll("[data-antigem-upload-target]")
@@ -1006,7 +1019,8 @@ async function executeReelUploadInBrowser(tabId, payload) {
   // 4. Advance through "Next" steps (Step 1: Upload -> Step 2: Edit -> Step 3: Describe & Publish)
   for (let step = 0; step < 3; step++) {
     const [stepProbe] = await chrome.scripting.executeScript({
-      target: { tabId },
+      world: "MAIN",
+        target: { tabId },
       func: () => {
         // Check if Publish / Share button is already visible
         const allBtns = Array.from(document.querySelectorAll('div[role="button"], button'));
@@ -1035,7 +1049,8 @@ async function executeReelUploadInBrowser(tabId, payload) {
   // 5. Insert Reel Caption / Hashtags
   if (caption && String(caption).trim().length > 0) {
     await chrome.scripting.executeScript({
-      target: { tabId },
+      world: "MAIN",
+        target: { tabId },
       args: [String(caption)],
       func: (textToInsert) => {
         const editor =
@@ -1062,7 +1077,8 @@ async function executeReelUploadInBrowser(tabId, payload) {
   let published = false;
   for (let i = 0; i < 35; i++) {
     const [pubProbe] = await chrome.scripting.executeScript({
-      target: { tabId },
+      world: "MAIN",
+        target: { tabId },
       func: () => {
         const btns = Array.from(document.querySelectorAll('div[role="button"], button'));
         const pubBtn = btns.find((el) => {
@@ -1126,7 +1142,8 @@ async function executeStoryUploadInBrowser(tabId, payload) {
 
   if (mediaPath) {
     await chrome.scripting.executeScript({
-      target: { tabId },
+      world: "MAIN",
+        target: { tabId },
       func: () => {
         document
           .querySelectorAll("[data-antigem-upload-target]")
@@ -1140,7 +1157,8 @@ async function executeStoryUploadInBrowser(tabId, payload) {
   } else if (caption) {
     // Text story card
     await chrome.scripting.executeScript({
-      target: { tabId },
+      world: "MAIN",
+        target: { tabId },
       args: [String(caption)],
       func: (txt) => {
         const textStoryBtn = Array.from(document.querySelectorAll('div[role="button"], span')).find((el) =>
@@ -1161,7 +1179,8 @@ async function executeStoryUploadInBrowser(tabId, payload) {
   }
 
   const [shareRes] = await chrome.scripting.executeScript({
-    target: { tabId },
+    world: "MAIN",
+        target: { tabId },
     func: () => {
       const btn = Array.from(document.querySelectorAll('div[role="button"], button')).find((el) =>
         /share to story|share now|^share$/i.test((el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim())
@@ -1199,7 +1218,8 @@ async function executeEditPostInBrowser(tabId, payload) {
   }
 
   const [menuRes] = await chrome.scripting.executeScript({
-    target: { tabId },
+    world: "MAIN",
+        target: { tabId },
     func: () => {
       const btn = document.querySelector(
         'div[aria-label*="Actions for this post" i], div[aria-label*="More options" i], div[aria-label*="More" i][role="button"]'
@@ -1215,7 +1235,8 @@ async function executeEditPostInBrowser(tabId, payload) {
 
   await sleep(1000);
   const [clickEdit] = await chrome.scripting.executeScript({
-    target: { tabId },
+    world: "MAIN",
+        target: { tabId },
     func: () => {
       const item = Array.from(document.querySelectorAll('div[role="menuitem"], div[role="button"], a')).find((el) =>
         /edit post|^edit$/i.test((el.innerText || el.textContent || "").trim())
@@ -1231,7 +1252,8 @@ async function executeEditPostInBrowser(tabId, payload) {
 
   await sleep(1500);
   const [saveRes] = await chrome.scripting.executeScript({
-    target: { tabId },
+    world: "MAIN",
+        target: { tabId },
     args: [String(new_caption)],
     func: (updatedText) => {
       const dlg = document.querySelector('div[role="dialog"]') || document;
@@ -1278,7 +1300,8 @@ async function executeDeletePostInBrowser(tabId, payload) {
   }
 
   const [menuRes] = await chrome.scripting.executeScript({
-    target: { tabId },
+    world: "MAIN",
+        target: { tabId },
     func: () => {
       const btn = document.querySelector(
         'div[aria-label*="Actions for this post" i], div[aria-label*="More options" i]'
@@ -1294,7 +1317,8 @@ async function executeDeletePostInBrowser(tabId, payload) {
 
   await sleep(1000);
   const [delItemRes] = await chrome.scripting.executeScript({
-    target: { tabId },
+    world: "MAIN",
+        target: { tabId },
     func: () => {
       const item = Array.from(document.querySelectorAll('div[role="menuitem"], div[role="button"], a')).find((el) =>
         /move to trash|delete post|^delete$/i.test((el.innerText || el.textContent || "").trim())
@@ -1310,7 +1334,8 @@ async function executeDeletePostInBrowser(tabId, payload) {
 
   await sleep(1500);
   await chrome.scripting.executeScript({
-    target: { tabId },
+    world: "MAIN",
+        target: { tabId },
     func: () => {
       const confirmBtn = Array.from(
         document.querySelectorAll('div[role="dialog"] div[role="button"], div[role="dialog"] button')
@@ -1339,7 +1364,8 @@ async function executeCommentInBrowser(tabId, payload) {
   }
 
   const [cmtRes] = await chrome.scripting.executeScript({
-    target: { tabId },
+    world: "MAIN",
+        target: { tabId },
     args: [String(comment_text)],
     func: (txt) => {
       const input = document.querySelector(
@@ -1918,35 +1944,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   })()
     .then((result) =>
       sendResponse({
-        ok: true,
-        result: {
-          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-          structuredContent: result,
-          isError: false
-        }
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        structuredContent: result,
+        isError: false,
+        ...(result && typeof result === "object" ? result : { value: result })
       })
     )
     .catch((err) =>
       sendResponse({
-        ok: false,
+        isError: true,
         error: err.message || String(err),
-        result: {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                {
-                  success: false,
-                  stop_loop: true,
-                  error: err.message || String(err)
-                },
-                null,
-                2
-              )
-            }
-          ],
-          isError: true
-        }
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(
+              {
+                success: false,
+                stop_loop: true,
+                error: err.message || String(err)
+              },
+              null,
+              2
+            )
+          }
+        ]
       })
     );
 
