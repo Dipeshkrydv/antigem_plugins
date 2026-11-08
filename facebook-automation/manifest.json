@@ -15,7 +15,7 @@
   "permissions": [
     "storage",
     "antigemFiles",
-    "network"
+    "scripting"
   ],
   "background": {
     "service_worker": "worker.js"
@@ -52,17 +52,28 @@
           },
           "media_paths": {
             "type": "array",
-            "items": {"type": "string"},
+            "items": {
+              "type": "string"
+            },
             "description": "List of absolute file paths to photos or videos."
           },
           "post_type": {
             "type": "string",
-            "enum": ["text", "photo", "video", "reel"],
+            "enum": [
+              "text",
+              "photo",
+              "video",
+              "reel"
+            ],
             "description": "Format of the Facebook post."
           },
           "target_type": {
             "type": "string",
-            "enum": ["profile", "page", "group"],
+            "enum": [
+              "profile",
+              "page",
+              "group"
+            ],
             "description": "Where to publish (profile feed, managed page, group)."
           },
           "target_id": {
@@ -70,7 +81,9 @@
             "description": "Optional page or group identifier."
           }
         },
-        "required": ["caption"],
+        "required": [
+          "caption"
+        ],
         "additionalProperties": false
       }
     },
@@ -90,16 +103,26 @@
           },
           "media_paths": {
             "type": "array",
-            "items": {"type": "string"},
+            "items": {
+              "type": "string"
+            },
             "description": "List of absolute file paths."
           },
           "post_type": {
             "type": "string",
-            "enum": ["text", "photo", "video", "reel"],
+            "enum": [
+              "text",
+              "photo",
+              "video",
+              "reel"
+            ],
             "description": "Post format."
           }
         },
-        "required": ["caption", "run_at_timestamp"],
+        "required": [
+          "caption",
+          "run_at_timestamp"
+        ],
         "additionalProperties": false
       }
     },
@@ -118,7 +141,10 @@
             "description": "New caption text to replace the existing post content."
           }
         },
-        "required": ["post_url_or_id", "new_caption"],
+        "required": [
+          "post_url_or_id",
+          "new_caption"
+        ],
         "additionalProperties": false
       }
     },
@@ -133,7 +159,9 @@
             "description": "URL or identifier of the post to delete."
           }
         },
-        "required": ["post_url_or_id"],
+        "required": [
+          "post_url_or_id"
+        ],
         "additionalProperties": false
       }
     },
@@ -149,7 +177,12 @@
           },
           "status": {
             "type": "string",
-            "enum": ["published", "scheduled", "failed", "pending"],
+            "enum": [
+              "published",
+              "scheduled",
+              "failed",
+              "pending"
+            ],
             "description": "Filter by post status."
           }
         },
@@ -168,7 +201,9 @@
           },
           "key_takeaways": {
             "type": "array",
-            "items": {"type": "string"},
+            "items": {
+              "type": "string"
+            },
             "description": "Optional bullet points to highlight."
           },
           "link_url": {
@@ -176,7 +211,9 @@
             "description": "Optional outbound link to place in first comment."
           }
         },
-        "required": ["topic"],
+        "required": [
+          "topic"
+        ],
         "additionalProperties": false
       }
     },
@@ -195,7 +232,10 @@
             "description": "Comment text to submit."
           }
         },
-        "required": ["post_url_or_id", "comment_text"],
+        "required": [
+          "post_url_or_id",
+          "comment_text"
+        ],
         "additionalProperties": false
       }
     },

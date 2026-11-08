@@ -1,0 +1,50 @@
+{
+  "name": "antigem-plugins",
+  "displayName": "Antigem Official Plugins",
+  "description": "Official Antigem plugins repository: 2D Video Editing Studio and Facebook Automation & SEO Studio.",
+  "owner": {
+    "name": "Dipesh Kr Yadav",
+    "url": "https://github.com/Dipeshkrydv"
+  },
+  "plugins": [
+    {
+      "name": "2d-video-editing-studio",
+      "source": "./2d-video-editing-studio",
+      "displayName": "2D Video Editing Studio",
+      "description": "Master Autonomous 2D Video Director & Production Engine: Broadcast-quality Vox explainers, stickman animations, doodle sketchbooks, crime documentary thrillers, and 8-bit retro arcade videos with rapid Google Flow parallel asset dispatch.",
+      "version": "3.1.2",
+      "author": {
+        "name": "Dipesh Kr Yadav"
+      },
+      "homepage": "https://github.com/Dipeshkrydv/antigem_plugins",
+      "keywords": [
+        "video-editor",
+        "motion-graphics",
+        "vox-documentary",
+        "stickman-animation",
+        "hand-drawn-doodle",
+        "crime-documentary"
+      ]
+    },
+    {
+      "name": "facebook-automation",
+      "source": "./facebook-automation",
+      "displayName": "Facebook Automation & SEO Studio",
+      "description": "Production-grade Facebook automation engine for mobile (Kiwi Browser / Android / Termux) and desktop: post publishing, scheduling, anti-duplicate protection, post re-edit/delete, and viral SEO generation.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Dipesh Kr Yadav"
+      },
+      "homepage": "https://github.com/Dipeshkrydv/antigem_plugins",
+      "keywords": [
+        "facebook",
+        "automation",
+        "social-media",
+        "seo",
+        "anti-duplicate",
+        "kiwi-browser",
+        "mobile"
+      ]
+    }
+  ]
+}
