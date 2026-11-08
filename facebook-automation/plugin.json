@@ -1,0 +1,24 @@
+{
+  "name": "facebook-automation",
+  "displayName": "Facebook Automation & SEO Studio",
+  "version": "1.0.0",
+  "description": "Production-grade Facebook automation engine for mobile and desktop: post publishing, scheduling, anti-duplicate protection, post re-edit/delete, and viral SEO generation.",
+  "author": {
+    "name": "Dipesh Kr Yadav",
+    "url": "https://github.com/Dipeshkrydv/antigem_plugins"
+  },
+  "icon": "icon.png",
+  "homepage": "https://github.com/Dipeshkrydv/antigem_plugins",
+  "repository": "https://github.com/Dipeshkrydv/antigem_plugins",
+  "keywords": [
+    "facebook",
+    "automation",
+    "social-media",
+    "seo",
+    "anti-duplicate",
+    "kiwi-browser",
+    "mobile",
+    "termux",
+    "mcp"
+  ]
+}

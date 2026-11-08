@@ -1,5 +1,5 @@
 {
-  "name": "2D Video Editing Studio",
+  "name": "Antigem Plugins",
   "plugins": [
     {
       "path": "2d-video-editing-studio",
@@ -7,6 +7,14 @@
       "name": "2D Video Editing Studio",
       "version": "3.1.2",
       "description": "Master Autonomous 2D Video Director & Production Engine: Broadcast-quality Vox explainers, stickman animations, doodle sketchbooks, crime documentary thrillers, and 8-bit retro arcade videos with rapid Google Flow parallel asset dispatch.",
+      "icon": "icon.png"
+    },
+    {
+      "path": "facebook-automation",
+      "id": "facebook-automation",
+      "name": "Facebook Automation & SEO Studio",
+      "version": "1.0.0",
+      "description": "Production-grade Facebook automation engine for mobile (Kiwi Browser / Android / Termux) and desktop: post publishing, scheduling, anti-duplicate protection, post re-edit/delete, and viral SEO generation.",
       "icon": "icon.png"
     }
   ]

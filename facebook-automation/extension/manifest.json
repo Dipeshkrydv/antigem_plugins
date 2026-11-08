@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Antigravity Facebook Automation Bridge",
+  "version": "1.0.0",
+  "description": "Mobile & Desktop Bridge for Antigravity Facebook Automation MCP Server (Kiwi Browser, Android & Chrome).",
+  "author": "Dipesh Kr Yadav",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Facebook Automation Bridge",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.facebook.com/*"
+      ],
+      "js": [
+        "anti_detection.js",
+        "content_bridge.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "storage",
+    "scripting",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://*.facebook.com/*"
+  ]
+}

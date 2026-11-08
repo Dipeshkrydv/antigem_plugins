@@ -1,0 +1,225 @@
+{
+  "manifest_version": 3,
+  "id": "facebook-automation",
+  "name": "Facebook Automation & SEO Studio",
+  "version": "1.0.0",
+  "description": "Production-grade Facebook automation engine for mobile and desktop: post publishing, scheduling, anti-duplicate protection, post re-edit/delete, and viral SEO generation.",
+  "author": "Dipesh Kr Yadav",
+  "icon": "icon.png",
+  "icons": {
+    "16": "icon.png",
+    "32": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
+  "permissions": [
+    "storage",
+    "antigemFiles",
+    "network"
+  ],
+  "background": {
+    "service_worker": "worker.js"
+  },
+  "worker": "worker.js",
+  "mcp_tools": [
+    {
+      "name": "fb_status",
+      "description": "Check Facebook bridge connectivity, SQLite queue status, and rate limit sentinels.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fb_login_status",
+      "description": "Detect active Facebook profile, page, or group session from connected browser tab.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fb_publish",
+      "description": "Publish a post (text, photo, video, reel) to Facebook with DOM verification.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "caption": {
+            "type": "string",
+            "description": "Post caption or text."
+          },
+          "media_paths": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "List of absolute file paths to photos or videos."
+          },
+          "post_type": {
+            "type": "string",
+            "enum": ["text", "photo", "video", "reel"],
+            "description": "Format of the Facebook post."
+          },
+          "target_type": {
+            "type": "string",
+            "enum": ["profile", "page", "group"],
+            "description": "Where to publish (profile feed, managed page, group)."
+          },
+          "target_id": {
+            "type": "string",
+            "description": "Optional page or group identifier."
+          }
+        },
+        "required": ["caption"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fb_schedule",
+      "description": "Schedule a Facebook post for future publication via local scheduler.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "caption": {
+            "type": "string",
+            "description": "Post caption."
+          },
+          "run_at_timestamp": {
+            "type": "number",
+            "description": "Unix epoch timestamp when the post should publish."
+          },
+          "media_paths": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "List of absolute file paths."
+          },
+          "post_type": {
+            "type": "string",
+            "enum": ["text", "photo", "video", "reel"],
+            "description": "Post format."
+          }
+        },
+        "required": ["caption", "run_at_timestamp"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fb_edit_post",
+      "description": "Re-edit an existing Facebook post caption via DOM menu automation.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "post_url_or_id": {
+            "type": "string",
+            "description": "URL or identifier of the post to edit."
+          },
+          "new_caption": {
+            "type": "string",
+            "description": "New caption text to replace the existing post content."
+          }
+        },
+        "required": ["post_url_or_id", "new_caption"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fb_delete_post",
+      "description": "Delete a Facebook post or move it to trash via 3-dots menu automation.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "post_url_or_id": {
+            "type": "string",
+            "description": "URL or identifier of the post to delete."
+          }
+        },
+        "required": ["post_url_or_id"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fb_list_posts",
+      "description": "List published, scheduled, or failed posts from local history database.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "description": "Number of records to return (default 15)."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["published", "scheduled", "failed", "pending"],
+            "description": "Filter by post status."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fb_seo_generate",
+      "description": "Generate an algorithm-optimized viral Facebook post with hook, micro-bullets, CTA, hashtags, and first-comment link.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "topic": {
+            "type": "string",
+            "description": "Core subject or idea of the post."
+          },
+          "key_takeaways": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Optional bullet points to highlight."
+          },
+          "link_url": {
+            "type": "string",
+            "description": "Optional outbound link to place in first comment."
+          }
+        },
+        "required": ["topic"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fb_comments",
+      "description": "Post a comment (e.g. first comment with link) or reply on Facebook.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "post_url_or_id": {
+            "type": "string",
+            "description": "URL or identifier of the target post."
+          },
+          "comment_text": {
+            "type": "string",
+            "description": "Comment text to submit."
+          }
+        },
+        "required": ["post_url_or_id", "comment_text"],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fb_doctor",
+      "description": "Self-diagnose Facebook automation environment, bridge status, and guardrails.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    }
+  ],
+  "entrypoint": "mcp_server/server.py",
+  "skills": "skills",
+  "keywords": [
+    "facebook",
+    "automation",
+    "social-media",
+    "seo",
+    "anti-duplicate",
+    "kiwi-browser",
+    "mobile",
+    "termux",
+    "mcp"
+  ]
+}

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Facebook Automation Bridge</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="header">
+    <img src="icons/icon48.png" alt="Logo" class="logo">
+    <div class="title-group">
+      <h1>Facebook Bridge</h1>
+      <p>Antigravity Mobile & Desktop</p>
+    </div>
+  </div>
+
+  <div class="status-card">
+    <div class="status-row">
+      <span class="label">Bridge Status</span>
+      <span id="bridge-status" class="pill disconnected">Connecting...</span>
+    </div>
+    <div class="status-row">
+      <span class="label">WebSocket URL</span>
+      <span style="font-size: 12px; color: #94A3B8;">127.0.0.1:8766</span>
+    </div>
+    <div class="status-row">
+      <span class="label">Active Account</span>
+      <span id="active-account" style="font-size: 12px; font-weight: 600; color: #F8FAFC;">Checking...</span>
+    </div>
+  </div>
+
+  <button id="btn-open-fb" class="btn btn-primary">
+    🌐 Open Facebook
+  </button>
+
+  <button id="btn-sync-session" class="btn btn-secondary">
+    🔄 Sync Session Status
+  </button>
+
+  <div class="info-box">
+    📱 <strong>Mobile Ready</strong>: Designed for Kiwi Browser on Android and Chrome on Desktop. Keeps automation active with zero interruptions.
+  </div>
+
+  <div class="footer">
+    Antigravity Plugin System • v1.0.0
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
