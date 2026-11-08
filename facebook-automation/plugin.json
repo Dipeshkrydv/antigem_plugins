@@ -1,8 +1,8 @@
 {
   "name": "facebook-automation",
   "displayName": "Facebook Automation & SEO Studio",
-  "version": "1.0.0",
-  "description": "Production-grade Facebook automation engine for mobile and desktop: post publishing, scheduling, anti-duplicate protection, post re-edit/delete, and viral SEO generation.",
+  "version": "1.1.0",
+  "description": "Production-grade Facebook automation engine for AntiGem Mobile Browser, Kiwi Browser, Termux, and Desktop: auto-opens Facebook in AntiGem browser, one-time login persistence, autonomous post/photo/video/reel/story publishing, scheduling, anti-duplicate protection, post re-edit/delete, and viral SEO generation.",
   "author": {
     "name": "Dipesh Kr Yadav",
     "url": "https://github.com/Dipeshkrydv/antigem_plugins"
@@ -14,8 +14,11 @@
     "facebook",
     "automation",
     "social-media",
+    "reels",
+    "stories",
     "seo",
     "anti-duplicate",
+    "antigem-browser",
     "kiwi-browser",
     "mobile",
     "termux",

@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "id": "facebook-automation",
   "name": "Facebook Automation & SEO Studio",
-  "version": "1.0.0",
-  "description": "Production-grade Facebook automation engine for mobile and desktop: post publishing, scheduling, anti-duplicate protection, post re-edit/delete, and viral SEO generation.",
+  "version": "1.1.0",
+  "description": "Production-grade Facebook automation engine for AntiGem Mobile Browser, Kiwi Browser, Termux, and Desktop: auto-opens Facebook in AntiGem browser, one-time login persistence, autonomous post/photo/video/reel/story publishing, scheduling, anti-duplicate protection, post re-edit/delete, and viral SEO generation.",
   "author": "Dipesh Kr Yadav",
   "icon": "icon.png",
   "icons": {
@@ -13,9 +13,21 @@
     "128": "icon.png"
   },
   "permissions": [
+    "tabs",
+    "scripting",
+    "debugger",
+    "cookies",
     "storage",
-    "antigemFiles",
-    "scripting"
+    "alarms",
+    "downloads",
+    "antigemFiles"
+  ],
+  "host_permissions": [
+    "*://*.facebook.com/*",
+    "*://facebook.com/*",
+    "*://*.fb.com/*",
+    "*://*.messenger.com/*",
+    "*://*.instagram.com/*"
   ],
   "background": {
     "service_worker": "worker.js"
@@ -24,48 +36,86 @@
   "mcp_tools": [
     {
       "name": "fb_status",
-      "description": "Check Facebook bridge connectivity, SQLite queue status, and rate limit sentinels.",
+      "description": "Check Facebook Automation status, automatically open Facebook in the AntiGem browser if not open, and verify one-time login state. IMPORTANT: If logged_in is false (action_required='ONE_TIME_LOGIN_REQUIRED'), tell the user once to sign in to Facebook in the open AntiGem browser tab and STOP immediately—NEVER poll or retry in a loop.",
       "inputSchema": {
         "type": "object",
-        "properties": {},
+        "properties": {
+          "open_browser": {
+            "type": "boolean",
+            "description": "Automatically open Facebook in the AntiGem browser if no Facebook tab is currently open (default: true)."
+          }
+        },
         "additionalProperties": false
       }
     },
     {
       "name": "fb_login_status",
-      "description": "Detect active Facebook profile, page, or group session from connected browser tab.",
+      "description": "Open Facebook (https://www.facebook.com/) in the AntiGem browser if not open, verify active login session (cookies + DOM), and persist one-time login state. IMPORTANT: If logged_in is false, Facebook is already open on the login screen in the AntiGem browser—ask the user once for their one-time login and STOP immediately (do not loop).",
       "inputSchema": {
         "type": "object",
-        "properties": {},
+        "properties": {
+          "open_browser": {
+            "type": "boolean",
+            "description": "Open and focus Facebook in the AntiGem browser if not already open (default: true)."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fb_open_browser",
+      "description": "Explicitly open and focus Facebook inside the AntiGem browser (feed, reels composer, story creator, or specific page/group) and check one-time login readiness.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "view": {
+            "type": "string",
+            "enum": [
+              "feed",
+              "reels",
+              "stories",
+              "profile",
+              "page",
+              "business_suite"
+            ],
+            "description": "Target Facebook section to open in the AntiGem browser (default: 'feed')."
+          },
+          "target_id": {
+            "type": "string",
+            "description": "Optional Page ID, Group ID, or custom Facebook URL."
+          }
+        },
         "additionalProperties": false
       }
     },
     {
       "name": "fb_publish",
-      "description": "Publish a post (text, photo, video, reel) to Facebook with DOM verification.",
+      "description": "Publish a Facebook post (text, photo, carousel, video, reel, or story) directly inside the AntiGem browser with DOM verification and SHA-256 anti-duplicate protection. Automatically opens Facebook in the AntiGem browser first. If the user is not logged in yet, it queues the task as pending_task, shows the Facebook login screen in the AntiGem browser, and returns action_required='ONE_TIME_LOGIN_REQUIRED' (STOP immediately and ask the user once to log in; once they log in, the task auto-executes or can be triggered via fb_resume_pending).",
       "inputSchema": {
         "type": "object",
         "properties": {
           "caption": {
             "type": "string",
-            "description": "Post caption or text."
+            "description": "Post caption, reel description, or story text."
           },
           "media_paths": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "description": "List of absolute file paths to photos or videos."
+            "description": "List of file paths to photos or videos (supports /sdcard/..., ~/..., or absolute paths)."
           },
           "post_type": {
             "type": "string",
             "enum": [
               "text",
               "photo",
+              "carousel",
               "video",
-              "reel"
+              "reel",
+              "story"
             ],
-            "description": "Format of the Facebook post."
+            "description": "Format of the Facebook upload: 'text', 'photo', 'carousel', 'video', 'reel', or 'story'."
           },
           "target_type": {
             "type": "string",
@@ -74,11 +124,15 @@
               "page",
               "group"
             ],
-            "description": "Where to publish (profile feed, managed page, group)."
+            "description": "Where to publish: 'profile' (personal feed), 'page' (managed page), or 'group'."
           },
           "target_id": {
             "type": "string",
-            "description": "Optional page or group identifier."
+            "description": "Optional Page ID/slug or Group ID."
+          },
+          "first_comment": {
+            "type": "string",
+            "description": "Optional first comment (e.g. external resource link) to post immediately after publishing."
           }
         },
         "required": [
@@ -88,8 +142,81 @@
       }
     },
     {
+      "name": "fb_publish_reel",
+      "description": "Upload and publish a vertical video as a Facebook Reel (https://www.facebook.com/reels/create) in the AntiGem browser. Automatically opens Facebook if needed, checks one-time login, attaches the MP4 video, navigates Next -> Next -> Caption -> Publish. If logged_in is false, saves the Reel task and stops for one-time login.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "video_path": {
+            "type": "string",
+            "description": "Path to the vertical MP4/MOV video file (supports /sdcard/..., ~/..., or absolute paths)."
+          },
+          "caption": {
+            "type": "string",
+            "description": "Reel caption and hashtags."
+          },
+          "target_type": {
+            "type": "string",
+            "enum": [
+              "profile",
+              "page"
+            ],
+            "description": "Target profile or managed page (default: 'profile')."
+          },
+          "target_id": {
+            "type": "string",
+            "description": "Optional Page ID if publishing to a page."
+          }
+        },
+        "required": [
+          "video_path",
+          "caption"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fb_publish_story",
+      "description": "Upload and publish a photo, video, or text Story to Facebook (https://www.facebook.com/stories/create) in the AntiGem browser. Automatically checks one-time login first.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "media_path": {
+            "type": "string",
+            "description": "Optional path to photo or video for the Story."
+          },
+          "caption": {
+            "type": "string",
+            "description": "Story text or overlay caption."
+          },
+          "target_type": {
+            "type": "string",
+            "enum": [
+              "profile",
+              "page"
+            ],
+            "description": "Target profile or page."
+          },
+          "target_id": {
+            "type": "string",
+            "description": "Optional Page ID."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "fb_resume_pending",
+      "description": "Resume and execute any pending Facebook upload task (post, reel, story, edit, delete, comment) after the user has completed their one-time login in the AntiGem browser.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
       "name": "fb_schedule",
-      "description": "Schedule a Facebook post for future publication via local scheduler.",
+      "description": "Schedule a Facebook post, reel, or story for future publication via AntiGem background alarms and local queue.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -99,24 +226,39 @@
           },
           "run_at_timestamp": {
             "type": "number",
-            "description": "Unix epoch timestamp when the post should publish."
+            "description": "Unix epoch timestamp (seconds) or ISO time when the post should publish."
           },
           "media_paths": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "description": "List of absolute file paths."
+            "description": "List of file paths to media."
           },
           "post_type": {
             "type": "string",
             "enum": [
               "text",
               "photo",
+              "carousel",
               "video",
-              "reel"
+              "reel",
+              "story"
             ],
             "description": "Post format."
+          },
+          "target_type": {
+            "type": "string",
+            "enum": [
+              "profile",
+              "page",
+              "group"
+            ],
+            "description": "Target destination."
+          },
+          "target_id": {
+            "type": "string",
+            "description": "Optional target Page or Group ID."
           }
         },
         "required": [
@@ -128,13 +270,13 @@
     },
     {
       "name": "fb_edit_post",
-      "description": "Re-edit an existing Facebook post caption via DOM menu automation.",
+      "description": "Re-edit an existing Facebook post caption via 3-dots DOM menu automation in the AntiGem browser.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "post_url_or_id": {
             "type": "string",
-            "description": "URL or identifier of the post to edit."
+            "description": "URL or identifier of the post to edit (or 'latest' for the most recent post on profile)."
           },
           "new_caption": {
             "type": "string",
@@ -150,13 +292,13 @@
     },
     {
       "name": "fb_delete_post",
-      "description": "Delete a Facebook post or move it to trash via 3-dots menu automation.",
+      "description": "Delete a Facebook post or move it to trash via 3-dots menu automation in the AntiGem browser.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "post_url_or_id": {
             "type": "string",
-            "description": "URL or identifier of the post to delete."
+            "description": "URL or identifier of the post to delete (or 'latest' for the most recent post)."
           }
         },
         "required": [
@@ -167,7 +309,7 @@
     },
     {
       "name": "fb_list_posts",
-      "description": "List published, scheduled, or failed posts from local history database.",
+      "description": "List published, scheduled, awaiting-login, or failed posts from local storage and database.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -180,6 +322,7 @@
             "enum": [
               "published",
               "scheduled",
+              "awaiting_login",
               "failed",
               "pending"
             ],
@@ -191,7 +334,7 @@
     },
     {
       "name": "fb_seo_generate",
-      "description": "Generate an algorithm-optimized viral Facebook post with hook, micro-bullets, CTA, hashtags, and first-comment link.",
+      "description": "Generate an algorithm-optimized viral Facebook post with 1-line hook, 3-4 micro-bullets, engagement CTA, 3-6 hashtags, alt-text, and first-comment link.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -218,14 +361,31 @@
       }
     },
     {
+      "name": "fb_audit_caption",
+      "description": "Audit a post caption for Facebook algorithmic penalties (outbound links in body, hashtag stuffing, wall-of-text density).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "caption": {
+            "type": "string",
+            "description": "Caption text to audit."
+          }
+        },
+        "required": [
+          "caption"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
       "name": "fb_comments",
-      "description": "Post a comment (e.g. first comment with link) or reply on Facebook.",
+      "description": "Post a comment (e.g. first comment with external link) or reply on a Facebook post in the AntiGem browser.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "post_url_or_id": {
             "type": "string",
-            "description": "URL or identifier of the target post."
+            "description": "URL or identifier of the target post (or 'latest' for active post)."
           },
           "comment_text": {
             "type": "string",
@@ -241,7 +401,7 @@
     },
     {
       "name": "fb_doctor",
-      "description": "Self-diagnose Facebook automation environment, bridge status, and guardrails.",
+      "description": "Self-diagnose Facebook automation environment, AntiGem browser tab state, one-time login persistence, debugger readiness, and anti-duplicate guardrails.",
       "inputSchema": {
         "type": "object",
         "properties": {},
@@ -255,8 +415,11 @@
     "facebook",
     "automation",
     "social-media",
+    "reels",
+    "stories",
     "seo",
     "anti-duplicate",
+    "antigem-browser",
     "kiwi-browser",
     "mobile",
     "termux",

@@ -1,94 +1,34 @@
-# Facebook Automation & SEO Studio
+# Facebook Automation & SEO Studio (v1.1.0)
 
-> 🚀 Production-grade Facebook automation engine for Mobile (Android / Kiwi Browser / Termux) and Desktop.
-> Features verified DOM post publishing, scheduling, post re-editing, deletion, comments, viral SEO generation, and **guaranteed zero duplicate uploads**.
-
----
-
-## 🌟 Key Features
-
-- **📱 True Mobile-First Architecture**: Seamlessly operates on Android phones via Kiwi Browser (Manifest V3 extension with $\ge 44$px touch targets) and Termux.
-- **🛡️ Guaranteed Zero Duplicate Uploads**: Dual-tier deduplication engine combining SHA-256 media checksums and normalized caption hashing within a 48-hour rolling window.
-- **🔒 In-Flight Concurrency Lock**: Atomic SQLite locks prevent race conditions and overlapping browser uploads.
-- **⚡ Fast DOM Clipboard Ingestion**: Simulates rapid clipboard pasting to eliminate slow character-by-character typing timeouts.
-- **📈 Algorithmic Facebook SEO**:
-  - High-CTR 1-line retention hooks.
-  - Generous vertical whitespace with 3-4 punchy micro-bullets.
-  - Engagement CTAs and 3-6 targeted hashtags.
-  - **First-Comment Link Strategy**: Automatically advises placing outbound links in the first comment to avoid Facebook's 50% external link reach penalty.
-- **🔄 Full Post Lifecycle Control**:
-  - Create posts (text, single photo, photo carousel, video, reel).
-  - Schedule posts with background SQLite queue runner.
-  - Re-edit existing post captions.
-  - Delete or trash existing posts.
-  - Post first comments or replies.
-- **🌐 100% Privacy Clean**: Zero hardcoded personal user names, page names, or account IDs. Dynamically auto-detects active Facebook sessions.
+> 🚀 Production-grade Facebook automation engine for **AntiGem Mobile Browser**, **Kiwi Browser (Android)**, **Termux**, and **Desktop**.
+> Features automatic Facebook tab opening inside the AntiGem browser, **one-time login persistence with zero-loop protection**, autonomous publishing of **Posts, Photos, Carousels, Videos, Reels, and Stories**, scheduling, post re-editing, deletion, comments, viral SEO generation, and **guaranteed zero duplicate uploads**.
 
 ---
 
-## 📁 Repository Structure
+## 🌟 Key Features & Mobile AntiGem Browser Flow
 
-```
-facebook-automation/
-├── manifest.json              # Antigravity plugin manifest
-├── plugin.json                # Plugin metadata
-├── worker.js                  # WebView service worker
-├── icon.png                   # Plugin icon
-├── setup_mobile.sh            # 1-Command installer for Android Termux & Linux
-├── START_HERE.txt             # Quick-start instructions
-├── README.md                  # Comprehensive documentation
-├── SKILL.md                   # Plugin skill directives
-├── GEMINI.md                  # Operational laws
-├── AGENTS.md                  # Agent directives
-├── CLAUDE.md                  # Directives for Claude
-├── requirements.txt           # Python dependencies
-├── mcp_server/                # FastMCP Server & Bridge
-│   ├── __init__.py
-│   ├── config.py              # Environment configuration & port 8766
-│   ├── database.py            # SQLite database with SHA-256 dedupe & locks
-│   ├── policy_guardian.py     # Anti-burst pacing & block sentinel
-│   ├── fb_seo.py              # Facebook viral copy & SEO engine
-│   ├── bridge_server.py       # WebSocket hub (ws://127.0.0.1:8766)
-│   ├── facebook_controller.py # Publish, edit, delete, and session orchestration
-│   ├── scheduler.py           # Background queue runner
-│   └── server.py              # FastMCP server exposing tools
-├── extension/                 # Mobile-Responsive Chrome/Kiwi Extension
-│   ├── manifest.json          # MV3 extension manifest
-│   ├── background.js          # WS client & tab router
-│   ├── content_bridge.js      # DOM interaction script
-│   ├── anti_detection.js      # Anti-detection stealth helpers
-│   ├── popup.html             # Mobile-friendly popup (touch target >= 44px)
-│   ├── popup.js               # Popup status & session sync controller
-│   ├── styles.css             # Mobile responsive styles
-│   └── icons/                 # Extension icons (16, 48, 128)
-└── skills/                    # Antigravity Skills
-    ├── facebook-automation/
-    │   └── SKILL.md
-    └── facebook-seo/
-        └── SKILL.md
-```
-
----
-
-## ⚡ Quick Start
-
-### 1. Installation
-Run the installer script:
-```bash
-chmod +x setup_mobile.sh
-./setup_mobile.sh
-```
-
-### 2. Load Extension
-1. Open **Kiwi Browser** (Android) or **Google Chrome** (Desktop).
-2. Navigate to `chrome://extensions`.
-3. Enable **Developer Mode**.
-4. Click **Load unpacked** and choose the `extension/` directory.
-
-### 3. Run MCP Server
-```bash
-python3 mcp_server/server.py
-```
+1. **📱 Native AntiGem Mobile Browser Automation (`worker.js`)**:
+   - Directly integrates with AntiGem WebView Extension APIs (`chrome.tabs`, `chrome.scripting`, `chrome.debugger`, `chrome.cookies`, `chrome.storage.local`, `chrome.alarms`, and `chrome.antigem.automation` / `stat` / `readFile`).
+   - When you give any task (e.g., *"Upload this Reel to Facebook"* or *"Post this photo"*), the plugin **automatically opens `https://www.facebook.com/` inside the AntiGem browser**.
+2. **🔑 One-Time Login Gatekeeper & Zero-Loop Guarantee**:
+   - Checks WebView session cookies (`c_user` + `xs`) and live DOM state (`CurrentUserInitialData`, composer, login form inputs).
+   - **If Not Logged In**:
+     - Focuses the open Facebook login tab in the AntiGem browser.
+     - Saves your requested upload in `fb_pending_task`.
+     - Returns `action_required: "ONE_TIME_LOGIN_REQUIRED"` with `stop_loop: true` so the AI asks you **once** to sign in and **stops immediately (zero infinite retry loops!)**.
+   - **Auto-Resume on Sign-In**:
+     - As soon as you complete your one-time login in the AntiGem browser tab, `worker.js` detects the session via `chrome.tabs.onUpdated`, marks `one_time_login_verified: true`, and **automatically starts uploading your queued post/reel/story** (or you can reply *"continue"* to trigger `fb_resume_pending`).
+   - **Permanent Persistence**: Your Facebook login persists in the AntiGem WebView across sessions—you never have to log in again.
+3. **🎬 Full Content Upload Pipeline (Posts, Photos, Videos, Reels, Stories)**:
+   - **Feed Posts (`fb_publish`)**: Text, Single Photo, Multi-Photo Carousel, or Video to Personal Profile, Managed Page, or Group.
+   - **Facebook Reels (`fb_publish_reel`)**: Navigates to `https://www.facebook.com/reels/create`, attaches `.mp4`/`.mov` via CDP `DOM.setFileInputFiles` (zero base64 RAM bloat for large videos), steps through `Next` $\to$ `Next` $\to$ `Describe your reel`, pastes caption & hashtags, and clicks `Publish`.
+   - **Facebook Stories (`fb_publish_story`)**: Navigates to `https://www.facebook.com/stories/create`, attaches photo/video or text card, and taps `Share to story`.
+4. **🛡️ Guaranteed Zero Duplicate Uploads**:
+   - Dual-tier deduplication engine combining SHA-256 caption hashing and file fingerprints within a 48-hour rolling window.
+   - Only published and scheduled posts lock hashes—tasks paused for one-time login are never falsely blocked as duplicates when resumed.
+5. **📈 Algorithmic Facebook SEO**:
+   - High-CTR 1-line retention hooks, 3-4 punchy micro-bullets, engagement CTAs, and 3-6 targeted hashtags.
+   - **First-Comment Link Strategy**: Automatically places outbound links in the first comment (`first_comment` parameter or `fb_comments`) to avoid Facebook's 50% external-link reach penalty.
 
 ---
 
@@ -96,17 +36,21 @@ python3 mcp_server/server.py
 
 | Tool Name | Description |
 | :--- | :--- |
-| `fb_status` | Returns bridge connectivity, queue metrics, and sentinel status. |
-| `fb_login_status` | Detects current active Facebook session (profile/page name & ID). |
-| `fb_publish` | Publishes text, photo, video, or reel with DOM verification. |
-| `fb_schedule` | Schedules a post for future execution. |
-| `fb_edit_post` | Re-edits an existing Facebook post caption. |
-| `fb_delete_post` | Deletes or moves a post to trash via DOM menu. |
-| `fb_list_posts` | Lists recent published, scheduled, or failed posts. |
-| `fb_seo_generate` | Generates viral hook, micro-bullets, hashtags, and alt-text. |
+| `fb_status` | Opens Facebook in AntiGem browser if needed, checks one-time login state, and returns queue metrics. |
+| `fb_login_status` | Opens `https://www.facebook.com/` in AntiGem browser, verifies session cookies + DOM, and persists one-time login. |
+| `fb_open_browser` | Explicitly opens Facebook (`feed`, `reels`, `stories`, `page`, `business_suite`) in the AntiGem browser. |
+| `fb_publish` | Publishes text, photo, carousel, video, reel, or story (with optional `first_comment`). |
+| `fb_publish_reel` | Uploads and publishes a vertical `.mp4` video as a Facebook Reel (`/reels/create`). |
+| `fb_publish_story` | Uploads and publishes a photo, video, or text Story (`/stories/create`). |
+| `fb_resume_pending` | Resumes and executes any pending upload task after completing the one-time login. |
+| `fb_schedule` | Schedules a post, reel, or story for future execution. |
+| `fb_edit_post` | Re-edits an existing Facebook post caption via 3-dots DOM menu. |
+| `fb_delete_post` | Deletes or moves a post to trash via 3-dots DOM menu. |
+| `fb_list_posts` | Lists recent published, scheduled, awaiting-login, or failed posts. |
+| `fb_seo_generate` | Generates viral hook, micro-bullets, hashtags, alt-text, and first-comment link. |
 | `fb_audit_caption` | Audits caption for algorithmic penalties and readability. |
 | `fb_comments` | Submits first comment or reply on target post. |
-| `fb_doctor` | Self-diagnoses environment, database, and bridge health. |
+| `fb_doctor` | Self-diagnoses AntiGem browser APIs, login persistence, debugger, and guardrails. |
 
 ---
 

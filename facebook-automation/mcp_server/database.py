@@ -2,6 +2,8 @@
 Database Engine & Anti-Duplicate Security Sentinel
 Guarantees Idempotency, SHA-256 Media Hashing, Normalized Caption Deduplication,
 and In-Flight Concurrency Locks with TTL.
+Note: Deduplication hashes are strictly enforced against PUBLISHED and SCHEDULED posts,
+so a post that paused for one-time login or failed can be safely retried after login.
 """
 
 import os
@@ -15,6 +17,7 @@ from pathlib import Path
 from .config import DB_PATH, DEDUPE_WINDOW_HOURS, LOCK_TTL_SECONDS
 
 logger = logging.getLogger("FacebookDB")
+
 
 class FacebookDatabase:
     def __init__(self, db_path: Optional[Path] = None):
@@ -43,10 +46,10 @@ class FacebookDatabase:
                 target_type TEXT DEFAULT 'profile', -- 'profile', 'page', 'group'
                 target_id TEXT,
                 target_name TEXT,
-                post_type TEXT DEFAULT 'text',     -- 'text', 'photo', 'video', 'reel'
+                post_type TEXT DEFAULT 'text',     -- 'text', 'photo', 'carousel', 'video', 'reel', 'story'
                 caption TEXT,
                 media_paths TEXT,                 -- JSON array of file paths
-                status TEXT DEFAULT 'pending',     -- 'pending', 'publishing', 'published', 'failed', 'scheduled'
+                status TEXT DEFAULT 'pending',     -- 'pending', 'awaiting_login', 'publishing', 'published', 'failed', 'scheduled'
                 fb_post_id TEXT,
                 post_url TEXT,
                 error_message TEXT,
@@ -113,20 +116,31 @@ class FacebookDatabase:
         norm = "".join(text.strip().lower().split())
         return hashlib.sha256(norm.encode("utf-8")).hexdigest()
 
-    def check_duplicate(self, media_paths: Optional[List[str]] = None, caption: Optional[str] = None, window_hours: int = DEDUPE_WINDOW_HOURS) -> Tuple[bool, Optional[str]]:
+    def check_duplicate(
+        self,
+        media_paths: Optional[List[str]] = None,
+        caption: Optional[str] = None,
+        window_hours: int = DEDUPE_WINDOW_HOURS
+    ) -> Tuple[bool, Optional[str]]:
         """
-        Guarantees ZERO DUPLICATES across both media files and caption text.
+        Guarantees ZERO DUPLICATES across both media files and caption text
+        for already-published or scheduled posts.
         Returns (is_duplicate: bool, reason: str).
         """
         cutoff = time.time() - (window_hours * 3600)
         with self._get_connection() as conn:
-            # Check media hashes
+            # Check media hashes against published/scheduled posts
             if media_paths:
                 for path in media_paths:
                     file_hash = self.compute_file_hash(path)
                     if file_hash:
                         row = conn.execute(
-                            "SELECT post_id, created_at FROM dedupe_hashes WHERE sha256_hash = ? AND created_at >= ? LIMIT 1",
+                            """SELECT d.post_id, d.created_at
+                               FROM dedupe_hashes d
+                               LEFT JOIN posts p ON d.post_id = p.id
+                               WHERE d.sha256_hash = ? AND d.created_at >= ?
+                                 AND (p.status IS NULL OR p.status IN ('published', 'scheduled'))
+                               LIMIT 1""",
                             (file_hash, cutoff)
                         ).fetchone()
                         if row:
@@ -136,7 +150,12 @@ class FacebookDatabase:
             if caption and len(caption.strip()) > 20:
                 txt_hash = self.compute_text_hash(caption)
                 row = conn.execute(
-                    "SELECT post_id, created_at FROM dedupe_hashes WHERE sha256_hash = ? AND hash_type = 'caption' AND created_at >= ? LIMIT 1",
+                    """SELECT d.post_id, d.created_at
+                       FROM dedupe_hashes d
+                       LEFT JOIN posts p ON d.post_id = p.id
+                       WHERE d.sha256_hash = ? AND d.hash_type = 'caption' AND d.created_at >= ?
+                         AND (p.status IS NULL OR p.status IN ('published', 'scheduled'))
+                       LIMIT 1""",
                     (txt_hash, cutoff)
                 ).fetchone()
                 if row:
@@ -149,7 +168,6 @@ class FacebookDatabase:
         now = time.time()
         expires = now + ttl_seconds
         with self._get_connection() as conn:
-            # Clean expired locks
             conn.execute("DELETE FROM in_flight_locks WHERE expires_at < ?", (now,))
             try:
                 conn.execute(
@@ -165,7 +183,33 @@ class FacebookDatabase:
         with self._get_connection() as conn:
             conn.execute("DELETE FROM in_flight_locks WHERE lock_key = ?", (lock_key,))
 
-    def record_post(self, client_id: str, post_type: str, caption: str, media_paths: List[str], target_type: str = "profile", target_id: Optional[str] = None, target_name: Optional[str] = None, status: str = "pending") -> int:
+    def _record_dedupe_hashes(self, conn: sqlite3.Connection, post_id: int, caption: str, media_paths: List[str], now: float):
+        if media_paths:
+            for path in media_paths:
+                h = self.compute_file_hash(path)
+                if h:
+                    conn.execute(
+                        "INSERT INTO dedupe_hashes (sha256_hash, hash_type, post_id, created_at) VALUES (?, 'media', ?, ?)",
+                        (h, post_id, now)
+                    )
+        if caption and len(caption.strip()) > 20:
+            h = self.compute_text_hash(caption)
+            conn.execute(
+                "INSERT INTO dedupe_hashes (sha256_hash, hash_type, post_id, created_at) VALUES (?, 'caption', ?, ?)",
+                (h, post_id, now)
+            )
+
+    def record_post(
+        self,
+        client_id: str,
+        post_type: str,
+        caption: str,
+        media_paths: List[str],
+        target_type: str = "profile",
+        target_id: Optional[str] = None,
+        target_name: Optional[str] = None,
+        status: str = "pending"
+    ) -> int:
         now = time.time()
         with self._get_connection() as conn:
             cur = conn.execute(
@@ -175,19 +219,20 @@ class FacebookDatabase:
             )
             post_id = cur.lastrowid
 
-            # Record hashes for deduplication
-            if media_paths:
-                for path in media_paths:
-                    h = self.compute_file_hash(path)
-                    if h:
-                        conn.execute("INSERT INTO dedupe_hashes (sha256_hash, hash_type, post_id, created_at) VALUES (?, 'media', ?, ?)", (h, post_id, now))
-            if caption and len(caption.strip()) > 20:
-                h = self.compute_text_hash(caption)
-                conn.execute("INSERT INTO dedupe_hashes (sha256_hash, hash_type, post_id, created_at) VALUES (?, 'caption', ?, ?)", (h, post_id, now))
+            # Record dedupe hashes immediately if status is already 'published' or 'scheduled'
+            if status in ("published", "scheduled"):
+                self._record_dedupe_hashes(conn, post_id, caption, media_paths, now)
 
             return post_id
 
-    def update_post_status(self, post_id: int, status: str, fb_post_id: Optional[str] = None, post_url: Optional[str] = None, error_message: Optional[str] = None):
+    def update_post_status(
+        self,
+        post_id: int,
+        status: str,
+        fb_post_id: Optional[str] = None,
+        post_url: Optional[str] = None,
+        error_message: Optional[str] = None
+    ):
         now = time.time()
         pub_at = now if status == "published" else None
         with self._get_connection() as conn:
@@ -198,6 +243,16 @@ class FacebookDatabase:
                    WHERE id = ?""",
                 (status, fb_post_id, post_url, error_message, now, pub_at, post_id)
             )
+            if status == "published":
+                existing = conn.execute("SELECT 1 FROM dedupe_hashes WHERE post_id = ? LIMIT 1", (post_id,)).fetchone()
+                if not existing:
+                    post_row = conn.execute("SELECT caption, media_paths FROM posts WHERE id = ?", (post_id,)).fetchone()
+                    if post_row:
+                        try:
+                            m_paths = json.loads(post_row["media_paths"] or "[]")
+                        except Exception:
+                            m_paths = []
+                        self._record_dedupe_hashes(conn, post_id, post_row["caption"] or "", m_paths, now)
 
     def schedule_post(self, post_id: int, run_at: float) -> int:
         now = time.time()
@@ -247,7 +302,13 @@ class FacebookDatabase:
                 (status, last_error, job_id)
             )
 
-    def log_audit(self, action: str, target_type: Optional[str] = None, target_id: Optional[str] = None, details: Optional[str] = None):
+    def log_audit(
+        self,
+        action: str,
+        target_type: Optional[str] = None,
+        target_id: Optional[str] = None,
+        details: Optional[str] = None
+    ):
         with self._get_connection() as conn:
             conn.execute(
                 "INSERT INTO audit_logs (action, target_type, target_id, details, timestamp) VALUES (?, ?, ?, ?, ?)",

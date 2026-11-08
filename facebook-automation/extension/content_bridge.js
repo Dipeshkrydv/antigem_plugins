@@ -1,16 +1,18 @@
 /**
- * Content Bridge Script for Facebook DOM Automation
- * Handles: Session Detection, Post Creation, Caption Typing/Pasting,
- * File Attachment via DataTransfer, Post Re-Editing, and Post Deleting.
+ * Content Bridge Script for Facebook DOM Automation (v1.1.0)
+ * Handles: Accurate One-Time Login Detection, Feed Post Creation (Text/Photo/Carousel/Video),
+ * Reels Upload (/reels/create), Stories Upload (/stories/create), Caption Pasting,
+ * File Attachment via DataTransfer, Post Re-Editing, Post Deleting, and Comments.
  */
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  const { action, payload } = request;
+  const { action, payload = {} } = request || {};
 
   (async () => {
     switch (action) {
       case "CHECK_SESSION":
-        return checkSession();
+      case "OPEN_FACEBOOK_TAB":
+        return checkSession(payload);
 
       case "PUBLISH_POST":
         return await publishPost(payload);
@@ -28,123 +30,394 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         throw new Error(`Unsupported action: ${action}`);
     }
   })()
-    .then(result => sendResponse(result))
-    .catch(err => sendResponse({ success: false, error: err.message }));
+    .then((result) => sendResponse(result))
+    .catch((err) =>
+      sendResponse({
+        success: false,
+        stop_loop: true,
+        error: err.message || String(err)
+      })
+    );
 
-  return true; // Keep message channel open for async response
+  return true;
 });
 
 function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function checkSession() {
-  const profileAnchor = document.querySelector('a[href*="/me/"], a[aria-label*="Your profile"], div[aria-label*="Your profile"]');
-  const loggedIn = Boolean(profileAnchor || document.querySelector('[role="main"]') || document.querySelector('[aria-label="Facebook"]'));
-  
-  let name = "Facebook User";
-  if (profileAnchor) {
-    name = profileAnchor.getAttribute("aria-label") || profileAnchor.innerText || "Facebook User";
-    name = name.replace(/^Your profile:?\s*/i, "").trim();
+function checkSession(payload = {}) {
+  const cookieState = payload.__cookieState || {};
+  const href = window.location.href;
+  const path = window.location.pathname || "";
+  const html = document.documentElement ? document.documentElement.innerHTML : "";
+  const bodyText = document.body ? document.body.innerText || "" : "";
+
+  const hasLoginInput = Boolean(
+    document.querySelector(
+      'input[name="email"], input[name="pass"], #m_login_email, #m_login_password, button[name="login"], form[action*="/login"] input[type="password"]'
+    )
+  );
+  const isLoginUrl = /^\/(login|recover|r\.php)/i.test(path) || href.includes("facebook.com/login");
+  const isCheckpoint = path.includes("/checkpoint") || /confirm your identity|security check/i.test(bodyText);
+
+  let userId = cookieState.cookieUserId || null;
+  let userName = null;
+
+  const idMatch =
+    html.match(/"CurrentUserInitialData",\[\],\{[^}]*"USER_ID":"(\d+)"/i) ||
+    html.match(/"USER_ID":"(\d+)"/i);
+  if (idMatch && idMatch[1] && idMatch[1] !== "0") {
+    userId = idMatch[1];
+  }
+
+  const nameMatch =
+    html.match(/"CurrentUserInitialData",\[\],\{[^}]*"NAME":"([^"]+)"/i) ||
+    html.match(/"USER_NAME":"([^"]+)"/i);
+  if (nameMatch && nameMatch[1]) {
+    try {
+      userName = JSON.parse(`"${nameMatch[1]}"`);
+    } catch (_) {
+      userName = nameMatch[1];
+    }
+  }
+
+  const profileAnchor = document.querySelector(
+    'a[href*="/me/"], a[href*="/profile.php"], a[aria-label*="Your profile" i], div[aria-label*="Your profile" i], div[aria-label*="Facebook Menu" i]'
+  );
+  if (!userName && profileAnchor) {
+    const label = profileAnchor.getAttribute("aria-label") || profileAnchor.innerText || "";
+    const cleaned = label.replace(/^Your profile:?\s*/i, "").trim();
+    if (cleaned && cleaned.length > 1 && !/^(your profile|profile|facebook menu|menu)$/i.test(cleaned)) {
+      userName = cleaned;
+    }
+  }
+
+  const hasComposer = Boolean(
+    document.querySelector(
+      'div[aria-label*="Create a post" i], div[aria-label*="Make a post" i], div[data-pagelet="ProfileComposer"]'
+    ) ||
+      Array.from(document.querySelectorAll('div[role="button"], span')).some((el) => {
+        const t = (el.innerText || el.textContent || "").trim();
+        return t.includes("What's on your mind") || t.includes("Write something") || t.includes("Create a post");
+      })
+  );
+
+  const loggedIn = Boolean(
+    !hasLoginInput &&
+      !isLoginUrl &&
+      !isCheckpoint &&
+      (cookieState.hasAuthCookies || (userId && userId !== "0") || hasComposer || profileAnchor)
+  );
+
+  if (!loggedIn) {
+    return {
+      success: true,
+      logged_in: false,
+      action_required: "ONE_TIME_LOGIN_REQUIRED",
+      stop_loop: true,
+      data: {
+        logged_in: false,
+        name: null,
+        id: null,
+        type: "profile",
+        url: href,
+        checkpoint: isCheckpoint,
+        action_required: "ONE_TIME_LOGIN_REQUIRED",
+        message:
+          "Facebook is open in the browser. Please complete the one-time login to your Facebook account, then tell me to continue."
+      }
+    };
   }
 
   return {
     success: true,
+    logged_in: true,
     data: {
-      logged_in: loggedIn,
-      name: name,
-      id: "active_session",
+      logged_in: true,
+      name: userName || "Facebook Account",
+      id: userId || "authenticated",
       type: "profile",
-      url: window.location.href
+      url: href
     }
   };
 }
 
-async function publishPost(payload) {
-  const { caption, media_paths, post_type } = payload;
+function attachBase64MediaToInput(fileInput, mediaFiles) {
+  if (!fileInput || !Array.isArray(mediaFiles) || mediaFiles.length === 0) return false;
+  const dt = new DataTransfer();
+  for (const item of mediaFiles) {
+    if (!item || !item.base64) continue;
+    const bin = atob(item.base64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) {
+      bytes[i] = bin.charCodeAt(i);
+    }
+    const fileObj = new File([bytes], item.filename || "upload.jpg", {
+      type: item.mime_type || "image/jpeg",
+      lastModified: Date.now()
+    });
+    dt.items.add(fileObj);
+  }
+  if (mediaFiles.length > 1) fileInput.multiple = true;
+  fileInput.files = dt.files;
+  fileInput.dispatchEvent(new Event("input", { bubbles: true }));
+  fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+  return Boolean(fileInput.files && fileInput.files.length > 0);
+}
 
-  // 1. Locate Composer Trigger ("What's on your mind?")
-  const composerTrigger = document.querySelector(
-    'div[role="button"][tabindex="0"] span:has-text("What's on your mind?"), ' +
-    'div[aria-label*="Create a post"], ' +
-    'div[role="button"]:has(span:contains("What's on your mind?")), ' +
-    'div[data-pagelet="ProfileComposer"] div[role="button"]'
-  ) || Array.from(document.querySelectorAll('div[role="button"]')).find(el => 
-    el.innerText && (el.innerText.includes("What's on your mind") || el.innerText.includes("Create a post"))
-  );
+function insertTextFast(editor, text) {
+  if (!editor || !text) return;
+  editor.scrollIntoView({ block: "center", behavior: "instant" });
+  editor.focus();
+  if (editor.tagName === "TEXTAREA" || editor.tagName === "INPUT") {
+    editor.value = text;
+    editor.dispatchEvent(new Event("input", { bubbles: true }));
+    editor.dispatchEvent(new Event("change", { bubbles: true }));
+    return;
+  }
+  document.execCommand("selectAll", false, null);
+  const ok = document.execCommand("insertText", false, text);
+  if (!ok || !(editor.innerText || "").trim()) {
+    try {
+      const dt = new DataTransfer();
+      dt.setData("text/plain", text);
+      editor.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));
+    } catch (_) {}
+  }
+  if (!(editor.innerText || "").trim()) {
+    editor.innerText = text;
+  }
+  editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+}
 
-  if (!composerTrigger) {
-    throw new Error("Could not find Facebook post composer button on page. Make sure you are on facebook.com home or profile feed.");
+async function publishReelDom(payload) {
+  const { caption = "", media_files = [] } = payload;
+  const inputs = Array.from(document.querySelectorAll('input[type="file"]'));
+  const videoInput =
+    inputs.find((inp) => (inp.getAttribute("accept") || "").toLowerCase().includes("video")) || inputs[0];
+
+  if (!videoInput) {
+    throw new Error("Could not find video file input on Facebook Reels page.");
   }
 
-  composerTrigger.click();
-  await sleep(1500);
+  attachBase64MediaToInput(videoInput, media_files);
+  await sleep(3500);
 
-  // 2. Locate Active Modal Composer Dialog
-  const dialog = document.querySelector('div[role="dialog"]');
-  if (!dialog) {
-    throw new Error("Post composer dialog did not appear.");
+  // Advance through Next -> Next
+  for (let step = 0; step < 3; step++) {
+    const allBtns = Array.from(document.querySelectorAll('div[role="button"], button'));
+    const pubBtn = allBtns.find((el) => {
+      const t = (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim().toLowerCase();
+      return t === "publish" || t === "share" || t === "share now";
+    });
+    if (pubBtn) break;
+
+    const nextBtn = allBtns.find((el) => {
+      const t = (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim().toLowerCase();
+      return t === "next";
+    });
+    if (nextBtn && nextBtn.getAttribute("aria-disabled") !== "true") {
+      nextBtn.click();
+    }
+    await sleep(1800);
   }
 
-  // 3. Locate Text Editor Area
-  const textEditor = dialog.querySelector(
-    'div[role="textbox"][contenteditable="true"], ' +
-    'div[aria-label*="What's on your mind"], ' +
-    'div[data-editor]'
-  );
-
-  if (!textEditor) {
-    throw new Error("Could not find post caption input box.");
-  }
-
-  // Focus and insert caption
-  textEditor.focus();
-  await sleep(300);
-
-  // Fast paste simulation via DataTransfer/execCommand to prevent slow typing timeouts
-  document.execCommand('selectAll', false, null);
-  document.execCommand('insertText', false, caption);
-  textEditor.dispatchEvent(new Event('input', { bubbles: true }));
-  await sleep(600);
-
-  // Verify caption populated in DOM
-  const textInDom = textEditor.innerText || textEditor.textContent || "";
-  if (textInDom.trim().length === 0 && caption.trim().length > 0) {
-    // Fallback direct assignment
-    textEditor.innerText = caption;
-    textEditor.dispatchEvent(new Event('input', { bubbles: true }));
-  }
-
-  // 4. Attach Media if specified
-  if (media_paths && media_paths.length > 0) {
-    const fileInput = dialog.querySelector('input[type="file"][accept*="image"], input[type="file"][accept*="video"], input[type="file"]');
-    if (!fileInput) {
-      // Click Photo/video button to reveal file input
-      const photoBtn = dialog.querySelector('div[aria-label*="Photo/video"], div[aria-label*="Add to your post"] div[role="button"]');
-      if (photoBtn) photoBtn.click();
-      await sleep(1000);
+  if (caption) {
+    const editor = document.querySelector(
+      'div[aria-label*="Describe your reel" i][contenteditable="true"], div[aria-label*="Write a description" i][contenteditable="true"], div[role="textbox"][contenteditable="true"], textarea'
+    );
+    if (editor) {
+      insertTextFast(editor, caption);
+      await sleep(800);
     }
   }
 
-  // 5. Locate & Click "Post" Button
-  await sleep(1000);
-  const postBtn = Array.from(dialog.querySelectorAll('div[role="button"], button')).find(el => {
-    const txt = (el.innerText || el.getAttribute("aria-label") || "").trim().toLowerCase();
-    return txt === "post" || txt === "publish";
-  });
+  for (let i = 0; i < 30; i++) {
+    const btns = Array.from(document.querySelectorAll('div[role="button"], button'));
+    const pubBtn = btns.find((el) => {
+      const t = (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim().toLowerCase();
+      return t === "publish" || t === "share" || t === "share now" || t === "post";
+    });
+    if (pubBtn && pubBtn.getAttribute("aria-disabled") !== "true" && !pubBtn.disabled) {
+      pubBtn.click();
+      await sleep(3500);
+      return {
+        success: true,
+        message: "Facebook Reel published successfully.",
+        fb_post_id: `fb_reel_${Date.now()}`,
+        post_url: window.location.href
+      };
+    }
+    await sleep(1000);
+  }
+
+  throw new Error("Could not click Publish button on Facebook Reels wizard.");
+}
+
+async function publishStoryDom(payload) {
+  const { caption = "", media_files = [] } = payload;
+  if (media_files && media_files.length > 0) {
+    const fileInput = document.querySelector('input[type="file"]');
+    if (fileInput) {
+      attachBase64MediaToInput(fileInput, media_files);
+      await sleep(2500);
+    }
+  } else if (caption) {
+    const textStoryBtn = Array.from(document.querySelectorAll('div[role="button"], span')).find((el) =>
+      /create a text story/i.test(el.innerText || el.textContent || "")
+    );
+    if (textStoryBtn) {
+      textStoryBtn.click();
+      await sleep(1000);
+    }
+    const box = document.querySelector('div[role="textbox"][contenteditable="true"], textarea');
+    if (box) {
+      insertTextFast(box, caption);
+      await sleep(800);
+    }
+  }
+
+  const shareBtn = Array.from(document.querySelectorAll('div[role="button"], button')).find((el) =>
+    /share to story|share now|^share$/i.test(
+      (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim()
+    )
+  );
+  if (!shareBtn) {
+    throw new Error("Could not find 'Share to story' button.");
+  }
+  shareBtn.click();
+  await sleep(3000);
+  return {
+    success: true,
+    message: "Facebook Story published successfully.",
+    fb_post_id: `fb_story_${Date.now()}`,
+    post_url: window.location.href
+  };
+}
+
+async function publishPost(payload) {
+  // 0. Pre-flight One-Time Login Check
+  const session = checkSession(payload);
+  if (!session.logged_in) {
+    return {
+      success: false,
+      logged_in: false,
+      action_required: "ONE_TIME_LOGIN_REQUIRED",
+      stop_loop: true,
+      error:
+        "Facebook is open in the browser, but you are not logged in yet. Please complete the one-time login in the open Facebook tab, then continue."
+    };
+  }
+
+  const { caption = "", media_files = [], post_type = "text" } = payload;
+
+  if (post_type === "reel" && window.location.pathname.includes("/reels/create")) {
+    return await publishReelDom(payload);
+  }
+  if (post_type === "story" && window.location.pathname.includes("/stories/create")) {
+    return await publishStoryDom(payload);
+  }
+
+  // 1. Locate Composer Trigger ("What's on your mind?" / "Create a post") using standard valid DOM queries
+  let dialog = document.querySelector('div[role="dialog"]');
+  if (!dialog || !dialog.querySelector('div[role="textbox"][contenteditable="true"], textarea')) {
+    const composerTrigger =
+      document.querySelector(
+        'div[aria-label*="Create a post" i], div[aria-label*="Make a post" i], div[data-pagelet="ProfileComposer"] div[role="button"]'
+      ) ||
+      Array.from(document.querySelectorAll('div[role="button"], span[role="button"]')).find((el) => {
+        const txt = (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim();
+        return (
+          /what's on your mind/i.test(txt) ||
+          /write something/i.test(txt) ||
+          /create a post/i.test(txt) ||
+          /make a post/i.test(txt)
+        );
+      });
+
+    if (!composerTrigger) {
+      throw new Error(
+        "Could not find Facebook post composer button on page. Ensure you are on the Facebook feed or profile."
+      );
+    }
+
+    composerTrigger.click();
+    await sleep(1500);
+    dialog = document.querySelector('div[role="dialog"]') || document;
+  }
+
+  // 2. Attach Media if provided
+  if (Array.isArray(media_files) && media_files.length > 0) {
+    let fileInput = dialog.querySelector(
+      'input[type="file"][accept*="image"], input[type="file"][accept*="video"], input[type="file"]'
+    );
+    if (!fileInput) {
+      const photoBtn = Array.from(dialog.querySelectorAll('div[role="button"], span[role="button"], button')).find(
+        (el) => {
+          const label = (el.getAttribute("aria-label") || el.innerText || el.textContent || "").trim();
+          return /photo\/video|photos\/videos|add photos|photo/i.test(label);
+        }
+      );
+      if (photoBtn) {
+        photoBtn.click();
+        await sleep(1000);
+      }
+      fileInput = document.querySelector('div[role="dialog"] input[type="file"], input[type="file"]');
+    }
+
+    if (fileInput) {
+      attachBase64MediaToInput(fileInput, media_files);
+      await sleep(2200);
+    }
+  }
+
+  // 3. Locate Text Editor Area (Strictly excluding comment inputs)
+  if (caption && String(caption).trim().length > 0) {
+    const editors = Array.from(
+      dialog.querySelectorAll('div[role="textbox"][contenteditable="true"], textarea')
+    ).filter((el) => {
+      const aria = (el.getAttribute("aria-label") || el.getAttribute("placeholder") || "").toLowerCase();
+      return !aria.includes("comment") && !aria.includes("reply") && !aria.includes("search");
+    });
+
+    const textEditor = editors[0];
+    if (!textEditor) {
+      throw new Error("Could not find post caption input box inside composer.");
+    }
+
+    insertTextFast(textEditor, caption);
+    await sleep(800);
+  }
+
+  // 4. Locate & Click "Post" / "Publish" Button
+  let postBtn = null;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const candidate = Array.from(dialog.querySelectorAll('div[role="button"], button, input[type="submit"]')).find(
+      (el) => {
+        const txt = (el.innerText || el.textContent || el.getAttribute("aria-label") || el.value || "")
+          .trim()
+          .toLowerCase();
+        return txt === "post" || txt === "publish";
+      }
+    );
+    if (candidate && candidate.getAttribute("aria-disabled") !== "true" && !candidate.disabled) {
+      postBtn = candidate;
+      break;
+    }
+    await sleep(800);
+  }
 
   if (!postBtn) {
-    throw new Error("Could not find final 'Post' button in composer dialog.");
+    throw new Error("Could not find enabled 'Post' button in composer dialog.");
   }
 
   postBtn.click();
 
-  // 6. Wait for dialog to dismiss and post to submit
-  let dismissed = false;
+  // 5. Wait for dialog to dismiss
   for (let i = 0; i < 20; i++) {
     await sleep(1000);
     if (!document.querySelector('div[role="dialog"]')) {
-      dismissed = true;
       break;
     }
   }
@@ -158,10 +431,21 @@ async function publishPost(payload) {
 }
 
 async function editPost(payload) {
-  const { post_target, new_caption } = payload;
-  
-  // Locate target post actions menu (3-dots)
-  const menuBtn = document.querySelector('div[aria-label*="Actions for this post"], div[aria-label*="More options"]');
+  const session = checkSession(payload);
+  if (!session.logged_in) {
+    return {
+      success: false,
+      logged_in: false,
+      action_required: "ONE_TIME_LOGIN_REQUIRED",
+      stop_loop: true,
+      error: "Please log in to Facebook once in the open browser tab before editing posts."
+    };
+  }
+
+  const { new_caption } = payload;
+  const menuBtn = document.querySelector(
+    'div[aria-label*="Actions for this post" i], div[aria-label*="More options" i]'
+  );
   if (!menuBtn) {
     throw new Error("Could not find post actions menu (3-dots button).");
   }
@@ -169,11 +453,9 @@ async function editPost(payload) {
   menuBtn.click();
   await sleep(1000);
 
-  // Click "Edit post"
-  const editMenuItem = Array.from(document.querySelectorAll('div[role="menuitem"], div[role="button"]')).find(el => 
-    el.innerText && el.innerText.toLowerCase().includes("edit post")
+  const editMenuItem = Array.from(document.querySelectorAll('div[role="menuitem"], div[role="button"]')).find(
+    (el) => el.innerText && el.innerText.toLowerCase().includes("edit post")
   );
-
   if (!editMenuItem) {
     throw new Error("Could not find 'Edit post' in post options menu.");
   }
@@ -181,24 +463,18 @@ async function editPost(payload) {
   editMenuItem.click();
   await sleep(1500);
 
-  // Locate edit dialog textbox
-  const editDialog = document.querySelector('div[role="dialog"]');
-  const textbox = editDialog ? editDialog.querySelector('div[role="textbox"][contenteditable="true"]') : null;
+  const editDialog = document.querySelector('div[role="dialog"]') || document;
+  const textbox = editDialog.querySelector('div[role="textbox"][contenteditable="true"], textarea');
   if (!textbox) {
     throw new Error("Could not find text input in Edit dialog.");
   }
 
-  textbox.focus();
-  document.execCommand('selectAll', false, null);
-  document.execCommand('insertText', false, new_caption);
-  textbox.dispatchEvent(new Event('input', { bubbles: true }));
+  insertTextFast(textbox, new_caption);
   await sleep(800);
 
-  // Click Save
-  const saveBtn = Array.from(editDialog.querySelectorAll('div[role="button"], button')).find(el => 
-    (el.innerText || "").trim().toLowerCase() === "save"
+  const saveBtn = Array.from(editDialog.querySelectorAll('div[role="button"], button')).find((el) =>
+    /^(save|done|post)$/i.test((el.innerText || "").trim())
   );
-
   if (saveBtn) {
     saveBtn.click();
     await sleep(2000);
@@ -209,8 +485,20 @@ async function editPost(payload) {
 }
 
 async function deletePost(payload) {
-  // Locate post options menu
-  const menuBtn = document.querySelector('div[aria-label*="Actions for this post"], div[aria-label*="More options"]');
+  const session = checkSession(payload);
+  if (!session.logged_in) {
+    return {
+      success: false,
+      logged_in: false,
+      action_required: "ONE_TIME_LOGIN_REQUIRED",
+      stop_loop: true,
+      error: "Please log in to Facebook once in the open browser tab before deleting posts."
+    };
+  }
+
+  const menuBtn = document.querySelector(
+    'div[aria-label*="Actions for this post" i], div[aria-label*="More options" i]'
+  );
   if (!menuBtn) {
     throw new Error("Could not find post actions menu button.");
   }
@@ -218,12 +506,10 @@ async function deletePost(payload) {
   menuBtn.click();
   await sleep(1000);
 
-  // Click "Move to trash" or "Delete"
-  const deleteItem = Array.from(document.querySelectorAll('div[role="menuitem"], div[role="button"]')).find(el => {
+  const deleteItem = Array.from(document.querySelectorAll('div[role="menuitem"], div[role="button"]')).find((el) => {
     const txt = (el.innerText || "").toLowerCase();
     return txt.includes("move to trash") || txt.includes("delete post") || txt.includes("delete");
   });
-
   if (!deleteItem) {
     throw new Error("Could not find 'Move to trash' or 'Delete' in options menu.");
   }
@@ -231,8 +517,9 @@ async function deletePost(payload) {
   deleteItem.click();
   await sleep(1500);
 
-  // Confirm in confirmation modal
-  const confirmBtn = Array.from(document.querySelectorAll('div[role="dialog"] div[role="button"], div[role="dialog"] button')).find(el => {
+  const confirmBtn = Array.from(
+    document.querySelectorAll('div[role="dialog"] div[role="button"], div[role="dialog"] button')
+  ).find((el) => {
     const txt = (el.innerText || "").toLowerCase();
     return txt.includes("move") || txt.includes("delete") || txt.includes("confirm");
   });
@@ -247,24 +534,31 @@ async function deletePost(payload) {
 }
 
 async function addComment(payload) {
+  const session = checkSession(payload);
+  if (!session.logged_in) {
+    return {
+      success: false,
+      logged_in: false,
+      action_required: "ONE_TIME_LOGIN_REQUIRED",
+      stop_loop: true,
+      error: "Please log in to Facebook once in the open browser tab before commenting."
+    };
+  }
+
   const { comment_text } = payload;
   const commentInput = document.querySelector(
-    'div[aria-label*="Write a comment"][contenteditable="true"], ' +
-    'form textarea[placeholder*="Write a comment"], ' +
-    'div[role="textbox"][aria-label*="comment"]'
+    'div[aria-label*="Write a comment" i][contenteditable="true"], form textarea[placeholder*="Write a comment" i], div[role="textbox"][aria-label*="comment" i]'
   );
-
   if (!commentInput) {
     throw new Error("Could not locate comment input on active post.");
   }
 
-  commentInput.focus();
-  document.execCommand('insertText', false, comment_text);
-  commentInput.dispatchEvent(new Event('input', { bubbles: true }));
+  insertTextFast(commentInput, comment_text);
   await sleep(500);
 
-  // Press Enter to submit comment
-  commentInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+  commentInput.dispatchEvent(
+    new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true })
+  );
   await sleep(1500);
 
   return { success: true, message: "Comment submitted successfully." };

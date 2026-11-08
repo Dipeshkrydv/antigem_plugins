@@ -1,57 +1,50 @@
 ====================================================================
-  FACEBOOK AUTOMATION & SEO STUDIO — QUICK START GUIDE
+  FACEBOOK AUTOMATION & SEO STUDIO (v1.1.0) — QUICK START GUIDE
 ====================================================================
 
-Welcome to the Facebook Automation & SEO Studio plugin for Antigravity.
-This plugin enables 100% autonomous Facebook posting, scheduling, re-editing,
-deleting, and viral SEO generation on Mobile (Android / Kiwi Browser) and Desktop.
+Welcome to the Facebook Automation & SEO Studio plugin for AntiGem & Antigravity.
+This plugin enables 100% autonomous Facebook posting, Reels, Stories, scheduling,
+re-editing, deleting, and viral SEO generation on Mobile (AntiGem Browser /
+Kiwi Browser) and Desktop.
 
 --------------------------------------------------------------------
-1. ONE-COMMAND SETUP (MOBILE & DESKTOP)
+1. HOW IT WORKS ON MOBILE (ANTIGEM BROWSER)
+--------------------------------------------------------------------
+1. Give any Facebook task in chat (e.g., "Post this photo/reel to Facebook").
+2. The plugin automatically opens https://www.facebook.com/ inside the
+   AntiGem Browser.
+3. ONE-TIME LOGIN:
+   - If you are not logged in yet, Facebook opens on the login screen in the
+     AntiGem browser, saves your pending upload, and asks you ONCE to sign in
+     (zero retry loops!).
+   - As soon as you sign in once, your login cookies are saved permanently and
+     your pending upload starts automatically (or reply "continue").
+4. All future posts, photos, videos, reels, and stories upload immediately
+   with zero login prompts!
+
+--------------------------------------------------------------------
+2. DESKTOP / TERMUX PYTHON MCP SETUP (OPTIONAL)
 --------------------------------------------------------------------
 Run the setup script from your terminal:
    ./setup_mobile.sh
-
-This automatically installs required dependencies (python, websockets, pillow, mcp)
-and links the skills into your Antigravity environment.
-
---------------------------------------------------------------------
-2. EXTENSION INSTALLATION (KIWI BROWSER / CHROME)
---------------------------------------------------------------------
-1. Open Chrome or Kiwi Browser (on Android phone).
-2. Go to: chrome://extensions
-3. Enable "Developer mode" toggle.
-4. Click "Load unpacked" and select the 'extension' directory:
-   [path_to_plugin]/extension
-5. Open facebook.com and ensure your account is logged in.
-
---------------------------------------------------------------------
-3. LAUNCHING THE MCP SERVER
---------------------------------------------------------------------
-Run:
    python3 mcp_server/server.py
 
-The WebSocket bridge opens on ws://127.0.0.1:8766.
-The extension connects automatically with zero configuration.
-
 --------------------------------------------------------------------
-4. AVAILABLE MCP TOOLS
+3. AVAILABLE MCP TOOLS
 --------------------------------------------------------------------
-- fb_status        : Check bridge connection & queue health
-- fb_login_status : Detect active Facebook profile/page dynamically
-- fb_publish      : Publish post (text/photo/video/reel) with DOM verification
-- fb_schedule     : Schedule post for future publication
-- fb_edit_post    : Re-edit an existing post caption
-- fb_delete_post  : Delete or move a post to trash
-- fb_list_posts   : View recent posts & status history
-- fb_seo_generate : Generate viral Facebook copy, hook, bullets, hashtags
-- fb_comments     : Post first comment (resource link) or reply
-- fb_doctor       : Run environment self-check & diagnosis
-
---------------------------------------------------------------------
-5. GUARANTEES
---------------------------------------------------------------------
-✓ ZERO DUPLICATES: SHA-256 media hashing + normalized caption check.
-✓ PRIVACY CLEAN: Zero hardcoded IDs or accounts. Auto-detects dynamically.
-✓ REACH PROTECTION: External links placed in first comment to protect organic reach.
+- fb_status         : Check status & auto-open Facebook in AntiGem browser
+- fb_login_status   : Verify one-time login session in AntiGem browser
+- fb_open_browser   : Open Facebook (feed, reels, stories, page, business_suite)
+- fb_publish        : Publish post (text/photo/carousel/video/reel/story)
+- fb_publish_reel   : Upload vertical MP4 video to Facebook Reels (/reels/create)
+- fb_publish_story  : Upload photo/video/text to Facebook Stories (/stories/create)
+- fb_resume_pending : Resume queued upload after completing one-time login
+- fb_schedule       : Schedule post/reel for future publication
+- fb_edit_post      : Re-edit an existing post caption
+- fb_delete_post    : Delete or move a post to trash
+- fb_list_posts     : View recent posts & status history
+- fb_seo_generate   : Generate viral Facebook copy, hook, bullets, hashtags
+- fb_audit_caption  : Audit caption for algorithmic reach penalties
+- fb_comments       : Post first comment (resource link) or reply
+- fb_doctor         : Run environment & AntiGem browser self-check
 ====================================================================
