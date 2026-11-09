@@ -244,6 +244,20 @@ class Item:
             b.update(sprite=sp, anchor="left" if align == "left" else "center", enter="fade")
         elif t == "timeline":
             b.update(anchor="left", enter="none")
+        elif t in ("bento_card", "stat_card"):
+            sp = kit.bento_card(d.get("title", d.get("kicker", "")), d.get("value", d.get("text", "100%")),
+                                d.get("delta"), d.get("progress"), d.get("sub", ""), look, S, w)
+            b.update(sprite=kit.fit_into(sp, w, h) if sp.width > w or sp.height > h else sp,
+                     anchor="center", enter=d.get("enter", "rise"))
+        elif t in ("speech_bubble", "thought_bubble"):
+            sp = kit.speech_bubble(d["text"], d.get("tail", "bottom_left"), look, S, w,
+                                   thought=(t == "thought_bubble" or bool(d.get("thought"))))
+            b.update(sprite=kit.fit_into(sp, w, h) if sp.width > w or sp.height > h else sp,
+                     anchor="center", enter=d.get("enter", "pop"))
+        elif t == "highlight_sweep":
+            sp = kit.highlight_sweep_sprite(d["text"], 1.0, look, S, w)
+            b.update(sprite=kit.fit_into(sp, w, h) if sp.width > w or sp.height > h else sp,
+                     anchor="center", enter=d.get("enter", "rise"))
         self.built = b
         return b
 
@@ -387,6 +401,8 @@ class Item:
                 tail = d.get("dur", 1.4) + 0.3
             elif k in ("title", "quote"):
                 tail = 1.5
+            elif k == "highlight_sweep":
+                tail = 1.35
             elif k in OVERLAYS:
                 tail = 1.7
             subs = [x.get("_t", t0) for x in (d.get("items") or d.get("points") or d.get("rows") or [])]
@@ -404,6 +420,19 @@ class Item:
         x += ox; y += oy
         dx, dy, scale, op, rot, reveal = self.state(t, b.get("enter", "rise"))
         t_ = self.type
+        if t_ == "highlight_sweep" and 0 <= t - self.t_in < 1.2:
+            S = self.e.S * (1.22 if self.e.aspect == "9:16" else 1.0)
+            sweep_p = kit.clamp((t - self.t_in - 0.18) / 0.95)
+            q_step = int(round(sweep_p * 24))
+            if q_step not in self.cache:
+                sp_sw = kit.highlight_sweep_sprite(self.d["text"], q_step / 24.0, self.look, S, w)
+                self.cache[q_step] = kit.fit_into(sp_sw, w, h) if sp_sw.width > w or sp_sw.height > h else sp_sw
+            sp = kit.with_alpha(self.cache[q_step], op)
+            px = x + (w - sp.width) / 2 + dx
+            py = y + (h - sp.height) / 2 + dy
+            cv.paste(sp, (int(px), int(py)), sp)
+            self.bbox = (px, py, sp.width, sp.height)
+            return
         if t_ in ("title", "quote") and "rows" in b:
             yy = y
             total_h = sum(r.height for r in b["rows"]) * 0.86
@@ -480,11 +509,13 @@ class Item:
         if t_ == "callout":
             self._draw_callout(cv, t, b, x, y, w, h, scale, op)
             return
-        # generic sprite (kicker, keyword, stamp, lower_third, asset, photo)
+        # generic sprite (kicker, keyword, stamp, lower_third, asset, photo, bento_card, speech_bubble)
         sp = b["sprite"]
         if reveal < 1:
-            vw = max(1, int(sp.width * (round(reveal * 24) / 24 if b.get("enter") == "type" else reveal)))
-            sp = sp.crop((0, 0, vw, sp.height))
+            if b.get("enter") == "type":
+                sp = kit.feathered_wipe(sp, round(reveal * 24) / 24, feather_px=max(2, int(4 * self.e.S)))
+            else:
+                sp = kit.feathered_wipe(sp, reveal, feather_px=max(6, int(24 * self.e.S)))
         if scale != 1.0 or rot:
             sp = sp.resize((max(1, int(sp.width * scale)), max(1, int(sp.height * scale))), Image.BILINEAR)
             if rot:
@@ -497,11 +528,9 @@ class Item:
             if self.type == "kicker":      # sit on the slot's bottom edge: a taller v3 tag grows into the top margin
                 py = y + h - b["sprite"].height + dy
         else:
-            full_w, full_h = b["sprite"].width, b["sprite"].height
-            px = x + (w - full_w) / 2 + dx - (sp.width - full_w * (1 if reveal >= 1 else 0)) / 2 * (1 if reveal >= 1 else 0)
+            full_h = b["sprite"].height
+            px = x + (w - sp.width) / 2 + dx
             py = y + (h - lab_h - full_h) / 2 + dy - (sp.height - full_h) / 2
-            if reveal >= 1:
-                px = x + (w - sp.width) / 2 + dx
         jx, jy = self.jitter(t)
         px, py = px + jx, py + jy
         cv.paste(sp, (int(px), int(py)), sp)
@@ -649,22 +678,6 @@ class Engine:
         self.S = min(self.W, self.H) / 1080
         self.fps = int(self.spec.get("fps", 24))
         self.tl = Timeline(self.spec.get("words", "WORDS.tsv"), lead=float(self.spec.get("cue_lead", 0.08)))
-        # Auto-mix sound if VO.wav exists and mix.wav is missing or cues unpopulated
-        cues_is_stub = not os.path.exists("cues.tsv") or (os.path.exists("cues.tsv") and len([l for l in open("cues.tsv", encoding="utf-8") if l.strip()]) <= 5)
-        if os.path.exists("VO.wav") and (not os.path.exists("mix.wav") or cues_is_stub):
-            try:
-                import subprocess, sys
-                mix_script = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "mix.py")
-                if cues_is_stub:
-                    subprocess.run([sys.executable, mix_script, "--autocues",
-                                    *(["--lines", "VO.tsv"] if os.path.exists("VO.tsv") else [])], check=False)
-                if os.path.exists("cues.tsv"):
-                    subprocess.run([sys.executable, mix_script, "cues.tsv", "--vo", "VO.wav",
-                                    *(["--lines", "VO.tsv"] if os.path.exists("VO.tsv") else []),
-                                    *(["--words", "WORDS.tsv"] if os.path.exists("WORDS.tsv") else []),
-                                    "--out", "mix.wav"], check=False)
-            except Exception:
-                pass
         self.audio = self.spec.get("audio") or next((a for a in ("mix.wav", "VO.wav") if os.path.exists(a)), None)
         self.dur = probe_duration(self.audio) if self.audio else 0.0
         self.dur = self.dur or (self.tl.end() + 1.5)
@@ -894,53 +907,56 @@ class Engine:
     def _bg_frame(self, sc, t):
         if sc.get("_stage") is not None:
             return sc["_stage"].background(t, self.W)
-        k = max(i for i, (tc, _) in enumerate(sc["cuts"]) if tc <= t or i == 0)
-        c0, rect = sc["cuts"][k]
-        c1 = sc["cuts"][k + 1][0] if k + 1 < len(sc["cuts"]) else sc["t1"] + TRANS_D
-        base = self._bg_base(sc, rect)
+        base = self._bg_base(sc, (0.0, 0.0, 1.0, 1.0))
         cam = sc["camera"]
-        if cam == "still" or not sc["bg_is_image"]:
+        if not sc["bg_is_image"] or (cam == "still" and len(sc["cuts"]) <= 1):
             return base.copy()
-        if k % 2 == 1:   # alternate the move direction on every cut so cuts feel like new shots
-            cam = {"push_in": "pull_out", "pull_out": "push_in", "pan_left": "pan_right", "pan_right": "pan_left"}.get(cam, cam)
-        # the camera moves < 0.5 px per frame, so it is updated at CAM_FPS (12) and the warped frame is reused:
-        # the zoom/resize is ~85% of a camera-scene frame, so this nearly halves the cost with no visible change
         tq = math.floor(t * CAM_FPS) / CAM_FPS
-        ckey = (sc["i"], k, round(tq * CAM_FPS))
+        ckey = (sc["i"], round(tq * CAM_FPS))
         wc = self.__dict__.setdefault("_warp_cache", {})
         if not self.NO_CACHE and ckey in wc:
             return wc[ckey].copy()
-        p = kit.ease_in_out(kit.clamp((tq - c0) / max(0.5, c1 - c0)))
+        k = max(i for i, (tc, _) in enumerate(sc["cuts"]) if tc <= tq or i == 0)
+        c0, rect = sc["cuts"][k]
+        # Smooth quintic camera reframing across intra-scene cuts (no jarring jump cuts)
+        if k > 0 and tq - c0 < 0.55:
+            prev_rect = sc["cuts"][k - 1][1]
+            u = kit.ease_in_out_quint(kit.clamp((tq - c0) / 0.55))
+            rect = tuple(prev_rect[j] + (rect[j] - prev_rect[j]) * u for j in range(4))
+        p = kit.ease_in_out(kit.clamp((tq - sc["t0"]) / max(0.5, sc["t1"] - sc["t0"])))
         W, H = self.W, self.H
         z, px_, py_ = 1.0, 0.0, 0.0
         if cam == "push_in":
-            z = 1.0 + 0.040 * p
+            z = 1.0 + 0.042 * p
         elif cam == "pull_out":
-            z = 1.040 - 0.040 * p
+            z = 1.042 - 0.042 * p
         elif cam == "pan_left":
-            z, px_ = 1.04, (0.5 - p) * 0.45
+            z, px_ = 1.04, (0.5 - p) * 0.42
         elif cam == "pan_right":
-            z, px_ = 1.04, (p - 0.5) * 0.45
+            z, px_ = 1.04, (p - 0.5) * 0.42
         elif cam == "rise":
-            z, py_ = 1.04, (0.5 - p) * 0.45
-        else:  # drift
-            z, px_ = 1.018 + 0.022 * p, (p - 0.5) * 0.35
-        cw, ch = W / z, H / z
-        x0 = (W - cw) / 2 + (W - cw) / 2 * px_
-        y0 = (H - ch) / 2 + (H - ch) / 2 * py_
+            z, py_ = 1.04, (0.5 - p) * 0.42
+        elif cam != "still":  # drift
+            z, px_ = 1.018 + 0.024 * p, (p - 0.5) * 0.34
+        rx0, ry0, rx1, ry1 = rect
+        rw, rh = max(1.0, (rx1 - rx0) * W), max(1.0, (ry1 - ry0) * H)
+        cw, ch = rw / z, rh / z
+        x0 = rx0 * W + (rw - cw) / 2 + (rw - cw) / 2 * px_
+        y0 = ry0 * H + (rh - ch) / 2 + (rh - ch) / 2 * py_
         if cv2 is not None:
             cache = self.__dict__.setdefault("_np_cache", {})
-            arr = cache.get((sc["bg"], sc["layout"], rect))
+            arr = cache.get((sc["bg"], sc["layout"]))
             if arr is None:
                 if len(cache) > 3:
                     cache.clear()
-                arr = cache[(sc["bg"], sc["layout"], rect)] = np.asarray(base)
-            m = np.float32([[z, 0, -x0 * z], [0, z, -y0 * z]])
+                arr = cache[(sc["bg"], sc["layout"])] = np.asarray(base)
+            sx, sy = W / cw, H / ch
+            m = np.float32([[sx, 0, -x0 * sx], [0, sy, -y0 * sy]])
             out = Image.fromarray(cv2.warpAffine(arr, m, (W, H), flags=cv2.INTER_LINEAR))
         else:
             out = base.resize((W, H), Image.BILINEAR, box=(x0, y0, x0 + cw, y0 + ch))
         if not self.NO_CACHE:
-            if len(wc) >= 3:
+            if len(wc) >= 4:
                 wc.pop(next(iter(wc)))
             wc[ckey] = out.copy()
         return out
@@ -984,13 +1000,25 @@ class Engine:
         for li, (l, lw) in enumerate(zip(lines, widths)):
             x = (Wc - lw) / 2
             yb = pady + asc * (0.92 if dev else 1.0) + li * lh
+            line_str = " ".join(w for w, _, _ in l) or "A"
+            try:
+                _, l_top, _, l_bot = f.getbbox(line_str, anchor="ls")
+                top_px = max(size * (0.76 if dev else 0.70), -l_top + size * 0.10)
+                bot_px = max(size * (0.22 if dev else 0.16), l_bot + size * 0.10)
+            except Exception:
+                top_px, bot_px = size * 0.88, size * 0.28
             for w, _, ww in l:
                 state = "past" if k < active else ("now" if k == active else "future")
                 key_word = any(h in w for h in self.cap_keys)
                 if style == "plate":
                     col = ink + (255,)
                 elif style == "box" and state == "now":
-                    g.rounded_rectangle([x - size * 0.14, yb - size * 0.92, x + ww + size * 0.14, yb + size * 0.3],
+                    try:
+                        bx0, _, bx1, _ = f.getbbox(w, anchor="ls")
+                        wl, wr = x + min(0, bx0), x + max(ww, bx1)
+                    except Exception:
+                        wl, wr = x, x + ww
+                    g.rounded_rectangle([wl - size * 0.14, yb - top_px, wr + size * 0.14, yb + bot_px],
                                         int(size * 0.18), fill=hi + (255,))
                     col = kit.readable_on(hi) + (255,)
                 elif state == "now":
@@ -1042,9 +1070,10 @@ class Engine:
     NO_CACHE = os.environ.get("DEEPESH_NOCACHE") == "1"       # A/B switch for benchmarking
 
     def _static_key(self, sc, t):
-        """Key under which the composed scene body is IDENTICAL for this frame, or None while anything moves
-        (camera move, an entrance/exit, a count-up, jitter step changes the key every 3 frames)."""
-        if self.NO_CACHE or (sc["bg_is_image"] and sc["camera"] != "still") or sc.get("_stage") is not None:
+        """Key under which the composed scene body is IDENTICAL for this frame, or None while anything moves."""
+        if self.NO_CACHE or sc.get("_stage") is not None:
+            return None
+        if self._shake(sc, t) != (0, 0):
             return None
         alive = []
         for it in sc["items"]:
@@ -1053,7 +1082,8 @@ class Engine:
             if t < it.settled_at() or (it.exit and t > it.t_out - EXIT_D):
                 return None
             alive.append(id(it))
-        return (sc["i"], tuple(alive), int(t * 8) if sc["look"].get("jitter") else 0)
+        cam_step = round(math.floor(t * CAM_FPS)) if (sc["bg_is_image"] and (sc["camera"] != "still" or len(sc["cuts"]) > 1)) else -1
+        return (sc["i"], cam_step, tuple(alive), int(t * 8) if sc["look"].get("jitter") else 0)
 
     def _compose(self, sc, t):
         key = self._static_key(sc, t)
@@ -1120,11 +1150,9 @@ class Engine:
         return cv
 
     def _compose_layered(self, sc, t):
-        """Static background + items that have finished animating are composed ONCE and cached; each frame only
-        redraws the items that are still animating (and the overlay lines). Returns None when that is not provably
-        identical to a full render (moving camera, screen shake, or an animating item that must be drawn UNDER a
-        settled one), in which case the caller renders everything."""
-        if self.NO_CACHE or (sc["bg_is_image"] and sc["camera"] != "still") or sc.get("_stage") is not None:
+        """Background (quantized at CAM_FPS) + items that have finished animating are composed ONCE and cached;
+        each frame only redraws the items that are still animating (and the overlay lines)."""
+        if self.NO_CACHE or sc.get("_stage") is not None:
             return None
         if self._shake(sc, t) != (0, 0):
             return None
@@ -1137,7 +1165,8 @@ class Engine:
         last_settled = max(n for n, _ in settled)
         if any(n < last_settled for n, _ in moving):          # drawing order would change: do it the slow, exact way
             return None
-        key = (sc["i"], tuple(id(it) for _, it in settled), int(t * 8) if sc["look"].get("jitter") else 0)
+        cam_step = round(math.floor(t * CAM_FPS)) if (sc["bg_is_image"] and (sc["camera"] != "still" or len(sc["cuts"]) > 1)) else -1
+        key = (sc["i"], cam_step, tuple(id(it) for _, it in settled), int(t * 8) if sc["look"].get("jitter") else 0)
         cache = self.__dict__.setdefault("_layer_cache", {})
         base = cache.get(key)
         if base is None:
@@ -1216,24 +1245,53 @@ class Engine:
         cv = self._compose(sc, t)
         i = sc["i"]
         if i > 0 and t - sc["t0"] < TRANS_D and sc["transition"] != "cut":
-            e = kit.ease_in_out(kit.clamp((t - sc["t0"]) / TRANS_D))
+            p_tr = kit.clamp((t - sc["t0"]) / TRANS_D)
+            e = kit.ease_in_out_quint(p_tr)
             a = self._compose(self.scenes[i - 1], t)
             tr = sc["transition"]
-            if tr == "fade":
+            W, H = self.W, self.H
+            if tr in ("fade", "dissolve", "film_dissolve"):
                 cv = Image.blend(a, cv, e)
             elif tr == "dip":
-                black = Image.new("RGB", cv.size, (0, 0, 0))
-                cv = Image.blend(a, black, e * 2) if e < 0.5 else Image.blend(black, cv, (e - 0.5) * 2)
+                dark = Image.new("RGB", cv.size, (10, 11, 14))
+                cv = Image.blend(a, dark, e * 2) if e < 0.5 else Image.blend(dark, cv, (e - 0.5) * 2)
             elif tr == "flash":
-                cv = Image.blend(Image.blend(a, cv, e), Image.new("RGB", cv.size, (255, 255, 255)), 0.85 * (1 - abs(2 * e - 1)))
-            elif tr in ("slide", "whip"):
-                off = int((1 - kit.ease_out_expo(e)) * self.W)
+                cv = Image.blend(Image.blend(a, cv, e), Image.new("RGB", cv.size, (248, 246, 240)), 0.55 * (1 - abs(2 * e - 1)))
+            elif tr in ("smooth_zoom", "scale_in", "zoom"):
+                # Senior-editor smooth cross-zoom: outgoing zooms in 1.0->1.08, incoming settles 1.07->1.0
+                za = 1.0 + 0.08 * e
+                zb = 1.07 - 0.07 * e
+                cwa, cha = W / za, H / za
+                a_z = a.resize((W, H), Image.BILINEAR, box=((W - cwa) / 2, (H - cha) / 2, (W + cwa) / 2, (H + cha) / 2))
+                cwb, chb = W / zb, H / zb
+                b_z = cv.resize((W, H), Image.BILINEAR, box=((W - cwb) / 2, (H - chb) / 2, (W + cwb) / 2, (H + chb) / 2))
+                cv = Image.blend(a_z, b_z, e)
+            elif tr in ("luma_wipe", "wipe"):
+                feather = max(24.0, W * 0.14)
+                edge = e * (W + feather)
+                xs = np.arange(W, dtype=np.float32)[None, :, None]
+                mask = np.clip((edge - xs) / feather, 0.0, 1.0)
+                arr = np.asarray(a, np.float32) * (1.0 - mask) + np.asarray(cv, np.float32) * mask
+                cv = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGB")
+            elif tr in ("slide", "paper_slide", "whip", "whip_left", "whip_right"):
+                dir_sign = -1 if tr == "whip_right" else 1
+                off = int((1.0 - e) * W) * dir_sign
                 out = Image.new("RGB", cv.size)
-                out.paste(a, (off - self.W, 0))
-                out.paste(cv, (off, 0))
-                if tr == "whip" and 0.1 < e < 0.9:
-                    out = out.resize((self.W // 10, self.H), Image.BILINEAR).resize((self.W, self.H), Image.BILINEAR)
+                if dir_sign > 0:
+                    out.paste(a, (off - W, 0))
+                    out.paste(cv, (off, 0))
+                else:
+                    out.paste(a, (W + off, 0))
+                    out.paste(cv, (off, 0))
+                if tr in ("whip", "whip_left", "whip_right") and 0.06 < p_tr < 0.94:
+                    # Directional horizontal motion blur (never blocky downscaling)
+                    strength = math.sin(math.pi * p_tr)
+                    ksize = int(max(3, round(strength * 38 * self.S)) // 2 * 2 + 1)
+                    if cv2 is not None and ksize >= 3:
+                        out = Image.fromarray(cv2.GaussianBlur(np.asarray(out), (ksize, 1), 0))
                 cv = out
+            else:
+                cv = Image.blend(a, cv, e)
         lb = self.look.get("letterbox", 0) if sc["bg_is_image"] and self.aspect == "16:9" else 0
         if lb:
             g = ImageDraw.Draw(cv)
@@ -1297,7 +1355,28 @@ def default_workers():
     return max(1, min(cpus - 2, int(avail // 420), 6))
 
 
+def _ensure_audio_mix():
+    """Runs once in the parent process before spawning render workers (eliminates multi-worker race conditions)."""
+    cues_is_stub = not os.path.exists("cues.tsv") or (
+        os.path.exists("cues.tsv") and len([l for l in open("cues.tsv", encoding="utf-8") if l.strip()]) <= 5
+    )
+    if os.path.exists("VO.wav") and (not os.path.exists("mix.wav") or cues_is_stub):
+        try:
+            mix_script = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "mix.py")
+            if cues_is_stub:
+                subprocess.run([sys.executable, mix_script, "--autocues",
+                                *(["--lines", "VO.tsv"] if os.path.exists("VO.tsv") else [])], check=False)
+            if os.path.exists("cues.tsv"):
+                subprocess.run([sys.executable, mix_script, "cues.tsv", "--vo", "VO.wav",
+                                *(["--lines", "VO.tsv"] if os.path.exists("VO.tsv") else []),
+                                *(["--words", "WORDS.tsv"] if os.path.exists("WORDS.tsv") else []),
+                                "--out", "mix.wav"], check=False)
+        except Exception:
+            pass
+
+
 def render_video(edit, scale, out, preview, workers, t_from=0.0, t_to=None):
+    _ensure_audio_mix()
     e = Engine(edit, scale)
     for w in e.warnings:
         print("⚠", w)

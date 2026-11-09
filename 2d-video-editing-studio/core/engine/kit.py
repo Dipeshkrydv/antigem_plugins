@@ -40,6 +40,37 @@ def ease_out_back(p, s=1.6):
     p -= 1
     return 1 + (s + 1) * p ** 3 + s * p ** 2
 
+def ease_out_quint(p):
+    p = clamp(p)
+    return 1.0 - (1.0 - p) ** 5
+
+def ease_in_out_quint(p):
+    p = clamp(p)
+    return 16.0 * p ** 5 if p < 0.5 else 1.0 - ((-2.0 * p + 2.0) ** 5) / 2.0
+
+def spring_smooth(p, damping=0.78, freq=6.2):
+    p = clamp(p)
+    if p >= 0.999:
+        return 1.0
+    return 1.0 - math.exp(-damping * 8.0 * p) * math.cos(freq * p)
+
+def feathered_wipe(im, progress, feather_px=28):
+    """Smooth left-to-right feathered alpha wipe (never slices cards or shadows with a hard straight razor edge)."""
+    p = clamp(progress)
+    if p >= 0.999:
+        return im
+    if p <= 0.001:
+        return Image.new("RGBA", im.size, (0, 0, 0, 0))
+    W, H = im.size
+    feather = max(4.0, float(feather_px))
+    edge = p * (W + feather)
+    xs = np.arange(W, dtype=np.float32)[None, :]
+    mask = np.clip((edge - xs) / feather, 0.0, 1.0)
+    a = np.asarray(im.getchannel("A"), dtype=np.float32) * mask
+    out = im.copy()
+    out.putalpha(Image.fromarray(a.astype(np.uint8)))
+    return out
+
 
 # ------------------------------------------------------------------ fonts & text
 @lru_cache(maxsize=128)
@@ -222,26 +253,39 @@ def text_block(text, role, size, color, max_w, max_lines=2, align="left", accent
     for i, (l, lw) in enumerate(zip(lines, widths)):
         x = pad + (0 if align == "left" else (max(widths) - lw) / (2 if align == "center" else 1))
         base = pad + asc * (0.92 if dev else 1.0) + i * lh
+        line_str = " ".join(w for w, _, _ in l) or "A"
+        try:
+            _, l_top, _, l_bot = f.getbbox(line_str, anchor="ls")
+            top_px = max(s * (0.76 if dev else 0.70), -l_top + s * 0.10)
+            bot_px = max(s * (0.22 if dev else 0.16), l_bot + s * 0.10)
+        except Exception:
+            top_px, bot_px = s * top_k, s * bot_k
         for j, (w, fl, ww) in enumerate(l):
             nxt = l[j + 1][1] if j + 1 < len(l) else frozenset()
             col = color
-            if "hl" in fl:   # highlighter: continuous bar across a highlighted span
+            try:
+                bx0, _, bx1, _ = f.getbbox(w, anchor="ls")
+                w_left = x + min(0, bx0)
+                w_right = x + max(ww, bx1)
+            except Exception:
+                w_left, w_right = x, x + ww
+            if "hl" in fl:   # highlighter: continuous glyph-aligned bar across a highlighted span
                 ext = sp + tracking * s if "hl" in nxt else 0
-                d.rounded_rectangle([x - s * 0.10, base - s * top_k, x + ww + ext + s * 0.10, base + s * bot_k],
-                                    int(s * 0.12), fill=tuple(hl) + (255,))
+                d.rounded_rectangle([w_left - s * 0.11, base - top_px, w_right + ext + s * 0.11, base + bot_px],
+                                    int(s * 0.14), fill=tuple(hl) + (255,))
                 col = readable_on(hl)
             elif "acc" in fl and accent:
                 col = accent
             elif "alt" in fl and alt:
                 col = alt
             if "box" in fl:
-                d.rounded_rectangle([x - s * 0.14, base - s * top_k - s * 0.04, x + ww + s * 0.14, base + s * bot_k + s * 0.04],
+                d.rounded_rectangle([w_left - s * 0.14, base - top_px - s * 0.04, w_right + s * 0.14, base + bot_px + s * 0.04],
                                     int(s * 0.14), outline=tuple(deco) + (255,), width=max(3, int(s * 0.07)))
             d.text((x, base), w, font=f, fill=col, anchor="ls", stroke_width=stroke, stroke_fill=stroke_color)
             if "ul" in fl:
-                pts = squiggle(x, x + ww, base + s * 0.16, s * 0.05, seed=len(w))
+                pts = squiggle(w_left, w_right, base + bot_px * 0.75, s * 0.05, seed=len(w))
                 d.line(pts, fill=tuple(deco) + (255,), width=max(3, int(s * 0.07)), joint="curve")
-            boxes.append((x, base - s * (0.95 if dev else 0.8), ww, s * (1.25 if dev else 1.05), w))
+            boxes.append((w_left, base - top_px, w_right - w_left, top_px + bot_px, w))
             x += ww + sp + tracking * s
     if shadow:
         sh = Image.new("RGBA", im.size, (0, 0, 0, 0))
@@ -1175,3 +1219,135 @@ def strip_title(text, sub, look, size, max_w, S, ink=None):
     out.alpha_composite(strip, ((out.width - strip.width) // 2, 0))
     out.alpha_composite(st, ((out.width - st.width) // 2, strip.height + gap))
     return out
+
+
+def bento_card(title, value, delta, progress, sub, look, S, max_w):
+    """Structured Bento Data Card for Box & Vox styles:
+    Header tag + giant hero stat + delta badge (+38% / -12%) + animated progress bar + subtitle."""
+    panel = tuple(look.get("panel", (24, 28, 36, 245)))
+    ink = readable_on(panel[:3])
+    muted = tuple(look.get("muted", (150, 155, 165)))[:3]
+    acc = tuple(look.get("accent", (255, 59, 48)))[:3]
+    acc2 = tuple(look.get("accent2", (255, 196, 0)))[:3]
+    card_w = int(min(max_w, 680 * S))
+    pad = int(32 * S)
+    inner_w = max(120, card_w - pad * 2)
+
+    layers = []
+    cur_y = pad
+    if title:
+        t_sp, _ = text_block(title, "mono", 28 * S, muted, inner_w, max_lines=1, upper=True, tracking=0.06)
+        t_sp = trim(t_sp)
+        layers.append((t_sp, pad, cur_y))
+        cur_y += t_sp.height + int(14 * S)
+
+    val_sp, _ = text_block(str(value or "100%"), look.get("number_font", "display"), 96 * S, ink, inner_w, max_lines=1)
+    val_sp = trim(val_sp)
+    layers.append((val_sp, pad, cur_y))
+
+    if delta:
+        is_neg = str(delta).strip().startswith("-")
+        d_col = (239, 68, 68) if is_neg else (34, 197, 94)
+        d_pill = pill(str(delta), "mono", int(26 * S), (255, 255, 255), d_col + (255,), int(inner_w * 0.5), radius=int(12 * S))
+        dx = min(card_w - pad - d_pill.width, pad + val_sp.width + int(18 * S))
+        dy = cur_y + max(0, (val_sp.height - d_pill.height) // 2)
+        layers.append((d_pill, dx, dy))
+
+    cur_y += val_sp.height + int(20 * S)
+
+    if progress is not None:
+        bar_h = max(8, int(14 * S))
+        bar_im = Image.new("RGBA", (inner_w, bar_h), (0, 0, 0, 0))
+        bd = ImageDraw.Draw(bar_im)
+        track_col = (45, 50, 62, 220) if ink == (255, 255, 255) else (215, 210, 200, 220)
+        bd.rounded_rectangle([0, 0, inner_w - 1, bar_h - 1], bar_h // 2, fill=track_col)
+        fill_w = int(inner_w * clamp(float(progress), 0.0, 1.0))
+        if fill_w > bar_h:
+            bd.rounded_rectangle([0, 0, fill_w - 1, bar_h - 1], bar_h // 2, fill=acc2 + (255,))
+        layers.append((bar_im, pad, cur_y))
+        cur_y += bar_h + int(16 * S)
+
+    if sub:
+        s_sp, _ = text_block(sub, "sub", 30 * S, muted, inner_w, max_lines=2)
+        s_sp = trim(s_sp)
+        layers.append((s_sp, pad, cur_y))
+        cur_y += s_sp.height + int(8 * S)
+
+    card_h = cur_y + pad - int(8 * S)
+    im = Image.new("RGBA", (card_w, card_h), (0, 0, 0, 0))
+    g = ImageDraw.Draw(im)
+    r = int(24 * S)
+    border_col = acc + (180,) if look.get("grid") else (120, 125, 135, 90)
+    g.rounded_rectangle([0, 0, card_w - 1, card_h - 1], r, fill=panel[:3] + (242,), outline=border_col, width=max(2, int(2.5 * S)))
+    # Top accent highlight bar
+    g.rounded_rectangle([int(24 * S), 0, int(130 * S), max(4, int(6 * S))], int(3 * S), fill=acc + (255,))
+    for sp, lx, ly in layers:
+        im.alpha_composite(sp, (int(lx), int(ly)))
+    return shadow(im, blur=int(18 * S), dy=int(10 * S), alpha=0.30)
+
+
+def speech_bubble(text, tail="bottom_left", look=None, S=1.0, max_w=600, thought=False):
+    """Expressive comic speech/thought bubble with directional pointer tail for Stickman & Sticker storytelling."""
+    look = look or {}
+    role = "round" if "round" in styles.FONT_FILES else "hand"
+    t_sp, _ = text_block(text, role, int(42 * S), (20, 20, 24), int(max_w - 64 * S), max_lines=3, align="center",
+                         accent=look.get("accent", (230, 57, 70)))
+    t_sp = trim(t_sp)
+    padx, pady = int(34 * S), int(24 * S)
+    bw, bh = t_sp.width + padx * 2, t_sp.height + pady * 2
+    tail_h = int(28 * S)
+    W, H = bw + int(16 * S), bh + tail_h + int(12 * S)
+    im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    g = ImageDraw.Draw(im)
+    bx, by = int(8 * S), int(6 * S)
+    r = int(min(bw, bh) * 0.34)
+    outline_w = max(3, int(4.5 * S))
+    g.rounded_rectangle([bx, by, bx + bw, by + bh], r, fill=(255, 255, 255, 252), outline=(20, 20, 24, 255), width=outline_w)
+    tx = bx + int(bw * (0.72 if "right" in str(tail) else 0.28))
+    ty = by + bh
+    if thought:
+        g.ellipse([tx - int(10 * S), ty + int(2 * S), tx + int(10 * S), ty + int(16 * S)],
+                  fill=(255, 255, 255, 252), outline=(20, 20, 24, 255), width=outline_w)
+        g.ellipse([tx - int(18 * S), ty + int(16 * S), tx - int(6 * S), ty + int(26 * S)],
+                  fill=(255, 255, 255, 252), outline=(20, 20, 24, 255), width=outline_w)
+    else:
+        tip_x = tx + (int(18 * S) if "right" in str(tail) else -int(18 * S))
+        pts = [(tx - int(14 * S), ty - outline_w), (tip_x, ty + tail_h), (tx + int(14 * S), ty - outline_w)]
+        g.polygon(pts, fill=(255, 255, 255, 252))
+        g.line([pts[0], pts[1], pts[2]], fill=(20, 20, 24, 255), width=outline_w, joint="curve")
+    im.alpha_composite(t_sp, (bx + padx, by + pady))
+    return shadow(im, blur=int(12 * S), dy=int(6 * S), alpha=0.25)
+
+
+def highlight_sweep_sprite(text, progress, look, S, max_w):
+    """Vox Documentary signature archival quote with a live left-to-right yellow chisel-tip marker sweep."""
+    hl_col = tuple(look.get("accent2", (255, 214, 10)))[:3]
+    ink = (24, 22, 20)
+    # Render base un-highlighted text card and fully-highlighted text card, then sweep the highlight bar
+    clean_text = re.sub(r"[_*~^\[\]]", "", text or "")
+    t_base, info = text_block(clean_text, "serif", int(52 * S), ink, int(max_w - 64 * S), max_lines=3, align="left")
+    padx, pady = int(32 * S), int(26 * S)
+    W, H = t_base.width + padx * 2, t_base.height + pady * 2
+    im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    g = ImageDraw.Draw(im)
+    g.rounded_rectangle([0, 0, W - 1, H - 1], int(14 * S), fill=(250, 246, 236, 246), outline=(210, 200, 184, 220), width=max(2, int(2 * S)))
+    # Draw animated chisel marker sweep across the text lines
+    p = ease_out_quint(clamp(progress))
+    if p > 0.01 and info.get("boxes"):
+        hl_layer = Image.new("RGBA", t_base.size, (0, 0, 0, 0))
+        hd = ImageDraw.Draw(hl_layer)
+        xs = [b[0] for b in info["boxes"]]
+        xe = [b[0] + b[2] for b in info["boxes"]]
+        ys = [b[1] for b in info["boxes"]]
+        hs = [b[3] for b in info["boxes"]]
+        min_x, max_x = min(xs), max(xe)
+        sweep_x = min_x + (max_x - min_x) * p
+        for bx, by, bw, bh, _ in info["boxes"]:
+            if bx < sweep_x:
+                rx = min(bx + bw + 6 * S, sweep_x)
+                slant = 5 * S
+                pts = [(bx - 4 * S + slant, by + 2 * S), (rx + slant, by + 2 * S), (rx, by + bh - 2 * S), (bx - 4 * S, by + bh - 2 * S)]
+                hd.polygon(pts, fill=hl_col + (215,))
+        im.alpha_composite(hl_layer, (padx, pady))
+    im.alpha_composite(t_base, (padx, pady))
+    return shadow(im, blur=int(16 * S), dy=int(8 * S), alpha=0.28)

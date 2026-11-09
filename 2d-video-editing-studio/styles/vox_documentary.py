@@ -333,6 +333,15 @@ RECIPES = {
             {"type": "note", "text": "1960s BROADCAST", "slot": "l1", "at": "WORD"},
         ],
     },
+    # Archival document quote with live left-to-right yellow chisel-tip marker sweep
+    "highlight_sweep": {
+        "layout": "stat_hero", "bg": "paper",
+        "items": [
+            {"type": "kicker", "text": "DECLASSIFIED // QUOTE"},
+            {"type": "highlight_sweep", "text": "सत्ता केवल बंदूक से नहीं, सूचना के नियंत्रण से चलती है।", "slot": "title", "at": "WORD"},
+            {"type": "asset", "name": "CUTOUT_DOCUMENT", "slot": "right", "at": "WORD"},
+        ],
+    },
 }
 
 EXAMPLES = [

@@ -10,20 +10,23 @@ Each pack:
 
 FONT_FILES = {
     # role -> (latin file, devanagari file)   paths relative to the studio fonts/ folder
-    # Globally enforce Google Fonts Noto Sans Devanagari to prevent missing glyphs and tofu boxes
-    "display": ("english/Anton-Regular.ttf", "hindi/NotoSansDevanagari-VF.ttf@700"),
-    "headline": ("english/Montserrat-Bold.ttf", "hindi/NotoSansDevanagari-VF.ttf@700"),
+    # Multi-font creative typography hierarchy across Latin & Unicode Devanagari
+    "display": ("english/Anton-Regular.ttf", "hindi/Khand-Bold.ttf"),
+    "headline": ("english/Metropolis-Bold.otf", "hindi/Khand-Bold.ttf"),
     "body": ("english/Montserrat-Bold.ttf", "hindi/NotoSansDevanagari-VF.ttf@600"),
-    "caption": ("english/Montserrat-Bold.ttf", "hindi/NotoSansDevanagari-VF.ttf@600"),
-    "sub": ("english/Montserrat-Bold.ttf", "hindi/NotoSansDevanagari-VF.ttf@600"),
-    "mono": ("english/SpaceMono-Bold.ttf", "hindi/NotoSansDevanagari-VF.ttf@600"),
+    "caption": ("english/Montserrat-Bold.ttf", "hindi/Baloo2-Bold.ttf"),
+    "sub": ("english/Lora-Bold.ttf", "hindi/NotoSerifDevanagari-VF.ttf@600"),
+    "mono": ("english/SpaceMono-Bold.ttf", "hindi/Khand-Bold.ttf"),
     "hand": ("Kalam-Bold.ttf", "Kalam-Bold.ttf"),              # handwriting (Latin + Devanagari)
     # serif for magazine / Vox headlines. Hindi uses Noto Serif Devanagari (variable font, @weight)
     "serif": ("english/PlayfairDisplay-Bold.ttf", "hindi/NotoSerifDevanagari-VF.ttf@700"),
     "serif_reg": ("english/NotoSerif-Regular.ttf", "hindi/NotoSerifDevanagari-VF.ttf@500"),
-    "round": ("english/Montserrat-Bold.ttf", "hindi/NotoSansDevanagari-VF.ttf@600"),
+    "round": ("hindi/Baloo2-ExtraBold.ttf", "hindi/Baloo2-ExtraBold.ttf"),
     "vintage": ("english/PlayfairDisplay-Bold.ttf", "hindi/YatraOne-Regular.ttf"),
-    "impact": ("english/Anton-Regular.ttf", "hindi/NotoSansDevanagari-VF.ttf@700"),
+    "impact": ("english/Anton-Regular.ttf", "hindi/Khand-Bold.ttf"),
+    "cinema": ("english/TheGodfather.TTF", "hindi/YatraOne-Regular.ttf"),
+    "futuristic": ("english/Aquawax-Black.ttf", "hindi/Khand-Bold.ttf"),
+    "sticker_pop": ("hindi/Baloo2-ExtraBold.ttf", "hindi/Baloo2-ExtraBold.ttf"),
 }
 
 _NEG = ("no text, no letters, no captions, no watermark, no logo, no signature, no UI, "

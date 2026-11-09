@@ -79,6 +79,25 @@ def call_bridge(command, payload=None, timeout=180):
     return data.get("result", {})
 
 
+def check_flow_auto_status():
+    """Checks if Flow Connector CLI (flow-auto) and Chrome extension are connected."""
+    if not shutil.which("flow-auto"):
+        return False, "flow-auto CLI not installed"
+    import subprocess
+    try:
+        r = subprocess.run(
+            ["flow-auto", "status", "--site", "flow", "--json"],
+            capture_output=True, text=True, timeout=4
+        )
+        if r.returncode == 0:
+            data = json.loads(r.stdout)
+            if data.get("extensionConnected") or data.get("connected") or data.get("status") in ("ok", "connected", "ready"):
+                return True, data
+    except Exception as e:
+        return False, str(e)
+    return False, "Flow Connector extension not connected"
+
+
 def check_bridge_status():
     """Checks if DeepX bridge and Google Flow tab are active."""
     try:
@@ -559,12 +578,86 @@ def main():
         log(f"✓ All {len(rows)} assets are ALREADY GENERATED and verified — ZERO calls sent to Google Flow!")
         sys.exit(0)
 
-    # Verify Bridge Connection ONLY when there is actually work to do
+    # Tier 1: Check Flow Connector Extension (`flow-auto`) first
+    flow_auto_ok, flow_auto_info = check_flow_auto_status()
+    if flow_auto_ok:
+        log(f"⚡ Flow Connector Extension connected! Queuing {len(pending)} pending asset(s) in parallel (batch=4, 1.2s gap)...")
+        import glob
+        import subprocess
+        folder_name = os.path.basename(os.path.abspath(".")) + "_flow"
+        downloads_dir = os.path.expanduser(f"~/Downloads/{folder_name}")
+        os.makedirs(downloads_dir, exist_ok=True)
+        model_slug = "nano-banana-pro" if "pro" in a.model.lower() else ("nano-banana-lite" if "lite" in a.model.lower() else "nano-banana-2")
+        for idx, row in enumerate(pending, 1):
+            name = row["name"]
+            if done_path(name):
+                continue
+            raw_prompt = row["prompt"].strip()
+            tag = f"#{name}"
+            final_prompt = raw_prompt if tag in raw_prompt else f"{raw_prompt} {tag}"
+            cmd = [
+                "flow-auto", "generate", "create", "flow-text-to-image",
+                "--prompt", final_prompt,
+                "--model", model_slug,
+                "--ratio", row["aspect"],
+                "--count", "1",
+                "--index", str(idx),
+                "--folder", folder_name,
+                "--batch", str(max(2, min(a.parallel, 4))),
+                "--delay", "3-6",
+                "--image-delay", "1.0-2.0",
+                "--json"
+            ]
+            if row.get("ref") and done_path(row["ref"]):
+                cmd.extend(["--images", os.path.abspath(done_path(row["ref"]))])
+            try:
+                subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+                man.set(name, hash=row["h"], status="inflight", t=int(time.time()))
+                fg.mark_submitted()
+                log(f"  [+] Queued [{idx}/{len(pending)}] {name} to Flow Connector")
+            except Exception as ex:
+                log(f"  [!] Flow Connector queue warning for {name}: {ex}")
+            time.sleep(0.35)
+
+        t_end = time.time() + a.wait
+        idx_map = {idx: row for idx, row in enumerate(pending, 1)}
+        while idx_map and time.time() < t_end:
+            try:
+                fh.harvest_from_folder(elements_tsv=a.elements)
+            except Exception:
+                pass
+            for idx, row in list(idx_map.items()):
+                name = row["name"]
+                if done_path(name):
+                    man.set(name, hash=row["h"], status="done", file=done_path(name))
+                    idx_map.pop(idx, None)
+                    fg.record_ok()
+                    log(f"  ✓ {name} completed! ({len(rows) - len(idx_map)}/{len(rows)} ready)")
+                    continue
+                matches = []
+                for ext in ("*.png", "*.jpg", "*.jpeg", "*.webp"):
+                    matches.extend(glob.glob(os.path.join(downloads_dir, f"{idx}_*{ext[1:]}")))
+                if matches:
+                    latest = max(matches, key=os.path.getctime)
+                    if os.path.getsize(latest) > 1024:
+                        dst = os.path.join(RAW_DIR, f"{name}.png")
+                        Image.open(latest).convert("RGB").save(dst, "PNG")
+                        man.set(name, hash=row["h"], status="done", file=dst)
+                        idx_map.pop(idx, None)
+                        fg.record_ok()
+                        log(f"  ✓ {name} harvested from Flow Connector ({len(rows) - len(idx_map)}/{len(rows)} ready)")
+            if idx_map:
+                time.sleep(1.5)
+        missing = [r["name"] for r in rows if not done_path(r["name"])]
+        log(f"\nFlow Connector batch completed: {len(rows) - len(missing)}/{len(rows)} ready.")
+        sys.exit(1 if missing else 0)
+
+    # Tier 2: Verify DeepX Bridge Connection ONLY when there is actually work to do
     bridge_ok, info = check_bridge_status()
     if not bridge_ok:
         sys.exit(
             "⚠️ Google Flow Bridge is not connected!\n"
-            "Open Google Flow in your browser (https://flow.google.com), ensure the DeepX extension is active,\n"
+            "Open Google Flow in your browser (https://flow.google.com), ensure the Flow Connector or DeepX extension is active,\n"
             "and re-run `python studio.py generate`."
         )
 

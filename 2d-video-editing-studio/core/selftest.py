@@ -130,7 +130,14 @@ EDITS = {
     "box": {"style": "box", "scenes": [
         {"at": "@01", "bg": "grid", "layout": "kpi_row", "items": [
             {"type": "title", "text": "तीन *आँकड़े*"}, {"type": "counter", "from": 0, "to": 104, "slot": "a"},
-            {"type": "counter", "from": 0, "to": 9, "slot": "b"}]}]},
+            {"type": "bento_card", "title": "GROWTH", "value": "104 साल", "delta": "+38%", "progress": 0.78, "slot": "b"}]}]},
+    "stickman": {"style": "stickman", "scenes": [
+        {"at": "@01", "bg": "paper", "layout": "whiteboard_hero", "items": [
+            {"type": "speech_bubble", "text": "दिमाग का इस्तेमाल करो!", "slot": "title"},
+            {"type": "asset", "name": "cut_a", "slot": "center"}]},
+        {"at": "@02", "bg": "paper", "layout": "hero", "items": [
+            {"type": "highlight_sweep", "text": "सत्ता एक खानदान की रही", "slot": "title"},
+            {"type": "asset", "name": "cut_b", "slot": "right"}]}]},
     "kinetic": {"style": "kinetic", "scenes": [
         {"at": "@01", "bg": "dark", "layout": "mega_word", "items": [{"type": "title", "text": "*रुकिए*"}]}]},
     "cinematic": {"style": "cinematic", "scenes": [

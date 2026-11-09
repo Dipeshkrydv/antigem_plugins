@@ -46,13 +46,13 @@ KICKERS = {
     "toon": ["chip", "rule", "bracket"],
 }
 TRANSITIONS = {
-    "noir": ["dip", "fade", "dip", "cut", "flash", "fade"],
-    "cinematic": ["fade", "dip", "cut", "fade", "whip"],
-    "documentary": ["slide", "cut", "fade", "whip", "slide"],
-    "sticker": ["whip", "slide", "cut", "flash", "whip"],
-    "box": ["slide", "fade", "cut", "slide"],
-    "kinetic": ["cut", "flash", "whip", "cut", "slide"],
-    "toon": ["whip", "slide", "fade", "cut"],
+    "noir": ["dip", "fade", "smooth_zoom", "luma_wipe", "slide"],
+    "cinematic": ["fade", "dip", "smooth_zoom", "luma_wipe", "whip"],
+    "documentary": ["paper_slide", "smooth_zoom", "fade", "whip", "luma_wipe"],
+    "sticker": ["whip", "smooth_zoom", "paper_slide", "fade", "slide"],
+    "box": ["slide", "smooth_zoom", "fade", "luma_wipe"],
+    "kinetic": ["whip", "smooth_zoom", "slide", "fade"],
+    "toon": ["paper_slide", "smooth_zoom", "whip", "fade"],
 }
 ENTRANCES = ["rise", "pop", "drop", "slide", "snap", "slide_l", "fade"]
 

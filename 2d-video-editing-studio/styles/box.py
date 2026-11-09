@@ -179,6 +179,15 @@ RECIPES = {
             {"type": "lower_third", "text": "↑ 38% YoY", "sub": "source: Statista"},
         ],
     },
+    "bento_card": {
+        "layout": "hero", "bg": "grid", "camera": "drift",
+        "items": [
+            {"type": "kicker", "text": "DATA INSIGHT // BENTO"},
+            {"type": "title", "text": "डेटा का *असली* सच"},
+            {"type": "bento_card", "title": "ANNUAL GROWTH", "value": "$142B", "delta": "+38.4%", "progress": 0.78,
+             "sub": "वैश्विक बाज़ार में रिकॉर्ड उछाल", "slot": "right", "at": "WORD"},
+        ],
+    },
     "kpi_row": {
         "layout": "kpi_row", "bg": "grid", "camera": "drift",
         "items": [

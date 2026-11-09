@@ -145,6 +145,11 @@ PREFER = {
     "bigtext": ["back"], "block": ["back"], "chart": ["band", "center"], "badge": ["l1", "r1"],
     "ransom": ["l1", "label", "r1"], "note": ["l1", "r1", "l2", "r2"],
     "character": ["cast"],
+    "bento_card": ["right", "left", "center", "main", "a", "b", "c"],
+    "stat_card": ["right", "left", "center", "main", "a", "b", "c"],
+    "speech_bubble": ["bubble", "l1", "r1", "label", "title", "right", "left"],
+    "thought_bubble": ["bubble", "l1", "r1", "label", "title", "right", "left"],
+    "highlight_sweep": ["title", "center", "main", "right", "left"],
 }
 
 # layouts whose text is centred rather than left-aligned (style files add theirs via CENTERED = {...})

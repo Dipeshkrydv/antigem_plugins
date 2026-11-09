@@ -74,7 +74,7 @@ STYLE = {
         "transition": "dip",             # dip-to-black between beats
         "camera": "push_in",             # relentless investigator move
         "kicker_prefix": "CASE FILE",
-        "title_font": "display",
+        "title_font": "vintage",
         # keyword rotation: forensic and investigative treatments
         "boxes": ["cctv", "timestamp", "redact_bar", "label", "torn"],
     },

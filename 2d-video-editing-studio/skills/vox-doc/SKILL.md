@@ -1,90 +1,42 @@
 ---
 name: vox-doc
-description: Make a complete Vox-style documentary explainer video on any topic, end to end. It covers one-time tool setup, the script, the voiceover, word timing, a scene plan, bespoke cut-out PNG art from Google Flow, rough maps with pins, clocks and charts drawn in code, labels on everything, sound design, and the final MP4. Works in Hindi, English and many other languages. Use when the user says "start", "continue", "setup", "vox doc", "documentary banao", "explainer video", "video banao", names a topic for a video, or opens the vox-doc zip.
+description: Senior Video Editor Vox Documentary & Bento Box Explainer Engine (v3.2). Produces broadcast-grade Vox paper-collage documentaries and structured Bento Box data explainers using the unified studio.py v3.2 pipeline, 3-Tier Google Flow Rapid Parallel Engine (Flow Connector CLI + AntiGem WebView FlowClient + DeepX Bridge), live chisel-tip highlighter sweeps (highlight_sweep), Bento Data Cards (bento_card), quintic smooth camera/transition physics, and creative multi-font typography (PlayfairDisplay, NotoSerifDevanagari, Khand-Bold, SpaceMono).
 ---
 
-# Vox-style documentary, end to end
+# Vox Documentary & Bento Box Explainer — Senior Video Editor Protocol (v3.2)
 
-You make the whole video for the user. They give a topic. You do everything else
-and show them checkpoints along the way.
+## ⚡ 0. ZERO-LOOP DIRECT EXECUTION MANDATE
+- **NEVER** call legacy v1 scripts (`kokoro_vo.py`, `whisper_align.py`, or manual 1-by-1 `flow-auto --wait` loops).
+- **ALWAYS** execute through the unified `studio.py` v3.2 pipeline inside a project directory (`python studio.py new <project_dir>`):
+  1. `CARTESIA_API_KEY=... python studio.py voice --voice anuj` -> `VO.wav`, `VO.tsv`, `WORDS.tsv`
+  2. `python studio.py plan --style documentary` (or `--style box`) -> `PLAN.json`
+  3. Write `SHOTS.json` -> `python studio.py prompts` -> `ELEMENTS.tsv`
+  4. `python studio.py generate` -> **3-Tier Parallel Flow Engine** (auto-detects `flow-auto` Flow Connector extension `--batch 4`, AntiGem WebView `FlowClient` `"Nano Banana 2.1"`, or `DeepX Bridge`)
+  5. `python studio.py key` -> keys magenta `#FF00FF` cutouts into `elements/cut/` with 2-tier soft contact + ambient shadows
+  6. Write `EDIT.json` -> `python studio.py check` -> `python studio.py sheet`
+  7. `python studio.py render` -> auto-mixes `-14 LUFS` BGM + Foley SFX (`mix.wav`) once in the parent process and renders `master.mp4` using cached static foreground layers.
 
-**Talk to the user in their own language**, the one they write in (often
-Hinglish). Keep it simple. Commands, file names and file contents stay in
-English. Always give full absolute paths. Give a `https://` link only when you are certain it is right (one written in these files, or one a tool printed); never guess a URL. If unsure, give the menu path or let the tool say it.
+---
 
-`<skill>` below means this skill's folder: `~/.claude/skills/vox-doc/`. On
-Windows that is `C:\Users\<me>\.claude\skills\vox-doc\`.
+## 🎨 1. VOX DOCUMENTARY (`"style": "documentary"`) vs. BENTO BOX (`"style": "box"`)
 
-The companion skill **vox-doc-sound** (`~/.claude/skills/vox-doc-sound/`) does
-the voice and the sound. Read its `SKILL.md` when you reach those stages.
+### A. Vox Documentary (`"style": "documentary"`)
+- **Visual Identity**: Tactile cream paper (`#F4ECE1`), graph grids, halftone B&W archival photography (`"halftone": "bw"`), torn paper edges (`"frame": "torn"`), and one intentional spot colour (`#EC6624` burnt orange or `#F7C424` mustard).
+- **Creative Typography**:
+  - Headlines: `PlayfairDisplay-Bold` (Latin) / `NotoSerifDevanagari-VF@700` (Hindi)
+  - Numbers & Kickers: `SpaceMono-Bold` / `Khand-Bold`
+- **Signature Motion Graphics (`EDIT.json` items)**:
+  - `{"type": "highlight_sweep", "text": "...", "slot": "title", "at": "WORD"}`: Live left-to-right yellow chisel-tip marker sweep across archival quotes!
+  - `{"type": "title", "text": "सत्ता का *केंद्र*", "box": "strip"}`: Highlighter strip title.
+  - `{"type": "chart", "slot": "band", "rows": [...]}`: Screen-printed horizontal bar chart.
+  - `{"type": "block", "shape": "circle", "color": "accent", "slot": "back"}`: Giant solid color orb behind an archival cutout.
+- **Smooth Transitions**: `"paper_slide"`, `"smooth_zoom"`, `"luma_wipe"`, `"fade"`, `"whip"` (directional Gaussian blur, zero blocky downscaling).
 
-Read `<skill>/PLAYBOOK.md` fully before planning any video. Its Part 1 rules are
-what make the film understandable. Follow them without exception.
-
-## Every time this skill starts ("start", "continue", a topic, anything)
-
-1. **Setup check.** Read `<skill>/SETUP_STATUS.md`.
-   - If it is missing, or any required row is not ✅, run or resume
-     `<skill>/SETUP.md` from the first unfinished step. Then come back here.
-   - Prerequisite: Flow Connector, installed by the user from the extension's own
-     setup prompt. At setup only check that it is installed (`flow-auto --version`).
-     If `flow-auto` is missing, stop and ask the user to run that extension prompt
-     first, then say "continue". "Extension not connected" is NOT a setup failure:
-     it only means no Flow tab is open right now. Check the connection at stage 5.
-2. **Find the project.**
-   - Projects live in `~/VoxDoc/<topic-slug>/`.
-   - "continue" with no topic: open the `PROGRESS.md` modified most recently
-     under `~/VoxDoc/`. Tell the user which project and which stage you are
-     resuming.
-   - A new topic: create `~/VoxDoc/<topic-slug>/` (short, lowercase, no
-     spaces) and a `PROGRESS.md` in it.
-   - No topic yet: ask three things in one short message, and suggest no defaults:
-     - **Topic**: their own, or "Want me to suggest a list of topics?" If yes,
-       give 8-10 Vox-style topics with a one-line hook each, mixed between
-       India and the world. They pick one or ask for more.
-     - **Language** of the narration: Hindi, English, Hinglish, **or any other
-       language**. Always show "other" as an option. Say honestly which
-       languages have a free voice (vox-doc-sound SKILL.md, step 2).
-     - **Length**: the user decides. Offer choices such as 1, 3, 5 or 10
-       minutes, or any length they type, and do not pre-select one.
-3. **Work only from inside the project folder.** Run every script from there,
-   for example `python <skill>/scripts/render.py plan`. The scripts read and
-   write the current folder.
-4. After each stage, update `PROGRESS.md`:
-   - the stage name, ✅, and the key decisions (voice, length, language)
-   - what the user approved
-   That way "continue" in any new chat picks up at the right stage.
-
-## Stages (show the checkpoint, then go on)
-
-| # | Stage | Do | Checkpoint shown to the user |
-|---|---|---|---|
-| 1 | Script | `SCRIPT.md`: structure and rules in PLAYBOOK Part 3 §1. About 15 lines per minute of the chosen length, facts checked. Also write `LINES.tsv` (`id, text, gap`) | **Wait for the user's OK** on the script |
-| 2 | Voice | vox-doc-sound skill: Kokoro (English and others), Indic Parler on Kaggle (Hindi and Indian languages), the user's ElevenLabs key, or their own recording. Then `vo_join.py` gives `VO.wav` and `VO.tsv` | Play 2 lines; the user picks or approves the voice |
-| 3 | Word timing | `python <skill>/scripts/align.py` gives `WORDS.tsv` | Word count, and any line that aligned badly |
-| 4 | Scene plan | `SCENES.tsv` and `ELEMENTS.tsv` per PLAYBOOK Part 3 §4-5. Copy the style of `<skill>/example/` | A short table: line, what is on screen |
-| 5 | Pictures | First connect Flow: start `flow-auto bridge start` in the background, then `flow-auto doctor --site flow`. If a line fails, tell the user exactly what doctor says (its words, its address) and wait for "continue". Never write your own Flow URL. Then `python <skill>/scripts/elements.py` (Flow on magenta, keyed to `elements/cut/`). Late additions use `--new-project` | A contact sheet of all cut-outs. Regenerate bad ones before going on |
-| 6 | Maps | For each map PNG, measure places on a gridded copy and write `PLACES.tsv` (`map, place, u, v`). See `<skill>/example/PLACES.tsv` | The map with pins drawn |
-| 7 | Shots | `render.py plan` (check the times), then `render.py shots`. Then **you** QC it yourself: make a contact sheet of every scene's last frame, read it, fix overlaps, cut-off labels or wrong pictures, and re-render only those scenes. Do not show it to the user or wait for them | One line: "all N scenes rendered, fixed X". Go straight on to sound |
-| 8 | Sound | vox-doc-sound skill: `cues.tsv` on words, then `mix.py … --out mix.wav` in the project folder. A missing sound is generated (its SKILL.md says how) | The loudness numbers; play the hook |
-| 9 | Master | `python <skill>/scripts/render.py master` gives `<project>.mp4` | Open the video for the user, and give the full path |
-
-## Rules that are easy to forget
-
-- Every spoken noun gets its own bespoke PNG. Never reuse one generic picture.
-- Draw data in code: clocks, numbers, bars and lines. Never ask AI to draw them.
-- Every named place gets a map with a pin. Rough maps are fine; never drop a map for accuracy.
-- **Master Vox Editorial Collage Recipes**:
-  - `stat_hero`: Giant bold numeral in deep navy or black (`46`, `2430m`) + dark ribbon category pill + dotted perspective guidelines.
-  - `arch_orb`: High-contrast B&W halftone architecture or skyline cutout layered over a giant circular color orb (burnt orange `#E65100` or crimson red).
-  - `polaroid_pin`: Archival Polaroid or document slide pinned with a 3D colorful pushpin (lime green, red) on an antique map with highlighted neon boundaries.
-  - `visual_metaphor`: Conceptual editorial storytelling (e.g. tightrope walker with briefcase on dollar-bill peaks; seesaw balance beam; server rack power grid; giant open palm holding architecture).
-  - `light_cone`: Halftone dot-pattern projection cone expanding from a retro TV or spotlight across the subject with angled Swiss headline.
-  - `selective_mono`: Full row of monochrome buildings/objects with ONE single hero in saturated color.
-- **Selective Editorial Typography & Anti-Clutter**: Enforce the **Rule of One Dominant Idea** per beat (max 1-2 text elements on screen). Never stack kicker, title, keyword badge, and element labels simultaneously. Use Swiss graphic design: `highlighter` (translucent yellow marker sweep), `stat_hero` for big numbers, and `doc_highlight` for archival documents. Hold every reveal at least 0.7 s before the cut.
-- Never paste or ask for API keys or tokens in the chat. Keys go in `.env` files that the user edits.
-- On machines with 8 GB of RAM or less, keep ffmpeg at `-threads 3` (the
-  scripts already do) and run one heavy job at a time.
-- Labels use the font in `VOX_FONT`, or the OS default with Devanagari. For
-  other scripts (Arabic, Tamil, and so on) set `VOX_FONT` to a font that covers
-  them.
+### B. Bento Box Style (`"style": "box"`)
+- **Visual Identity**: Deep graphite grid (`#101216`), structured Bento Data Cards, KPI rows, and side-by-side comparison splits.
+- **Creative Typography**:
+  - Headlines: `Metropolis-Bold` (Latin) / `Khand-Bold` (Hindi)
+  - Hero Numbers: `Anton-Regular` / `Khand-Bold`
+- **Signature Motion Graphics (`EDIT.json` items)**:
+  - `{"type": "bento_card", "title": "ANNUAL GROWTH", "value": "$142B", "delta": "+38.4%", "progress": 0.78, "sub": "...", "slot": "right", "at": "WORD"}`: Full glass/graphite Bento card with header tag, hero metric, green/red delta pill, and animated horizontal progress bar!
+  - `{"type": "counter", "from": 0, "to": 104, "suffix": "%", "slot": "a", "at": "WORD"}`: Smooth exponential count-up.

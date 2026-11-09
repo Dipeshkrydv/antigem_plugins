@@ -39,8 +39,8 @@ AVOID  crayon scribbles, speech-bubble clutter, red bursts, polaroids, dark back
        captions, mixing a white sticker border with a flat illustration in the same scene
 """
 
-NAME = "sticker"
-ALIASES = ["stickman", "stickman_hybrid", "doodle", "whiteboard", "explainer"]
+NAME = "stickman"
+ALIASES = ["stickman_hybrid", "doodle", "whiteboard", "explainer"]
 
 _NEG = ("no photorealism, no realistic live-action photo, no 3D cgi render, no photographic human skin, "
         "no text, no letters, no captions, no watermark, no logo, no UI, no frames, no borders, "
@@ -190,7 +190,7 @@ RECIPES = {
         "layout": "whiteboard_hero", "bg": "paper",
         "items": [
             {"type": "asset", "name": "st_stickman_brain_offer", "slot": "center", "at": "WORD"},
-            {"type": "title", "text": "PLEASE USE IT!", "box": "doodle_circle", "at": "WORD"},
+            {"type": "speech_bubble", "text": "PLEASE USE IT!", "slot": "title", "at": "WORD"},
             {"type": "keyword", "text": "सोच समझकर", "box": "tag", "slot": "r1", "at": "WORD"},
         ],
     },
