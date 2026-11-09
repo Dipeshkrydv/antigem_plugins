@@ -1,4 +1,4 @@
-# AGENT.md — Deepesh Mobile Studio: Master Autonomous Video Director & Production Engine
+# AGENTS.md — Deepesh Mobile Studio: Master Autonomous Video Director & Production Engine
 
 > 📱 **Universal Operating Environment**: Android Phone (Termux, gRPC, CLI) & Desktop (Linux, macOS, Windows).
 > 🎬 **Executive Persona**: Senior Video Editor, Motion Designer & Technical Production Director.
@@ -23,8 +23,12 @@ Every AI agent (Antigravity, Claude Code, Gemini CLI, Cursor, Windsurf, or termi
 - **MANDATORY LAW**: **ZERO CONVERSATIONAL BLOCKING!**
   - Do NOT pause or block to ask interactive questions.
   - Automatically parse CLI flags (`--style`, `--topic`, `--duration`, `--ratio`, `--language`, `--voice`, `--script`, `--project`), environment variables (`CARTESIA_API_KEY`, `VOX_ASPECT`, `IS_MOBILE`), or existing project files (`LINES.tsv`, `SHOTS.json`, `EDIT.json`).
-  - Immediately execute the full production sequence on complete autopilot:
-    `voice -> plan/prompts -> generate -> key -> edit -> check/sheet -> mix -> render -> master.mp4`.
+  - **Immediately execute the full production sequence in ONE single command (`studio.py autopilot`)**:
+    `CARTESIA_API_KEY=... python3 studio.py autopilot --voice anuj --lang hi --parallel 2` (runs `voice -> auto-healed prompts -> 3-tier parallel generate -> key -> auto-choreographed/healed edit -> mix -> render -> master.mp4` with zero thinking or validation loops).
+
+### ⚡ FAST EXECUTION & MINIMAL DELIBERATION LAW (DECREASE THINKING TIME)
+- **Ultra-Fast Turnaround**: Keep reasoning and thinking concise, targeted, and minimal (under 5 seconds). Never engage in long repetitive philosophical reasoning or redundant internal deliberation.
+- **Direct Action**: Once parameters or instructions are known, execute commands immediately. Never hesitate, stall, or write verbose preambles.
 
 ---
 
@@ -58,13 +62,58 @@ Every AI agent (Antigravity, Claude Code, Gemini CLI, Cursor, Windsurf, or termi
      - **Concrete Technical Specificity in `SHOTS.json`**: Lens (24mm, 35mm, 85mm macro), angle (low-angle, Dutch, eye-level), lighting (rim light, chiaroscuro, torch pools), and composition (negative space for text overlays) must be explicitly defined for every shot (no vague words like 'cool' or 'awesome').
      - **Motion Choreography in `EDIT.json`**: Map camera motion (whip pan, punch-in, zoom, shake) directly into Remotion springs and OpenCV camera moves.
 
-5. **Character Mode (Optional)**:
-   - A cute, consistent 2D host who walks, talks (lip-sync to the VO words), points, reacts, and travels through parallax stages.
-   - Use for ~20-35% of runtime where a person would speak. Full guide in `CHARACTER_MODE.md`.
+5. **Abolition of Character Mode (Anti-Illusion & Zero AI Morphing Mandate)**:
+   - Multi-pose 2D cartoon avatars, puppet lip-flaps, and character walking modes are **COMPLETELY ELIMINATED** to prevent AI face/body inconsistencies, uncanny puppet motion, and multi-pose visual distortion ("illusion issue").
+   - The studio EXCLUSIVELY produces authentic, broadcast-grade explainers across the 5 core styles:
+     1. **Vox Documentary Explainer**
+     2. **Sticker / Stickman Hybrid**
+     3. **Hand-Drawn Doodle & Sketchbook**
+     4. **Suspense Noir / Crime Documentary**
+     5. **Retro 8-Bit Arcade**
+   - Narrative pacing and visual engagement are driven 100% through authentic environmental scenes, forensic evidence cutouts, archival documents, vector badges, and kinetic typography. Never introduce animated cartoon hosts.
 
 6. **Zero API Key Leaks & Security Mandate**:
    - Strictly forbidden to hardcode, print, commit, or leak private API keys in code, git, markdown, logs, or archives.
    - Always load from environment variables (`CARTESIA_API_KEY`) or interactive runtime prompts.
+
+7. **Genre-Authentic Style Purity (Ground-Truth Directorial Standards from Reference Frames)**:
+   - Every style has its own visual language. The engine and agent MUST NEVER apply a lazy, universal formula (e.g. background photo + cutout sticker on top) across all styles.
+   - **Stickman / Modern Storytelling Explainer**:
+     - *Character Anatomy*: Clean white circular head, thick black ink contours (3-5px), highly expressive eyebrows and smirk/shock eyes. Dressed in modern casual attire (oversized hoodie with drawstrings, rolled blue denim shorts, white sneakers, backward cap) or thematic costume (explorer fedora + satchel, caveman tunic) with 2D cel shading.
+     - *Staging & Scenic Depth*: Warm paper canvas (`#F8F6EF`) OR stylized 2D hand-drawn scenic environments (cliff edge over mountains, canyon rapids in inflatable boat, fork in the road with wooden signpost, sunlit study desk with notebooks).
+     - *Selective Color Contrast*: Slate monochrome / cross-hatched landscapes with the stickman and hero prop popping in rich saturated color (orange, cobalt blue, yellow). Strictly ZERO photorealistic live-action photos or 3D CGI renders.
+   - **Vox Documentary Explainer**:
+     - *Canvas & Texture*: Tactile paper canvas (`#F4ECE1`), subtle graph paper grids, crumpled paper folds, and vintage halftone printing dot patterns.
+     - *Archival Cutouts & Giant Color Orbs*: High-contrast B&W halftone architecture or portraits layered over giant solid circular background color orbs (burnt orange `#E65100`, crimson red `#D32F2F`, or sky blue).
+     - *Pinned Polaroids & Maps*: Archival document slides and Polaroids pinned with 3D colorful pushpins (lime green `#76FF03`, vivid red) on antique maps with neon boundary lines.
+     - *Conceptual Visual Metaphors*: High-concept editorial storytelling (e.g. tightrope walker with briefcase balancing on dollar-bill mountain peaks; seesaw comparison beam; server racks with snaking power cables; giant open palm holding city architecture).
+     - *Light Cones & Projector Rays*: Halftone dot-pattern projection cone expanding from a retro TV or spotlight across the subject with an angled Swiss headline.
+     - *Selective Monochrome Isolation*: A row of monochrome buildings/objects with ONE single hero in saturated color (`"As a small, growing business"`).
+   - **Sticker Style / Pop-Art Cutouts**:
+     - *Crisp White Vinyl Die-Cut Contour*: Every character, prop, and badge has a solid, continuous white outer border (4-8px) and a soft 2-tier ambient drop shadow.
+     - *Satirical Pop-Art & Meme Metaphors*: Parody branding (e.g. Marlboro cigarette pack labeled "Adobe" with software pens), detailed anatomical brain illustrations with speech bubbles (`"PLEASE USE IT"`), floating brand avatars.
+     - *3D Kinetic Lettering*: Extruded 3D comic badges (`"GOOD!"`, `"CRASH!"`) with yellow faces and red 3D bevels.
+   - **Suspense Noir / True Crime**: 70%+ full-bleed photographic/cinematic chiaroscuro scenes (`scene: 0.70, asset: 0.20`), isolated forensic cutouts on magenta keyed with two-tier soft shadows, redaction bars (`redact_bar`), CCTV timestamps (`cctv`), and evidence polaroids. Strictly ZERO cartoon stickers.
+   - **Retro 8-Bit Arcade**: Authentic pixel art backgrounds and sprites, CRT scanlines, and 16-bit double-border dialogue boxes (`rpg`, `rpg_dialogue`).
+
+8. **Anti-Clutter Editorial Typography & The Rule of One Dominant Idea**:
+   - Motion graphics and typography must serve clarity, never visual overload.
+   - **Max 2 Text Elements per Scene**: Never pile kicker + title + keyword badge + asset label + stamp + subtitle simultaneously. Overcrowded frames are strictly forbidden.
+   - Use dedicated editorial treatments:
+     - Vox: `highlighter` (semi-transparent yellow marker sweep), `stat_hero` (giant stat + label).
+     - Stickman: `doodle_circle` (hand-drawn loop), `marker`, `sticky`.
+     - Noir: `cctv` / `timestamp` (monospaced case-file tag with red dot), `redact_bar` (black censor bar).
+     - Arcade: `rpg` / `rpg_box` (16-bit dialogue window with double border).
+   - Give the viewer's eyes breathing room: alternate high-density fast cuts (1.0–1.6s) with breathing holds (2.2–3.0s).
+
+9. **Strict Typography Restraint Law (Anti-Book Typography Mandate)**:
+   - **Stickman Style, Sticker Style, and Suspense Noir**: **STRICTLY ZERO BOOK-STYLE / PARAGRAPH TYPOGRAPHY**.
+     - Excessive text, book-like paragraphs, and multi-line body sentences look amateurish, clutter the frame, and destroy cinematic pacing.
+     - In these styles, typography is exclusively restricted to:
+       1. **Naming**: Short, punchy 1–3 word labels under visual assets (e.g., `label: "Free Will?"`, `label: "Dopamine Loop"`, `label: "Case File #409"`).
+       2. **Highlighting**: Single punchy keyword pills or marker reveals (e.g., `*Again*`, `35,000 Choices`, `CLASSIFIED` stamp).
+     - Never render multi-line explanatory paragraphs or book reading blocks. The spoken voiceover tells the story; the visual scenes and cutouts explain the concept!
+   - **Box Style**: Typography-heavy compositions (structured stat cards, comparison grids, multi-line data points, list cards, quote blocks) belong **EXCLUSIVELY in Box Style** (`box`) and `kinetic_typography`.
 
 ---
 
@@ -189,17 +238,12 @@ All work happens inside a PROJECT folder made with `python studio.py new <folder
 7. **Sound** — optional `cues.tsv` + `python studio.py mix` → `mix.wav` (music bed ducked under the voice + SFX on hits, -14 LUFS).
 8. **Render** — `python studio.py preview` (fast 540p draft) → `python studio.py render` → `master.mp4`.
 
-### 2.1 🚫 GOOGLE FLOW RATE LAW (prevents "We noticed some unusual activity")
-- Flow can reject fast bursts with `PUBLIC_ERROR_UNUSUAL_ACTIVITY` ("We noticed some unusual activity").
-- Generate with `python studio.py generate`: ONE prompt at a time, it waits until Flow has accepted each prompt,
-  then exactly **0.5 s** before the next (shared device-wide ledger `~/.deepesh_flow_guard.json`). Images generate
-  in parallel on Flow while the next prompts are submitted.
-- Never send a multi-prompt batch call (`items` with several prompts): the bridge fires them back to back with no gap.
-  If you call the Flow MCP tool directly, send one prompt per call (the Claude Code / Antigravity hook enforces 1 per call + 1.3 s).
-- On an "unusual activity" error generation STOPS: call `flow_cancel`, do not resubmit, tell the user. After they have
-  checked Flow: `python studio.py guard reset`, then `python studio.py generate` resumes (finished images are skipped).
-- `python studio.py guard` shows the pacing / pause state.
-- **Never Blind Re-dispatch on Client Timeout**: Client socket/tool timeouts (e.g. 150s) are transport timeouts, NOT Google Flow execution failures. Google Flow continues generating queued prompts on its cloud cluster. The agent/script must NEVER blind re-submit prompts. Check the project library or harvest directly.
+### 2.1 🚀 SLOTTED PARALLEL CONCURRENCY ENGINE (ZERO UNUSUAL ACTIVITY GUARANTEE)
+- **Slotted Parallel Worker Pool (`--parallel 2`)**: Maintains 2 to 3 concurrent in-flight generation slots on Google Flow's cloud cluster. This provides 2x-3x parallel acceleration while keeping active load strictly within Google Flow's safe operational threshold.
+- **Humanized Jitter & Pacing**: Prompts are dispatched into active slots with 1.2s adaptive pacing + randomized micro-jitter (0.2s-0.5s), eliminating robotic bot fingerprinting.
+- **Continuous Slot Harvesting**: As soon as any in-flight slot completes and its image is ingested into `elements/raw/<name>.png`, the slot is freed and the next pending prompt is dispatched immediately.
+- **Autonomous Auto-Recovery**: If Google Flow returns a transient rate notice, the engine automatically cools off for 15s, resets the pacing ledger (`fg.reset()`), and safely continues generation without crashing, stalling, or interrupting the user.
+- **Never Blind Re-dispatch on Client Timeout**: Client socket/tool timeouts (e.g. 150s) are transport timeouts, NOT Google Flow execution failures. Google Flow continues generating queued prompts on its cloud cluster. The engine checks disk and library before re-submitting.
 - **Autonomous Media Harvesting (`python studio.py harvest`)**: The user must NEVER be asked to manually click download buttons in Google Flow. The engine autonomously ingests, converts, and keys all media into `elements/raw/<name>.png` with zero user download friction.
 
 ### 2.2 🎬 EDITING LAW (v2 engine)
@@ -263,13 +307,13 @@ Whenever a user requests a **Crime Documentary, True Crime, Murder Mystery, Poli
 
 ---
 
-## 👑 5. THE 14 INVIOLABLE MASTER PRODUCTION & EDITORIAL LAWS
+## 👑 5. THE 16 INVIOLABLE MASTER PRODUCTION & EDITORIAL LAWS
 
 1. **100% Semantic Word-Locked Explanation**: Every visual asset is a literal or thematic twin explaining the spoken words at that microsecond. Zero disconnected decorative filler.
 2. **Mandatory High-Density Asset Floors & Word-by-Word Visual Progression**: Dictated by script and voiceover pacing. Every 1.0–1.5s must have an active visual entrance. Compulsory minimum floors: ≥ 28–40+ assets for 1 min, ≥ 55–80+ for 2 min, ≥ 140–200+ for 5 min. Sparse visual starvation (4–7 images for 1m or 50–60 for 5m) is strictly forbidden.
 3. **Curated Static Heavyweight Typography**: Exclusively use bold static fonts (**Anton-Regular**, **Khand-Bold**, **Baloo2-ExtraBold**, **LiberationSans-Bold**, **Space Mono**, **Noto Sans Devanagari**, **Hind**) with dynamic multi-line wrapping and font auto-scaling. Zero text clipping, zero thin hairline font bugs.
 4. **Zero Tofu Glyphs (`▯▯`)**: All text passes through `sanitize_scene_text()` to strip emojis, rare dingbats, and invalid Unicode. Only clean Devanagari, Latin alphabet, and standard punctuation are rendered.
-5. **12-Column Grid & Spatial Hierarchy**: 3-layer parallax, rule of thirds, Mode B balanced duets (character left at $x=0.32$, stamp right at $x=0.72$).
+5. **12-Column Grid & Spatial Hierarchy**: 3-layer parallax, rule of thirds, Mode B balanced duets (asset left at $x=0.32$, stamp right at $x=0.72$).
 6. **Zero-Collision Geometry**: True non-zero bounding boxes for all cards and stamps; 45–55px vertical clearance for ASS subtitles and labels.
 7. **Natural Soft Shadows & Adaptive Die-Cut Outlines**: Two-tier (tight contact 0.16 + soft ambient 0.12), warm-tinted, canvas padded so the blur fades to zero: never a hard cut edge (`kit.shadow`, `kit.ground_shadow`). All cutouts feature crisp white/adaptive contour outlines. Zero detached floor ovals.
 8. **Professional & Meaningful Motion**: Subtle 4% slow drift camera zoom, smooth cubic fades, spring pops with settle (0.88 -> 1.0), gentle rise, drawing reveals. ZERO irritating continuous shaking or jitter loops.
@@ -279,6 +323,8 @@ Whenever a user requests a **Crime Documentary, True Crime, Murder Mystery, Poli
 12. **Mandatory Google Flow Asset Engine & Zero API Key Leaks**: All assets generated on Google Flow (`Banana Nano 2.1` / `Pro` / `Imagen 3`) via DeepX Bridge ($0 API cost). Never hardcode, commit, or leak private API keys.
 13. **Zero Duplicate Generation & Idempotent Flow Dispatch Law**: Every prompt dispatched to Google Flow is tracked with its unique hash and timestamp in `flow_manifest.json` before submission. Client socket/tool timeouts (e.g. 150s) are client transport timeouts, NOT Google Flow execution failures (Google Flow continues generating queued prompts on its cloud cluster). The AI agent or script MUST NEVER blind re-submit a prompt after a timeout. Check the Flow project library / canvas first. If an asset is already in-flight or generated, NEVER re-dispatch it.
 14. **Autonomous Media Ingestion & Zero User Download Burden Law**: The user must NEVER be asked to manually click download buttons or select tiles in Google Flow. The engine autonomously harvests, ingests, converts (WebP to PNG), and keys all generated media directly into `elements/raw/<id>.png` via in-browser canvas capture or automated background download (`python studio.py harvest`).
+15. **Genre-Authentic Style Purity**: Strictly abolish the generic "background photo + cutout sticker" universal formula. Stickman/Doodle uses 100% paper/chalkboard canvas with pure ink doodles (zero photo scenes). Suspense Noir uses 70%+ full-bleed cinematic chiaroscuro scenes with forensic cutouts and redaction bars. Vox uses tactile paper, Swiss graphics, and archival documents. Arcade uses pure 8/16-bit pixel art.
+16. **Anti-Clutter Editorial Typography (Rule of One Dominant Idea)**: A scene must never display more than 2 competing text elements simultaneously. Give the viewer's eyes breathing room. Use dedicated editorial treatments: `highlighter` (Vox), `doodle_circle` (Stickman), `cctv`/`redact_bar` (Noir), `rpg` (Arcade).
 
 ---
 
@@ -312,7 +358,8 @@ python mobile_run.py
 - `cues.tsv`: Audio cue sheet linking SFX hits, music beds, and ducking volumes.
 - `mix.wav`: Broadcast-mastered audio track (-14 LUFS, -18dB VO ducking).
 - `labels.ass`: Kinetic typography subtitle file compiled by `core/render.py`.
-- DEEPESH MOBILE STUDIO
+
+DEEPESH MOBILE STUDIO
 
 UNIVERSAL VISUAL PRODUCTION ENGINE
 
@@ -1463,4 +1510,3 @@ VIDEO PREVIEW DISPLAYED
 THIS IS MANDATORY FOR EVERY SUCCESSFUL VIDEO EXPORT.
 
 The preview must appear automatically in the final generation interface.
-

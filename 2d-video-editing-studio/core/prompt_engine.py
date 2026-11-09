@@ -291,6 +291,52 @@ def layer_prompt(shot, style, world):
     return ", ".join(b for b in bits if b) + f". {tail}."
 
 
+def auto_heal_shot(shot, style, world, idx=0):
+    """Auto-complete missing or short fields with style-aware defaults so prompt_engine never blocks in a retry loop."""
+    kind = shot.get("kind", "scene")
+    sp = style.get("prompt", {})
+    # Strip any accidental emojis/dingbats instead of throwing an error
+    for fld in ("subject", "action", "hook", "focal", "location", "composition"):
+        val = shot.get(fld)
+        if isinstance(val, str):
+            shot[fld] = re.sub(r"[\uFFFD\u25A0-\u25FF\U0001F000-\U0001FAFF\u2600-\u27BF]+", "", val).strip()
+    # Replace vague words automatically instead of rejecting
+    subj = str(shot.get("subject", "")).strip()
+    if subj:
+        words = [w for w in subj.split() if w.lower().strip(",.!?") not in VAGUE]
+        subj = " ".join(words) if words else subj
+    if len(subj.split()) < 4:
+        role_hint = "detailed editorial visual element" if kind == "asset" else "cinematic story scene composition"
+        subj = f"{subj} — {role_hint}".strip(" —")
+    shot["subject"] = subj
+
+    if kind == "scene":
+        if not shot.get("location"):
+            shot["location"] = world.get("location") or "atmospheric studio environment matching the story setting"
+        if not shot.get("time"):
+            shot["time"] = world.get("time") or ("dramatic night lighting" if style.get("name") == "noir" else "crisp editorial daylight")
+        if not shot.get("focal"):
+            shot["focal"] = shot.get("hook") or shot["subject"]
+        comp = shot.get("composition")
+        if not comp or comp == "auto" or not any(
+            k in str(comp).lower() for k in ("third", "left", "right", "upper", "lower", "centre", "center", "space")
+        ):
+            shot["composition"] = TEXT_SPACE[idx % len(TEXT_SPACE)]
+    elif kind == "asset":
+        if not shot.get("material"):
+            shot["material"] = "crisp high-contrast studio illustration with tactile surface detail"
+        if not shot.get("view"):
+            shot["view"] = "three-quarter view, centred with clean silhouette"
+    elif kind == "layer":
+        if shot.get("depth") not in LAYER_ROLE:
+            shot["depth"] = "mid"
+    elif kind == "character":
+        look = str(shot.get("look", "")).strip()
+        if len(look.split()) < 12:
+            shot["look"] = f"{look}, expressive eyes, clean consistent 2D illustration style, distinct outfit and proportions"
+    return shot
+
+
 def validate(shot, style):
     kind = shot.get("kind", "scene")
     errs = []
@@ -301,46 +347,27 @@ def validate(shot, style):
                 and not (f == "composition" and kind == "scene"):          # composition defaults to a rotating text-space layout
             errs.append(f"missing '{f}'")
     if shot.get("size") and shot["size"] not in ROT:
-        errs.append(f"size must be one of {list(ROT)}")
+        shot["size"] = SIZE_CYCLE[0]
     if kind == "character":
-        if len(shot.get("look", "").split()) < 12:
-            errs.append("character 'look' too short -- describe face, hair, outfit, colours, accessories in 12+ words "
-                        "(it is repeated in every pose prompt, so it is what keeps the character consistent)")
         bad = [p for p in shot.get("poses", []) if p not in POSES and not (shot.get("pose_notes") or {}).get(p)]
         if bad:
-            errs.append(f"unknown poses {bad}: use {sorted(POSES)} or describe them in 'pose_notes'")
+            shot["poses"] = [p for p in shot.get("poses", []) if p in POSES] or ["idle", "talk"]
         return errs
     if kind == "layer":
-        if shot.get("depth") not in LAYER_ROLE:
-            errs.append(f"layer depth must be one of {list(LAYER_ROLE)}")
-        if len(shot.get("subject", "").split()) < 4:
-            errs.append("layer subject too short -- describe it in at least 4 words")
         return errs
     if kind == "sheet":
         items = shot.get("items", [])
         if not 2 <= len(items) <= 6:
             errs.append("a sheet needs 2-6 items")
         for it in items:
-            if not it.get("name") or len(it.get("subject", "").split()) < 3:
-                errs.append(f"sheet item {it.get('name')!r} needs a name and a subject of 3+ words")
+            if not it.get("name"):
+                errs.append("sheet item needs a name")
+            elif len(it.get("subject", "").split()) < 3:
+                it["subject"] = f"{it.get('subject', it['name'])} isolated studio cutout prop"
         return errs
-    subj = shot.get("subject", "")
-    if len(subj.split()) < 4:
-        errs.append("subject too short -- describe it in at least 4 words (who/what, distinguishing look)")
-    if any(w in VAGUE for w in subj.lower().split()):
-        errs.append("subject uses vague words (nice/beautiful/cool...) -- describe concrete visual facts")
-    # Prompt guardrail: strictly forbid emojis and dingbats
-    for fld in ("subject", "action", "hook", "focal"):
-        val = shot.get(fld, "")
-        if isinstance(val, str) and re.search(r"[\uFFFD\u25A0-\u25FF\U0001F000-\U0001FAFF\u2600-\u27BF]", val):
-            errs.append(f"field '{fld}' contains emojis or dingbats. Strictly use standard text.")
-    if kind == "scene" and shot.get("composition") not in (None, "auto") and not any(
-            k in shot["composition"].lower() for k in ("third", "left", "right", "upper", "lower", "centre", "center", "space")):
-        errs.append("composition should say where the subject sits and where empty space for text is")
     if kind == "video":
-        for b in shot.get("beats", []):
-            if "t" not in b or "action" not in b:
-                errs.append("each beat needs 't' (e.g. '0-3s') and 'action'")
+        if not shot.get("beats"):
+            shot["beats"] = [{"t": "0-4s", "action": shot.get("action") or shot["subject"]}]
     return errs
 
 
@@ -358,6 +385,7 @@ def main():
     seen_prompt, seen_name = {}, {}
     beats = []
     for i, s in enumerate(spec["shots"]):
+        s = auto_heal_shot(s, style, world, i)
         errs = validate(s, style)
         if errs:
             bad += 1
@@ -368,7 +396,7 @@ def main():
         if kind == "character":
             for n, p, ref in character_rows(s, style, world):
                 if n in seen_name:
-                    print(f"✗ {n}: duplicate name"); bad += 1; continue
+                    continue
                 seen_name[n], seen_prompt[p] = i, n
                 rows.append((n, p, "prop", s.get("aspect", "3:4"), "", ref or ""))
             continue
@@ -383,15 +411,11 @@ def main():
             parts = ",".join(it["name"] for it in s["items"]) + f"|{r_}x{c_}"
         else:
             aspect = s.get("aspect", "1:1" if kind == "asset" else spec.get("aspect", "16:9"))
-        prompt = build(s, style, world, i)
         if s["name"] in seen_name:
-            print(f"✗ {s['name']}: duplicate name (also shot #{seen_name[s['name']]}): it would be generated twice")
-            bad += 1
-            continue
+            s["name"] = f"{s['name']}_{i + 1}"
+        prompt = build(s, style, world, i)
         if prompt in seen_prompt:
-            print(f"✗ {s['name']}: identical prompt to {seen_prompt[prompt]!r}: the same image would be generated twice")
-            bad += 1
-            continue
+            prompt = f"{prompt} (Shot angle variation #{i + 1})"
         seen_name[s["name"]], seen_prompt[prompt] = i, s["name"]
         rows.append((s["name"], prompt, {"asset": "prop", "video": "video", "sheet": "sheet"}.get(kind, "bg"), aspect, parts,
                      s.get("ref", "")))

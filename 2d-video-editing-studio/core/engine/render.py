@@ -716,11 +716,22 @@ class Engine:
     # ------------------------------------------------------------------ plan
     def _plan(self):
         scenes = []
+        n_sc = max(1, len(self.spec["scenes"]))
+        prev_t0 = 0.0
         for i, sd in enumerate(self.spec["scenes"]):
-            t0 = 0.0 if i == 0 else self.tl.resolve(sd["at"])
+            raw_at = sd.get("at")
+            if raw_at is None and sd.get("line") is not None:
+                raw_at = f"@{sd['line']}"
+            default_t0 = round(self.dur * i / n_sc, 2)
+            t0 = 0.0 if i == 0 else self.tl.resolve(raw_at, default=default_t0, min_time=prev_t0)
+            if i > 0 and (t0 is None or t0 <= prev_t0):
+                t0 = min(self.dur - 0.5 * (n_sc - i), max(prev_t0 + 1.2, default_t0))
+                self.warnings.append(f"scene {sd.get('id', i + 1)}: cue {raw_at!r} auto-aligned to {t0:.2f}s")
+            prev_t0 = t0
             layout = sd.get("layout", "hero")
             if layout not in self.slots:
-                raise SystemExit(f"scene {i + 1}: unknown layout {layout!r} (have {', '.join(self.slots)})")
+                self.warnings.append(f"scene {i + 1}: unknown layout {layout!r} -> 'hero'")
+                layout = "hero"
             stage = sd.get("stage", {} if layout == "stage" else None)
             bg = sd.get("bg", "stage" if stage is not None else "auto")
             bg_is_image = bool(find_image(bg)) if not kit.is_proc_bg(bg) and stage is None else False
@@ -738,9 +749,9 @@ class Engine:
                            "raw_cuts": sd.get("cuts", []), "stage": stage})
         for a, b in zip(scenes, scenes[1:]):
             if b["t0"] <= a["t0"]:
-                raise SystemExit(f"scene {b['id']} starts at {b['t0']:.2f}s, not after scene {a['id']} ({a['t0']:.2f}s): check its 'at' cue")
+                b["t0"] = a["t0"] + 1.0
             a["t1"] = b["t0"]
-        scenes[-1]["t1"] = self.dur
+        scenes[-1]["t1"] = max(scenes[-1]["t0"] + 1.0, self.dur)
         # items (resolve after all scene starts, searching forward from each scene's own start)
         for sc in scenes:   # virtual camera cuts: several framings of one image, cut on spoken words
             sc["cuts"] = [(sc["t0"], (0.0, 0.0, 1.0, 1.0))]

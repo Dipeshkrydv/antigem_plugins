@@ -23,8 +23,8 @@ Every AI agent (Antigravity, Claude Code, Gemini CLI, Cursor, Windsurf, or termi
 - **MANDATORY LAW**: **ZERO CONVERSATIONAL BLOCKING!**
   - Do NOT pause or block to ask interactive questions.
   - Automatically parse CLI flags (`--style`, `--topic`, `--duration`, `--ratio`, `--language`, `--voice`, `--script`, `--project`), environment variables (`CARTESIA_API_KEY`, `VOX_ASPECT`, `IS_MOBILE`), or existing project files (`LINES.tsv`, `SHOTS.json`, `EDIT.json`).
-  - Immediately execute the full production sequence on complete autopilot:
-    `voice -> plan/prompts -> generate -> key -> edit -> check/sheet -> mix -> render -> master.mp4`.
+  - **Immediately execute the full production sequence in ONE single command (`studio.py autopilot`)**:
+    `CARTESIA_API_KEY=... python3 studio.py autopilot --voice anuj --lang hi --parallel 2` (runs `voice -> auto-healed prompts -> 3-tier parallel generate -> key -> auto-choreographed/healed edit -> mix -> render -> master.mp4` with zero thinking or validation loops).
 
 ### ⚡ FAST EXECUTION & MINIMAL DELIBERATION LAW (DECREASE THINKING TIME)
 - **Ultra-Fast Turnaround**: Keep reasoning and thinking concise, targeted, and minimal (under 5 seconds). Never engage in long repetitive philosophical reasoning or redundant internal deliberation.

@@ -5,16 +5,14 @@ description: Senior Video Editor Vox Documentary & Bento Box Explainer Engine (v
 
 # Vox Documentary & Bento Box Explainer — Senior Video Editor Protocol (v3.2)
 
-## ⚡ 0. ZERO-LOOP DIRECT EXECUTION MANDATE
-- **NEVER** call legacy v1 scripts (`kokoro_vo.py`, `whisper_align.py`, or manual 1-by-1 `flow-auto --wait` loops).
-- **ALWAYS** execute through the unified `studio.py` v3.2 pipeline inside a project directory (`python studio.py new <project_dir>`):
-  1. `CARTESIA_API_KEY=... python studio.py voice --voice anuj` -> `VO.wav`, `VO.tsv`, `WORDS.tsv`
-  2. `python studio.py plan --style documentary` (or `--style box`) -> `PLAN.json`
-  3. Write `SHOTS.json` -> `python studio.py prompts` -> `ELEMENTS.tsv`
-  4. `python studio.py generate` -> **3-Tier Parallel Flow Engine** (auto-detects `flow-auto` Flow Connector extension `--batch 4`, AntiGem WebView `FlowClient` `"Nano Banana 2.1"`, or `DeepX Bridge`)
-  5. `python studio.py key` -> keys magenta `#FF00FF` cutouts into `elements/cut/` with 2-tier soft contact + ambient shadows
-  6. Write `EDIT.json` -> `python studio.py check` -> `python studio.py sheet`
-  7. `python studio.py render` -> auto-mixes `-14 LUFS` BGM + Foley SFX (`mix.wav`) once in the parent process and renders `master.mp4` using cached static foreground layers.
+## ⚡ 0. ZERO-LOOP 1-COMMAND AUTOPILOT MANDATE
+- **NEVER** call legacy v1 scripts (`kokoro_vo.py`, `whisper_align.py`, or manual 1-by-1 `flow-auto --wait` loops), and **NEVER** read engine `.py` files before producing a video.
+- **INSTANT 2-STEP PRODUCTION TRACK (ZERO DELIBERATION LOOP)**:
+  1. Create project & write `LINES.tsv` + `SHOTS.json` (and optionally `EDIT.json`; if omitted, `auto_edit.py` choreographs `EDIT.json` automatically with `bento_card` / `highlight_sweep`!).
+  2. Run **ONE SINGLE COMMAND** to execute voiceover, prompt auto-healing, 3-Tier parallel Flow generation (`flow-auto` `--batch 4` / AntiGem `FlowClient` / `DeepX Bridge`), cutout keying, audio mixing (`-14 LUFS`), and 1080p rendering:
+     ```bash
+     CARTESIA_API_KEY=... python3 studio.py autopilot --voice anuj --lang hi --parallel 2
+     ```
 
 ---
 

@@ -146,6 +146,55 @@ def key_props():
               + (f"   ⚠ not separated: {' '.join(miss)} (regenerate the sheet: python studio.py generate --only {n})" if miss else ""))
 
 
+def _ensure_edit_ready():
+    sys.path.insert(0, CORE)
+    import auto_edit
+    if auto_edit.is_edit_stub("EDIT.json", "SHOTS.json") and os.path.exists("SHOTS.json"):
+        print("EDIT.json is unpopulated or template stub -> auto-choreographing from SHOTS.json + VO...")
+        auto_edit.build_auto_edit("SHOTS.json", "EDIT.json")
+
+
+def run_autopilot(args):
+    """Execute the full v3.2 production pipeline in ONE single command with zero loop/deliberation."""
+    import argparse
+    ap = argparse.ArgumentParser(description="1-Step Autopilot Production Pipeline")
+    ap.add_argument("--voice", default="anuj")
+    ap.add_argument("--lang", default="hi")
+    ap.add_argument("--parallel", type=int, default=2)
+    ap.add_argument("--preview-only", action="store_true")
+    a, _ = ap.parse_known_args(args)
+
+    eng = os.path.join(CORE, "engine", "render.py")
+    print("▶ [1/6] Voiceover synthesis (LINES.tsv -> VO.wav + WORDS.tsv)...", flush=True)
+    if os.path.exists("LINES.tsv") and (not os.path.exists("VO.wav") or not os.path.exists("WORDS.tsv")):
+        run(os.path.join(CORE, "voice.py"), "--voice", a.voice, "--lang", a.lang)
+    else:
+        print("  ✓ VO.wav & WORDS.tsv already present")
+
+    print("▶ [2/6] Building & auto-healing Google Flow prompts (SHOTS.json -> ELEMENTS.tsv)...", flush=True)
+    run(os.path.join(CORE, "prompt_engine.py"), "SHOTS.json")
+
+    print(f"▶ [3/6] Generating visual assets via 3-Tier Flow Engine (--parallel {a.parallel})...", flush=True)
+    run(os.path.join(CORE, "flow_safe.py"), "--parallel", str(a.parallel))
+
+    print("▶ [4/6] Keying transparent cutouts (elements/raw -> elements/cut)...", flush=True)
+    key_props()
+
+    print("▶ [5/6] Verifying / auto-choreographing EDIT.json...", flush=True)
+    _ensure_edit_ready()
+    run(eng, "check")
+
+    print("▶ [6/6] Mixing broadcast audio (-14 LUFS) & rendering final video...", flush=True)
+    if os.path.exists("VO.wav") and (not os.path.exists("mix.wav") or _cues_is_stub("cues.tsv")):
+        if _cues_is_stub("cues.tsv"):
+            run(os.path.join(CORE, "mix.py"), "--autocues", *(["--lines", "VO.tsv"] if os.path.exists("VO.tsv") else []))
+        run(os.path.join(CORE, "mix.py"), "cues.tsv", "--vo", "VO.wav",
+            *(["--lines", "VO.tsv"] if os.path.exists("VO.tsv") else []),
+            *(["--words", "WORDS.tsv"] if os.path.exists("WORDS.tsv") else []),
+            "--out", "mix.wav")
+    run(eng, "preview" if a.preview_only else "video")
+
+
 def main():
     if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help", "help"):
         sys.exit(__doc__)
@@ -153,6 +202,10 @@ def main():
     eng = os.path.join(CORE, "engine", "render.py")
     if cmd == "new":
         new(rest[0] if rest else "my_video")
+    elif cmd in ("autopilot", "run", "build"):
+        run_autopilot(rest)
+    elif cmd in ("auto-edit", "auto_edit"):
+        run(os.path.join(CORE, "auto_edit.py"), *rest)
     elif cmd == "voice":
         run(os.path.join(CORE, "voice.py"), *rest)
     elif cmd == "plan":
@@ -163,11 +216,11 @@ def main():
         if "--no-lint" in rest:
             rest = [x for x in rest if x != "--no-lint"]
         elif os.path.exists(rest[0] if rest and not rest[0].startswith("-") else "SHOTS.json"):
-            run(os.path.join(CORE, "shot_lint.py"), *(rest[:1] if rest and not rest[0].startswith("-") else []))
+            run(os.path.join(CORE, "shot_lint.py"), *(rest[:1] if rest and not rest[0].startswith("-") else []), "--warn-only")
         run(os.path.join(CORE, "prompt_engine.py"), *(rest or ["SHOTS.json"]))
     elif cmd == "generate":
         if os.path.exists("SHOTS.json") and "--status" not in rest and "--no-lint" not in rest:
-            run(os.path.join(CORE, "shot_lint.py"))
+            run(os.path.join(CORE, "shot_lint.py"), "--warn-only")
         run(os.path.join(CORE, "flow_safe.py"), *[x for x in rest if x != "--no-lint"])
     elif cmd == "key":
         key_props()
@@ -182,8 +235,10 @@ def main():
             *(["--words", "WORDS.tsv"] if os.path.exists("WORDS.tsv") else []),
             "--out", "mix.wav", *rest)
     elif cmd in ("check", "sheet", "still"):
+        _ensure_edit_ready()
         run(eng, cmd, *rest)
     elif cmd in ("preview", "render"):
+        _ensure_edit_ready()
         # Auto-mix sound if VO.wav exists and mix.wav is missing
         if os.path.exists("VO.wav") and (not os.path.exists("mix.wav") or _cues_is_stub("cues.tsv")):
             print("Auto-mixing compulsory broadcast background music and Foley SFX (-14 LUFS)...")

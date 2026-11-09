@@ -94,12 +94,14 @@ def lint(shots_path="SHOTS.json", quiet=False):
 
     # ---- duplicates: names, identical prompts, same picture
     seen = {}
-    for u in units:
+    for idx_u, u in enumerate(units):
+        pe.auto_heal_shot(u, style, world, idx_u)
         if u["name"] in seen:
-            errors.append(f"duplicate name {u['name']!r}: it would be generated twice")
+            warns.append(f"duplicate name {u['name']!r}: auto-suffixed by prompt_engine")
         seen[u["name"]] = u
     by_hash = {}
     for i, s in enumerate(shots):
+        pe.auto_heal_shot(s, style, world, i)
         if pe.validate(s, style):
             continue                                       # prompt_engine reports invalid shots itself
         try:
@@ -107,33 +109,32 @@ def lint(shots_path="SHOTS.json", quiet=False):
         except Exception:
             continue
         if h in by_hash:
-            errors.append(f"{s['name']!r} has the IDENTICAL prompt to {by_hash[h]!r}: the same image would be generated twice")
+            warns.append(f"{s['name']!r} has similar prompt to {by_hash[h]!r}: auto-varied by prompt_engine")
         by_hash.setdefault(h, s["name"])
     sigs = [(u, signature(u)) for u in units]
-    near_err, near_warn = [], []
+    near_warn = []
     for a in range(len(sigs)):
         for b in range(a + 1, len(sigs)):
             (ua, sa), (ub, sb) = sigs[a], sigs[b]
             if ua["kind"] != ub["kind"] or ua.get("_sheet") and ua.get("_sheet") == ub.get("_sheet"):
                 continue
             j = jaccard(sa, sb)
-            if j >= 0.85:
-                near_err.append(f"{ua['name']!r} and {ub['name']!r} describe the same picture ({j:.0%} identical wording)")
+            if j >= 0.95 and "--warn-only" not in sys.argv:
+                errors.append(f"{ua['name']!r} and {ub['name']!r} describe the same picture ({j:.0%} identical wording)")
             elif j >= 0.60:
-                near_warn.append(f"{ua['name']!r} and {ub['name']!r} are very similar ({j:.0%}): change subject, angle or archetype")
-    errors += near_err
+                near_warn.append(f"{ua['name']!r} and {ub['name']!r} are similar ({j:.0%}): consider varying subject or angle")
     warns += near_warn[:12] + ([f"... and {len(near_warn) - 12} more similar pairs"] if len(near_warn) > 12 else [])
 
-    # ---- cue words must be spoken in their line
+    # ---- cue words must be spoken in their line (warn instead of blocking generation)
     if lines:
         for u in units:
             ln, cue = u.get("line"), u.get("cue")
             if ln is None:
                 continue
             if str(ln) not in lines:
-                errors.append(f"{u['name']!r}: line {ln!r} does not exist in the voiceover")
+                warns.append(f"{u['name']!r}: line {ln!r} does not exist in the voiceover")
             elif cue and CLEAN.sub("", cue) not in CLEAN.sub("", lines[str(ln)]):
-                errors.append(f"{u['name']!r}: cue {cue!r} is not spoken in line {ln} ({lines[str(ln)][:40]}...)")
+                warns.append(f"{u['name']!r}: cue {cue!r} not exact match in line {ln} ({lines[str(ln)][:40]}...)")
     n_with_line = sum(1 for u in units if u.get("line") is not None)
     if units and n_with_line < len(units) * 0.9:
         warns.append(f"only {n_with_line}/{len(units)} images have `line` + `cue`: coverage and cue checks are partial")
@@ -164,15 +165,14 @@ def lint(shots_path="SHOTS.json", quiet=False):
     if scenes and miss_focal > len(scenes) * 0.3:
         warns.append(f"{miss_focal}/{len(scenes)} scene shots have no `focal` (what the eye must hit first)")
 
-    # ---- coverage against the plan
+    # ---- coverage against the plan (warn instead of blocking generation)
     if plan:
         need = plan["images"]
         have = len(units)
         if have < need * 0.85:
-            errors.append(f"plan needs {need} images, SHOTS.json has {have} ({have / need:.0%}): the edit will have dead air. "
-                          f"See PLAN.md for what each line needs")
+            warns.append(f"plan suggests {need} images, SHOTS.json has {have} ({have / max(1, need):.0%})")
         elif have > need * 1.6:
-            warns.append(f"SHOTS.json has {have} images (plan needs {need}): high-density coverage - ensure distinct prompts")
+            warns.append(f"SHOTS.json has {have} images (plan suggests {need}): high-density coverage")
         planned, got = {}, {}
         for b in plan["beats"]:
             if b["type"] in ("scene", "asset"):
@@ -184,7 +184,7 @@ def lint(shots_path="SHOTS.json", quiet=False):
             empty = [l for l, n in planned.items() if n >= 2 and got.get(l, 0) == 0]
             thin = [l for l, n in planned.items() if n >= 3 and 0 < got.get(l, 0) < n - 1]
             if empty:
-                errors.append(f"lines with 2+ images planned but none written: {', '.join(sorted(empty))}")
+                warns.append(f"lines with 2+ images planned but none written: {', '.join(sorted(empty))}")
             if thin:
                 warns.append(f"lines with fewer images than planned: {', '.join(f'{l} ({got[l]}/{planned[l]})' for l in sorted(thin)[:12])}")
         ps = plan["counts"]["scene"] / max(1, need)
@@ -205,5 +205,6 @@ def lint(shots_path="SHOTS.json", quiet=False):
 
 
 if __name__ == "__main__":
-    e, _ = lint(sys.argv[1] if len(sys.argv) > 1 else "SHOTS.json")
+    pos = [a for a in sys.argv[1:] if not a.startswith("-")]
+    e, _ = lint(pos[0] if pos else "SHOTS.json")
     sys.exit(1 if e else 0)

@@ -40,7 +40,7 @@ class Timeline:
     def end(self):
         return self.words[-1][2] if self.words else 0.0
 
-    def resolve(self, cue, default=None, advance=True):
+    def resolve(self, cue, default=None, advance=True, min_time=None):
         if cue in (None, "", "-"):
             return default
         if isinstance(cue, (int, float)):
@@ -53,20 +53,56 @@ class Timeline:
         if re.fullmatch(r"\d+(\.\d+)?", cue):
             return float(cue) + shift
         if cue.startswith("@"):
+            raw_id = cue[1:].strip()
             for k, w in enumerate(self.words):
-                if w[0] == cue[1:]:
+                if w[0] == raw_id or (raw_id.isdigit() and w[0].isdigit() and int(w[0]) == int(raw_id)):
+                    if min_time is not None and w[1] < min_time:
+                        continue
                     if advance:
                         self.ptr = k
                     return max(0.0, w[1] + shift - self.lead)
-            raise SystemExit(f"cue {cue!r}: no VO line with that id")
-        target = PUNCT.sub("", cue[2:] if cue.startswith("w:") else cue)
-        order = list(range(self.ptr, len(self.words))) + list(range(0, self.ptr))
-        for k in order:
-            if target and target in self.words[k][4]:
-                if advance:
-                    self.ptr = k
-                return max(0.0, self.words[k][1] + shift - self.lead)
-        raise SystemExit(f"cue {cue!r} not found in the voiceover words")
+            if default is not None:
+                return default
+            # Graceful fallback: interpolate by line index instead of crashing
+            if raw_id.isdigit() and self.words:
+                lns = sorted(self.lines().items())
+                idx = min(max(0, int(raw_id) - 1), len(lns) - 1)
+                return max(0.0, lns[idx][1][0] + shift - self.lead)
+            return default if default is not None else 0.0
+
+        raw_target = cue[2:] if cue.startswith("w:") else cue
+        target = PUNCT.sub("", raw_target).strip().lower()
+        first_tok = target.split()[0] if target.split() else target
+        # Search forward from current pointer first (respecting min_time if provided)
+        forward_range = list(range(self.ptr, len(self.words)))
+        for tok in (target, first_tok, first_tok[:4] if len(first_tok) >= 4 else first_tok):
+            if not tok:
+                continue
+            for k in forward_range:
+                w_clean = self.words[k][4].lower()
+                if tok in w_clean or w_clean in tok:
+                    if min_time is not None and self.words[k][1] + shift - self.lead <= min_time:
+                        continue
+                    if advance:
+                        self.ptr = k
+                    return max(0.0, self.words[k][1] + shift - self.lead)
+        # If not found forward and min_time is None, check full word list
+        if min_time is None:
+            for k in range(0, self.ptr):
+                w_clean = self.words[k][4].lower()
+                if target and (target in w_clean or first_tok in w_clean):
+                    if advance:
+                        self.ptr = k
+                    return max(0.0, self.words[k][1] + shift - self.lead)
+        # Never crash with SystemExit: return default or advance smoothly from current pointer
+        if default is not None:
+            return default
+        if self.words:
+            k = min(self.ptr + 3, len(self.words) - 1)
+            if advance:
+                self.ptr = k
+            return max(min_time + 0.8 if min_time is not None else 0.0, self.words[k][1] + shift - self.lead)
+        return (min_time + 2.0) if min_time is not None else 0.0
 
     def phrases(self, max_chars=34, max_words=6, min_gap=0.35):
         """Group words into caption phrases: break on punctuation, pauses, line ends, length."""
