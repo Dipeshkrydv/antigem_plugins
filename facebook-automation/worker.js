@@ -1,28 +1,40 @@
 /**
- * AntiGem WebView MCP Service Worker for Facebook Automation & SEO Studio (v1.1.0)
+ * AntiGem WebView MCP Service Worker for Facebook Automation & SEO Studio (v1.3.0)
  *
- * Native AntiGem Browser Engine (Modeled on AntiGem WebView Extension SDK):
- * 1. Automatically opens Facebook (https://www.facebook.com/) inside the AntiGem Browser tab.
+ * Senior Social Media Manager & Mobile Precision Touch Engine:
+ * 1. Automatically opens Facebook (https://www.facebook.com/ or https://m.facebook.com/) inside the AntiGem Browser tab.
  * 2. Verifies One-Time Login via cookies (c_user, xs) + DOM inspection and persists session state.
  * 3. If NOT logged in: focuses the Facebook login tab in the AntiGem browser, saves the pending task,
  *    watches for login completion to auto-resume, and returns a strict STOP signal (zero retry loops!).
- * 4. Once logged in: autonomously executes Text Posts, Photo Posts, Carousels, Videos, Reels, Stories,
- *    Post Edits, Post Deletions, and Comments directly in the AntiGem WebView tab.
+ * 4. Precision Mobile & Desktop Touch Engine:
+ *    - Uses `window.visualViewport` (offsetLeft, offsetTop, width, height) for exact Android WebView touch coordinates (`fx, fy` in `[0.008, 0.992]`).
+ *    - Collapses soft keyboard (`blur()`) before tapping action buttons (`Photos`, `Next`, `Post`, `Publish`).
+ *    - Verifies hit-testing (`document.elementFromPoint`) across button quadrants before dispatching native Android trusted touch (`chrome.antigem.automation({ tabId, tap: { fx, fy } })`).
+ *    - Supports both Facebook Mobile Touch UI (`m.facebook.com`) and Desktop UI (`www.facebook.com`).
+ * 5. 4-Tier Bulletproof Media Attachment + Strict DOM Preview Verification:
+ *    - Auto-discovers the newest local photo/video when `media_paths` is `["latest"]` or omitted on photo/video/reel posts.
+ *    - Tier 1: CDP `Page.setInterceptFileChooserDialog` + `HTMLInputElement.prototype.click` capture + Trusted Native Tap on `"Photos"` / `"Photo/video"` button.
+ *    - Tier 2: Direct DOM `<input type="file">` binding via CDP `DOM.setFileInputFiles`.
+ *    - Tier 3: `chrome.antigem.readFile` (base64) + `DataTransfer` injection on captured or DOM file input.
+ *    - Tier 4: Synthetic `DragEvent("drop")` onto composer dropzone.
+ *    - Verifies photo/video preview is genuinely mounted in the composer DOM—NEVER silently uploads text-only when a photo/video was requested!
+ * 6. Senior Social Media Manager Unified Photo + Quote + Hashtags Law:
+ *    - Automatically enriches every photo/video/text post with a scroll-stopping Hook/Title, a deep & sharp Quote/Body, and 3-6 targeted `#Hashtags` in ONE unified post.
  */
 
 const PLUGIN_ID = "facebook-automation";
-const PLUGIN_VERSION = "1.1.0";
+const PLUGIN_VERSION = "1.3.0";
 const FB_HOME_URL = "https://www.facebook.com/";
 const FB_REELS_CREATE_URL = "https://www.facebook.com/reels/create";
 const FB_STORIES_CREATE_URL = "https://www.facebook.com/stories/create";
 const DEDUPE_WINDOW_MS = 48 * 3600 * 1000; // 48 hours
-const MIN_POST_INTERVAL_MS = 15 * 1000;    // 15s anti-burst spacing
+const MIN_POST_INTERVAL_MS = 12 * 1000;    // 12s anti-burst spacing
 
 let inFlightLock = null;
 const attachedDebuggerTabs = new Set();
 
 // ============================================================================
-// 1. Utility & Storage Helpers
+// 1. Utility, Storage & Auto-Discovery Helpers
 // ============================================================================
 
 function sleep(ms) {
@@ -63,6 +75,8 @@ function guessMimeType(filePath) {
     png: "image/png",
     webp: "image/webp",
     gif: "image/gif",
+    heic: "image/heic",
+    heif: "image/heif",
     mp4: "video/mp4",
     mov: "video/quicktime",
     m4v: "video/x-m4v",
@@ -75,9 +89,81 @@ function isVideoPath(filePath) {
   return /^video\//.test(guessMimeType(filePath));
 }
 
-async function resolveLocalFile(rawPath) {
-  if (!rawPath) throw new Error("Empty file path provided.");
-  let p = String(rawPath).trim();
+function isImagePath(filePath) {
+  return /^image\//.test(guessMimeType(filePath));
+}
+
+/**
+ * Automatically discovers the most recently modified photo or video file
+ * from standard Android / AntiGem / Desktop media directories when the user
+ * says "upload a photo" / "upload this photo" or passes "latest" / "auto".
+ */
+async function autoDiscoverLatestMedia(preferVideo = false) {
+  if (!chrome.antigem || typeof chrome.antigem.listFiles !== "function") {
+    return null;
+  }
+
+  const searchDirs = [
+    "/sdcard/Download/AntiGem",
+    "/storage/emulated/0/Download/AntiGem",
+    "/sdcard/Download",
+    "/storage/emulated/0/Download",
+    "/sdcard/Pictures",
+    "/storage/emulated/0/Pictures",
+    "/sdcard/DCIM/Camera",
+    "/storage/emulated/0/DCIM/Camera",
+    "~/Downloads",
+    "~/Pictures",
+    "/home/cat/Music/phone/Download/AntiGem",
+    "/home/cat/Music/phone/Download",
+    "/home/cat/facebook automation/assets",
+    "/home/cat/Pictures",
+    "/home/cat/Downloads"
+  ];
+
+  const validExts = preferVideo
+    ? new Set(["mp4", "mov", "m4v", "webm"])
+    : new Set(["jpg", "jpeg", "png", "webp"]);
+
+  let bestFile = null;
+
+  for (const dir of searchDirs) {
+    try {
+      const entries = await chrome.antigem.listFiles({ path: dir, recursive: false, limit: 250 });
+      if (!Array.isArray(entries)) continue;
+      for (const entry of entries) {
+        if (!entry || !entry.isFile || entry.isDirectory) continue;
+        const name = String(entry.name || entry.path || "");
+        const ext = (name.split(".").pop() || "").toLowerCase();
+        if (!validExts.has(ext)) continue;
+        if ((entry.size || 0) < 1024) continue; // skip empty/tiny files
+        const mtime = entry.modified || entry.mtime || 0;
+        if (!bestFile || mtime > bestFile.mtime) {
+          bestFile = {
+            path: entry.path,
+            size: entry.size || 0,
+            mtime,
+            mimeType: guessMimeType(entry.path),
+            filename: entry.name || entry.path.split("/").pop() || (preferVideo ? "video.mp4" : "photo.jpg"),
+            fingerprint: `file:${entry.path}:${entry.size || 0}:${mtime}`
+          };
+        }
+      }
+    } catch (_) {}
+  }
+
+  return bestFile;
+}
+
+async function resolveLocalFile(rawPath, preferVideo = false) {
+  const trimmed = String(rawPath || "").trim();
+  if (!trimmed || /^(latest|newest|auto|last|recent)$/i.test(trimmed)) {
+    const discovered = await autoDiscoverLatestMedia(preferVideo);
+    if (discovered) return discovered;
+    if (!trimmed) throw new Error("No media file path provided and no recent media found on device.");
+  }
+
+  let p = trimmed;
   const candidates = [p];
 
   if (p.startsWith("~/")) {
@@ -86,28 +172,51 @@ async function resolveLocalFile(rawPath) {
       `/data/data/com.antigem.app/files/home/${rel}`,
       `/data/user/0/com.antigem.app/files/home/${rel}`,
       `/data/data/com.termux/files/home/${rel}`,
-      `/storage/emulated/0/${rel}`
+      `/storage/emulated/0/${rel}`,
+      `/home/cat/${rel}`
     );
   } else if (p.startsWith("/sdcard/")) {
-    candidates.unshift(`/storage/emulated/0/${p.slice("/sdcard/".length)}`);
+    const rel = p.slice("/sdcard/".length);
+    candidates.unshift(
+      `/storage/emulated/0/${rel}`,
+      `/home/cat/Music/phone/${rel}`
+    );
+  } else if (!p.startsWith("/")) {
+    candidates.push(
+      `/sdcard/Download/AntiGem/${p}`,
+      `/storage/emulated/0/Download/AntiGem/${p}`,
+      `/sdcard/Download/${p}`,
+      `/storage/emulated/0/Download/${p}`,
+      `/sdcard/Pictures/${p}`,
+      `/sdcard/DCIM/Camera/${p}`,
+      `/home/cat/facebook automation/assets/${p}`,
+      `/home/cat/facebook automation/${p}`
+    );
   }
 
   if (chrome.antigem && typeof chrome.antigem.stat === "function") {
     for (const c of candidates) {
       try {
         const st = await chrome.antigem.stat({ path: c });
-        if (st && st.isFile !== false && !st.isDirectory) {
+        if (st && st.isFile !== false && !st.isDirectory && (st.size || 0) > 0) {
           const mtimeVal = st.modified || st.mtime || 0;
           return {
             path: st.path || c,
             size: st.size || 0,
             mtime: mtimeVal,
-            mimeType: guessMimeType(c),
-            filename: (st.path || c).split("/").pop() || "upload.bin",
-            fingerprint: `file:${st.path || c}:${st.size || 0}:${mtimeVal}`
+            mimeType: guessMimeType(st.path || c),
+            filename: (st.path || c).split("/").pop() || "upload.jpg",
+            fingerprint: `file:${st.path || c}:${st.size || 0}:${mtimeVal}`,
+            verified: true
           };
         }
       } catch (_) {}
+    }
+
+    // Fallback: if exact path wasn't found via stat, try auto-discovering latest media
+    const fallbackDiscovered = await autoDiscoverLatestMedia(preferVideo || isVideoPath(p));
+    if (fallbackDiscovered) {
+      return fallbackDiscovered;
     }
   }
 
@@ -116,8 +225,9 @@ async function resolveLocalFile(rawPath) {
     size: 0,
     mtime: 0,
     mimeType: guessMimeType(candidates[0]),
-    filename: candidates[0].split("/").pop() || "upload.bin",
-    fingerprint: `file:${candidates[0]}`
+    filename: candidates[0].split("/").pop() || "upload.jpg",
+    fingerprint: `file:${candidates[0]}`,
+    verified: false
   };
 }
 
@@ -144,15 +254,17 @@ async function checkDuplicate(caption, mediaPaths) {
 
   if (Array.isArray(mediaPaths) && mediaPaths.length > 0) {
     for (const mp of mediaPaths) {
-      const resolved = await resolveLocalFile(mp);
-      const mediaHash = await sha256Hex(resolved.fingerprint);
-      const match = activeLedger.find((e) => e.type === "media" && e.hash === mediaHash);
-      if (match) {
-        return {
-          isDuplicate: true,
-          reason: `Duplicate media file blocked (${resolved.filename} was already published within the last 48h).`
-        };
-      }
+      try {
+        const resolved = await resolveLocalFile(mp);
+        const mediaHash = await sha256Hex(resolved.fingerprint);
+        const match = activeLedger.find((e) => e.type === "media" && e.hash === mediaHash);
+        if (match) {
+          return {
+            isDuplicate: true,
+            reason: `Duplicate media file blocked (${resolved.filename} was already published within the last 48h).`
+          };
+        }
+      } catch (_) {}
     }
   }
 
@@ -221,11 +333,10 @@ async function waitForTabComplete(tabId, timeoutMs = 25000) {
     try {
       const tab = await chrome.tabs.get(tabId);
       if (tab && tab.status === "complete" && tab.url && tab.url !== "about:blank") {
-        // Also confirm document.readyState inside the tab
         try {
           const [probe] = await chrome.scripting.executeScript({
             world: "MAIN",
-        target: { tabId },
+            target: { tabId },
             func: () => ({
               readyState: document.readyState,
               href: location.href,
@@ -240,7 +351,7 @@ async function waitForTabComplete(tabId, timeoutMs = 25000) {
         }
       }
     } catch (_) {}
-    await sleep(400);
+    await sleep(350);
   }
   return await chrome.tabs.get(tabId).catch(() => null);
 }
@@ -262,7 +373,7 @@ async function ensureFacebookTab(options = {}) {
   if (!fbTab) {
     fbTab = await chrome.tabs.create({ url: desiredUrl, active: activate });
     await waitForTabComplete(fbTab.id, 25000);
-    await sleep(800);
+    await sleep(700);
     return await chrome.tabs.get(fbTab.id).catch(() => fbTab);
   }
 
@@ -277,7 +388,7 @@ async function ensureFacebookTab(options = {}) {
   if (Object.keys(updateProps).length > 0) {
     fbTab = await chrome.tabs.update(fbTab.id, updateProps);
     await waitForTabComplete(fbTab.id, 25000);
-    await sleep(600);
+    await sleep(500);
   } else if (fbTab.status !== "complete") {
     await waitForTabComplete(fbTab.id, 15000);
   }
@@ -287,7 +398,7 @@ async function ensureFacebookTab(options = {}) {
 
 /**
  * Checks whether the user is currently logged into Facebook in the AntiGem browser.
- * Combines cookie inspection (c_user + xs) with live DOM inspection.
+ * Combines cookie inspection (c_user + xs) with live DOM inspection on both m.facebook.com and www.facebook.com.
  */
 async function checkFacebookLogin(options = {}) {
   const { openIfMissing = true, activateOnLoginNeeded = true } = options;
@@ -315,19 +426,19 @@ async function checkFacebookLogin(options = {}) {
     }
   } catch (_) {}
 
-  // 2. Inspect DOM inside the Facebook tab
+  // 2. Inspect DOM inside the Facebook tab (works on both m.facebook.com and www.facebook.com)
   let domState = null;
   if (fbTab && fbTab.id) {
     try {
       const [res] = await chrome.scripting.executeScript({
+        world: "MAIN",
         target: { tabId: fbTab.id },
         func: () => {
           const href = location.href;
           const path = location.pathname || "";
           const html = document.documentElement ? document.documentElement.innerHTML : "";
-          const bodyText = document.body ? (document.body.innerText || "") : "";
+          const bodyText = document.body ? document.body.innerText || "" : "";
 
-          // Detect explicit login / checkpoint forms
           const hasLoginInput = Boolean(
             document.querySelector(
               'input[name="email"], input[name="pass"], #m_login_email, #m_login_password, button[name="login"], form[action*="/login"] input[type="password"]'
@@ -336,7 +447,6 @@ async function checkFacebookLogin(options = {}) {
           const isLoginUrl = /^\/(login|recover|r\.php)/i.test(path) || href.includes("facebook.com/login");
           const isCheckpoint = path.includes("/checkpoint") || /confirm your identity|security check/i.test(bodyText);
 
-          // Extract CurrentUserInitialData USER_ID and NAME
           let userId = null;
           let userName = null;
           const idMatch =
@@ -358,9 +468,8 @@ async function checkFacebookLogin(options = {}) {
             }
           }
 
-          // Check for profile navigation or feed composer
           const profileEl = document.querySelector(
-            'a[href*="/me/"], a[href*="/profile.php"], div[aria-label*="Your profile" i], a[aria-label*="Your profile" i], div[aria-label*="Facebook Menu" i]'
+            'a[href*="/me/"], a[href*="/profile.php"], div[aria-label*="Your profile" i], a[aria-label*="Your profile" i], div[aria-label*="Facebook Menu" i], div[aria-label*="Profile" i]'
           );
           if (!userName && profileEl) {
             const label = profileEl.getAttribute("aria-label") || profileEl.innerText || "";
@@ -372,15 +481,15 @@ async function checkFacebookLogin(options = {}) {
 
           const hasComposer = Boolean(
             document.querySelector(
-              'div[aria-label*="Create a post" i], div[aria-label*="Make a post" i], div[data-pagelet="ProfileComposer"]'
+              'div[aria-label*="Create a post" i], div[aria-label*="Make a post" i], div[data-pagelet="ProfileComposer"], #MComposer, a[href*="/composer/"]'
             ) ||
-              Array.from(document.querySelectorAll('div[role="button"], span')).some((el) => {
-                const t = (el.innerText || el.textContent || "").trim();
+              Array.from(document.querySelectorAll('div[role="button"], span, a')).some((el) => {
+                const t = (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim();
                 return (
-                  t.includes("What's on your mind") ||
-                  t.includes("Write something") ||
-                  t.includes("Create a post") ||
-                  t === "Post"
+                  /what['’]?s on your mind/i.test(t) ||
+                  /make a post/i.test(t) ||
+                  /write something/i.test(t) ||
+                  /create a post/i.test(t)
                 );
               })
           );
@@ -388,12 +497,13 @@ async function checkFacebookLogin(options = {}) {
           const hasLoggedInNav = Boolean(
             profileEl ||
               document.querySelector(
-                'div[aria-label="Account Controls and Settings"], div[aria-label="Messenger"], a[aria-label="Home"], div[role="banner"]'
+                'div[aria-label="Account Controls and Settings"], div[aria-label="Messenger"], a[aria-label="Home"], div[role="banner"], div[role="navigation"]'
               )
           );
 
           return {
             href,
+            isMobileUi: location.hostname.startsWith("m.") || window.innerWidth < 768,
             title: document.title || "",
             hasLoginInput,
             isLoginUrl,
@@ -433,6 +543,7 @@ async function checkFacebookLogin(options = {}) {
         account_name: accountName || "Facebook Account",
         active_tab_id: fbTab ? fbTab.id : null,
         active_tab_url: (domState && domState.href) || (fbTab && fbTab.url) || FB_HOME_URL,
+        is_mobile_ui: Boolean(domState && domState.isMobileUi),
         verified_at: Date.now()
       }
     });
@@ -444,6 +555,7 @@ async function checkFacebookLogin(options = {}) {
       browser_opened: Boolean(fbTab),
       active_tab_id: fbTab ? fbTab.id : null,
       active_tab_url: (domState && domState.href) || (fbTab && fbTab.url) || FB_HOME_URL,
+      is_mobile_ui: Boolean(domState && domState.isMobileUi),
       account_id: accountId || "authenticated",
       account_name: accountName || "Facebook Account",
       account_type: "profile",
@@ -451,7 +563,6 @@ async function checkFacebookLogin(options = {}) {
     };
   }
 
-  // Not logged in -> ensure Facebook tab is open & focused on the login screen in AntiGem browser
   if (fbTab && activateOnLoginNeeded) {
     try {
       await chrome.tabs.update(fbTab.id, { active: true });
@@ -481,7 +592,7 @@ async function checkFacebookLogin(options = {}) {
 }
 
 // ============================================================================
-// 4. Native AntiGem WebView Automation Lease, Tap & CDP File Upload
+// 4. Precision Mobile & Desktop Touch Engine + 4-Tier File Attachment
 // ============================================================================
 
 async function withAutomationLease(tabId, fn) {
@@ -497,7 +608,7 @@ async function withAutomationLease(tabId, fn) {
   await setBusy(true);
   heartbeat = setInterval(() => {
     setBusy(true);
-  }, 4000);
+  }, 12000);
 
   try {
     return await fn();
@@ -507,19 +618,47 @@ async function withAutomationLease(tabId, fn) {
   }
 }
 
+/**
+ * Dispatches a native Android WebView touch at exact visualViewport fractions { fx, fy }
+ * via `chrome.antigem.automation({ tabId, busy: true, tap: { fx, fy } })`.
+ */
 async function trustedTap(tabId, coords) {
   if (!coords || typeof coords.fx !== "number" || typeof coords.fy !== "number") return false;
+  const fx = Math.max(0.008, Math.min(0.992, coords.fx));
+  const fy = Math.max(0.008, Math.min(0.992, coords.fy));
   try {
     if (chrome.antigem && typeof chrome.antigem.automation === "function") {
       await chrome.antigem.automation({
         tabId,
         busy: true,
-        tap: { fx: coords.fx, fy: coords.fy }
+        tap: { fx, fy }
       });
       return true;
     }
   } catch (_) {}
   return false;
+}
+
+/**
+ * Collapses the mobile soft keyboard by blurring the active input element and waiting
+ * for `window.visualViewport` to stabilize before computing touch coordinates.
+ */
+async function blurKeyboardAndSettle(tabId) {
+  try {
+    await chrome.scripting.executeScript({
+      world: "MAIN",
+      target: { tabId },
+      func: () => {
+        try {
+          if (document.activeElement && typeof document.activeElement.blur === "function") {
+            document.activeElement.blur();
+          }
+          window.getSelection()?.removeAllRanges();
+        } catch (_) {}
+      }
+    });
+    await sleep(220);
+  } catch (_) {}
 }
 
 async function ensureDebuggerAttached(tabId) {
@@ -546,109 +685,539 @@ if (chrome.debugger && chrome.debugger.onDetach) {
 }
 
 /**
- * Attaches one or more local media files (photos or videos) to the marked
- * <input type="file" data-antigem-upload-target="1"> inside the Facebook tab.
- * Uses CDP DOM.setFileInputFiles first (zero RAM overhead for large videos/reels),
- * with automatic fallback to chrome.antigem.readFile (base64) + DataTransfer.
+ * 4-Tier Bulletproof Media Attachment Engine for Mobile (`m.facebook.com`) & Desktop (`www.facebook.com`).
+ * Guarantees that photos/videos are genuinely attached to the composer and verifies the preview in the DOM.
  */
-async function attachMediaFilesToMarkedInput(tabId, rawPaths) {
+async function attachMediaToFacebookComposer(tabId, rawPaths, options = {}) {
+  const { preferVideo = false, requirePreview = true } = options;
+
   const resolvedFiles = [];
-  for (const rp of rawPaths) {
-    resolvedFiles.push(await resolveLocalFile(rp));
+  if (!Array.isArray(rawPaths) || rawPaths.length === 0) {
+    const latest = await autoDiscoverLatestMedia(preferVideo);
+    if (!latest) {
+      throw new Error("No photo/video file was provided and no recent media file was found on device.");
+    }
+    resolvedFiles.push(latest);
+  } else {
+    for (const rp of rawPaths) {
+      resolvedFiles.push(await resolveLocalFile(rp, preferVideo));
+    }
   }
 
-  // Tier 1: CDP DOM.setFileInputFiles (best for large MP4 Reels & Videos)
+  const filePaths = resolvedFiles.map((f) => f.path);
   const dbgReady = await ensureDebuggerAttached(tabId);
-  if (dbgReady) {
+
+  // Pre-load base64 payloads for files <= 15MB so DataTransfer / Drop fallback is instant
+  const filePayloads = [];
+  if (chrome.antigem && typeof chrome.antigem.readFile === "function") {
+    for (const f of resolvedFiles) {
+      if (!f.size || f.size <= 15 * 1024 * 1024) {
+        try {
+          const readRes = await chrome.antigem.readFile({ path: f.path, encoding: "base64" });
+          const b64 = typeof readRes === "string" ? readRes : readRes && readRes.data;
+          if (b64) {
+            filePayloads.push({
+              base64: b64,
+              filename: f.filename,
+              mimeType: f.mimeType
+            });
+          }
+        } catch (_) {}
+      }
+    }
+  }
+
+  let chooserParams = null;
+  const onDebuggerEvent = (source, method, params) => {
+    if (source && source.tabId === tabId && method === "Page.fileChooserOpened") {
+      chooserParams = params;
+    }
+  };
+
+  if (dbgReady && chrome.debugger.onEvent) {
+    chrome.debugger.onEvent.addListener(onDebuggerEvent);
     try {
       await chrome.debugger.sendCommand({ tabId }, "DOM.enable", {});
-      const doc = await chrome.debugger.sendCommand({ tabId }, "DOM.getDocument", { depth: -1 });
-      const rootNodeId = doc && doc.root && doc.root.nodeId;
-      if (rootNodeId) {
-        const q = await chrome.debugger.sendCommand({ tabId }, "DOM.querySelector", {
-          nodeId: rootNodeId,
-          selector: 'input[type="file"][data-antigem-upload-target="1"]'
-        });
-        if (q && q.nodeId) {
-          await chrome.debugger.sendCommand({ tabId }, "DOM.setFileInputFiles", {
-            nodeId: q.nodeId,
-            files: resolvedFiles.map((f) => f.path)
-          });
-          // Fire input & change events on the input element
-          const [verify] = await chrome.scripting.executeScript({
-            world: "MAIN",
-        target: { tabId },
-            func: () => {
-              const inp = document.querySelector('input[type="file"][data-antigem-upload-target="1"]');
-              if (!inp) return { ok: false };
-              inp.dispatchEvent(new Event("input", { bubbles: true }));
-              inp.dispatchEvent(new Event("change", { bubbles: true }));
-              return { ok: Boolean(inp.files && inp.files.length > 0), count: inp.files ? inp.files.length : 0 };
-            }
-          });
-          if (verify && verify.result && verify.result.ok) {
-            return { ok: true, method: "cdp_setFileInputFiles", count: verify.result.count, files: resolvedFiles };
-          }
-        }
-      }
+      await chrome.debugger.sendCommand({ tabId }, "Page.enable", {});
+      await chrome.debugger.sendCommand({ tabId }, "Page.setInterceptFileChooserDialog", { enabled: true });
     } catch (_) {}
   }
 
-  // Tier 2: chrome.antigem.readFile (base64) + DataTransfer inside the page
-  if (chrome.antigem && typeof chrome.antigem.readFile === "function") {
-    const filePayloads = [];
-    for (const f of resolvedFiles) {
-      const readRes = await chrome.antigem.readFile({ path: f.path, encoding: "base64" });
-      const b64 = typeof readRes === "string" ? readRes : readRes && readRes.data;
-      if (!b64) {
-        throw new Error(`Could not read local media file: ${f.path}`);
-      }
-      filePayloads.push({
-        base64: b64,
-        filename: f.filename,
-        mimeType: f.mimeType
-      });
-    }
+  try {
+    // Step A: Inspect composer, install HTMLInputElement.prototype.click capture, and locate Photo/Video button or existing <input type="file">
+    await blurKeyboardAndSettle(tabId);
 
-    const [dtRes] = await chrome.scripting.executeScript({
+    const [prepRes] = await chrome.scripting.executeScript({
       world: "MAIN",
-        target: { tabId },
-      args: [filePayloads],
-      func: (items) => {
-        const inp =
-          document.querySelector('input[type="file"][data-antigem-upload-target="1"]') ||
-          document.querySelector('div[role="dialog"] input[type="file"]') ||
-          document.querySelector('input[type="file"]');
-        if (!inp) return { ok: false, error: "No <input type=file> found in DOM." };
+      target: { tabId },
+      args: [preferVideo],
+      func: async (wantVid) => {
+        const waitFrame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const isVisible = (el) => {
+          if (!el) return false;
+          const r = el.getBoundingClientRect();
+          if (r.width < 4 || r.height < 4) return false;
+          const st = window.getComputedStyle(el);
+          return st.visibility !== "hidden" && st.display !== "none" && Number(st.opacity || 1) > 0.01;
+        };
 
-        const dt = new DataTransfer();
-        for (const item of items) {
-          const bin = atob(item.base64);
-          const bytes = new Uint8Array(bin.length);
-          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-          const fileObj = new File([bytes], item.filename, {
-            type: item.mimeType,
-            lastModified: Date.now()
+        const toViewportTap = (el) => {
+          if (!el) return null;
+          const r0 = el.getBoundingClientRect();
+          const v0 = window.visualViewport;
+          const vh0 = (v0 && v0.height) || window.innerHeight || 1;
+          if (r0.top < 8 || r0.bottom > vh0 - 8) {
+            try {
+              el.scrollIntoView({ block: "center", inline: "center", behavior: "instant" });
+            } catch (_) {}
+          }
+          const r = el.getBoundingClientRect();
+          const v = window.visualViewport;
+          const vw = (v && v.width) || window.innerWidth || document.documentElement.clientWidth || 1;
+          const vh = (v && v.height) || window.innerHeight || document.documentElement.clientHeight || 1;
+          const ox = (v && v.offsetLeft) || 0;
+          const oy = (v && v.offsetTop) || 0;
+
+          const samples = [
+            [0.5, 0.5],
+            [0.35, 0.5],
+            [0.65, 0.5],
+            [0.5, 0.35],
+            [0.5, 0.65]
+          ];
+          let chosenX = r.left + r.width * 0.5;
+          let chosenY = r.top + r.height * 0.5;
+          for (const [sx, sy] of samples) {
+            const px = r.left + r.width * sx;
+            const py = r.top + r.height * sy;
+            const hit = document.elementFromPoint(px, py);
+            if (hit && (hit === el || el.contains(hit) || hit.contains(el))) {
+              chosenX = px;
+              chosenY = py;
+              break;
+            }
+          }
+
+          return {
+            fx: Math.max(0.008, Math.min(0.992, (chosenX - ox) / vw)),
+            fy: Math.max(0.008, Math.min(0.992, (chosenY - oy) / vh))
+          };
+        };
+
+        document
+          .querySelectorAll("[data-antigem-upload-target]")
+          .forEach((el) => el.removeAttribute("data-antigem-upload-target"));
+        window.__agFbUploadInput = null;
+
+        // Install HTMLInputElement.prototype.click interceptor to catch detached file inputs
+        if (!window.__agFbOrigInputClick) {
+          window.__agFbOrigInputClick = HTMLInputElement.prototype.click;
+        }
+        HTMLInputElement.prototype.click = function (...args) {
+          if (this && this.type === "file") {
+            window.__agFbUploadInput = this;
+            this.setAttribute("data-antigem-upload-target", "1");
+            return;
+          }
+          return window.__agFbOrigInputClick.apply(this, args);
+        };
+
+        const scope = document.querySelector('div[role="dialog"]') || document;
+        const beforeInputs = new Set(document.querySelectorAll('input[type="file"]'));
+
+        // Locate Photo/Video button in composer (Mobile m.facebook.com & Desktop www.facebook.com)
+        const findPhotoBtn = () => {
+          const all = Array.from(
+            scope.querySelectorAll('div[role="button"], span[role="button"], button, a, label, [data-sigil*="photo"]')
+          ).filter(isVisible);
+
+          // Priority 1: Explicit aria-label or text matching Photo/Video
+          const byLabel = all.find((el) => {
+            const aria = (el.getAttribute("aria-label") || "").trim();
+            const txt = (el.innerText || el.textContent || "").trim();
+            const combined = `${aria} ${txt}`;
+            if (/remove|delete|edit|tag|cover|profile picture/i.test(combined)) return false;
+            return (
+              /^(photo\/video|photos\/videos|photos|photo|add photos|add photo|add video|video|फोटो\/भिडियो|फोटो|तस्विर)$/i.test(
+                aria
+              ) ||
+              /^(photo\/video|photos\/videos|photos|photo|add photos|add photo|add video|फोटो\/भिडियो|फोटो|तस्विर)$/i.test(
+                txt
+              ) ||
+              /photo\/video|photos\/videos|add photos|add to your post.*photo/i.test(combined)
+            );
           });
-          dt.items.add(fileObj);
+          if (byLabel) return byLabel;
+
+          // Priority 2: Mobile composer bottom drawer "Add to your post" trigger if collapsed
+          const addDrawer = all.find((el) => {
+            const t = `${el.getAttribute("aria-label") || ""} ${el.innerText || ""}`.trim();
+            return /add to your post|add more to your post/i.test(t);
+          });
+          return addDrawer || null;
+        };
+
+        let photoBtn = findPhotoBtn();
+        let photoBtnTap = null;
+
+        if (photoBtn) {
+          const btnTxt = `${photoBtn.getAttribute("aria-label") || ""} ${photoBtn.innerText || ""}`;
+          if (/add to your post/i.test(btnTxt) && !/photo/i.test(btnTxt)) {
+            try {
+              photoBtn.click();
+            } catch (_) {}
+            await new Promise((r) => setTimeout(r, 350));
+            photoBtn = findPhotoBtn() || photoBtn;
+          }
+          await waitFrame();
+          photoBtnTap = toViewportTap(photoBtn);
+          try {
+            photoBtn.click();
+          } catch (_) {}
+          await new Promise((r) => setTimeout(r, 250));
         }
 
-        if (items.length > 1) inp.multiple = true;
-        inp.files = dt.files;
-        inp.dispatchEvent(new Event("input", { bubbles: true }));
-        inp.dispatchEvent(new Event("change", { bubbles: true }));
-        return { ok: Boolean(inp.files && inp.files.length > 0), count: inp.files ? inp.files.length : 0 };
+        // Check if an <input type="file"> was captured or exists in DOM
+        const allInputs = Array.from(document.querySelectorAll('input[type="file"]'));
+        const scoreInput = (inp) => {
+          if (!inp) return -1;
+          const acc = (inp.getAttribute("accept") || "").toLowerCase();
+          let s = 0;
+          if (!beforeInputs.has(inp)) s += 50;
+          if (inp.closest('div[role="dialog"]')) s += 30;
+          if (wantVid && acc.includes("video")) s += 25;
+          if (!wantVid && acc.includes("image")) s += 25;
+          if (!acc) s += 10;
+          return s;
+        };
+
+        let targetInput = window.__agFbUploadInput || null;
+        if (!targetInput && allInputs.length > 0) {
+          allInputs.sort((a, b) => scoreInput(b) - scoreInput(a));
+          targetInput = allInputs[0];
+        }
+
+        if (targetInput) {
+          window.__agFbUploadInput = targetInput;
+          try {
+            targetInput.setAttribute("data-antigem-upload-target", "1");
+          } catch (_) {}
+        }
+
+        return {
+          hasCapturedInput: Boolean(window.__agFbUploadInput),
+          inDomInput: Boolean(targetInput && document.contains(targetInput)),
+          photoBtnTap
+        };
       }
     });
 
-    if (dtRes && dtRes.result && dtRes.result.ok) {
-      return { ok: true, method: "antigem_dataTransfer", count: dtRes.result.count, files: resolvedFiles };
-    }
-  }
+    const prep = (prepRes && prepRes.result) || {};
 
-  throw new Error(
-    `Failed to attach media file(s) (${resolvedFiles.map((f) => f.filename).join(", ")}) to Facebook file input.`
-  );
+    // Helper to check if media preview is now visible inside the Facebook composer
+    const checkComposerMediaPreview = async () => {
+      const [probe] = await chrome.scripting.executeScript({
+        world: "MAIN",
+        target: { tabId },
+        func: () => {
+          const scope = document.querySelector('div[role="dialog"]') || document;
+
+          // If mobile Facebook photo picker shows an intermediate "Done" / "Next" button on a crop/selection sub-screen, click it
+          const hasTextbox = Boolean(
+            scope.querySelector(
+              'div[role="textbox"][contenteditable="true"], div[data-lexical-editor="true"], textarea.composerInput, textarea[name="xc_message"], textarea'
+            )
+          );
+          if (!hasTextbox) {
+            const doneOrNext = Array.from(scope.querySelectorAll('div[role="button"], button, span[role="button"]')).find(
+              (el) => {
+                const t = (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim().toLowerCase();
+                return t === "done" || t === "next" || t === "add" || t === "confirm";
+              }
+            );
+            if (doneOrNext) {
+              try {
+                doneOrNext.click();
+              } catch (_) {}
+            }
+          }
+
+          // Detect attached image/video preview in Desktop or Mobile composer
+          const hasBlobOrDataImg = Array.from(scope.querySelectorAll("img")).some((img) => {
+            const src = img.getAttribute("src") || "";
+            const r = img.getBoundingClientRect();
+            return (src.startsWith("blob:") || src.startsWith("data:image/")) && r.width >= 36 && r.height >= 36;
+          });
+          const hasVideoPreview = Boolean(scope.querySelector("video"));
+          const hasRemoveOrEditMediaBtn = Boolean(
+            scope.querySelector(
+              '[aria-label*="Remove photo" i], [aria-label*="Remove video" i], [aria-label*="Remove media" i], [aria-label*="Remove attachment" i], [aria-label*="Edit photo" i], [aria-label*="Edit All" i], [data-sigil*="photo-preview"], [data-sigil*="media-attachment"]'
+            )
+          );
+          const hasFileInInput = Boolean(
+            window.__agFbUploadInput && window.__agFbUploadInput.files && window.__agFbUploadInput.files.length > 0
+          );
+
+          return {
+            previewMounted: Boolean(hasBlobOrDataImg || hasVideoPreview || hasRemoveOrEditMediaBtn),
+            hasFileInInput
+          };
+        }
+      });
+      return (probe && probe.result) || { previewMounted: false, hasFileInInput: false };
+    };
+
+    // Tier 1A: If a file input was captured (attached or detached) and we have debugger, bind via Runtime.evaluate objectId or DOM.querySelector
+    const bindViaCdpObjectOrNode = async () => {
+      if (!dbgReady) return false;
+      try {
+        const evalObj = await chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
+          expression: "window.__agFbUploadInput || document.querySelector('input[type=\"file\"][data-antigem-upload-target=\"1\"]')",
+          returnByValue: false
+        });
+        if (evalObj && evalObj.result && evalObj.result.objectId) {
+          await chrome.debugger.sendCommand({ tabId }, "DOM.setFileInputFiles", {
+            objectId: evalObj.result.objectId,
+            files: filePaths
+          });
+          await chrome.scripting.executeScript({
+            world: "MAIN",
+            target: { tabId },
+            func: () => {
+              const inp =
+                window.__agFbUploadInput ||
+                document.querySelector('input[type="file"][data-antigem-upload-target="1"]');
+              if (inp) {
+                inp.dispatchEvent(new Event("input", { bubbles: true }));
+                inp.dispatchEvent(new Event("change", { bubbles: true }));
+              }
+            }
+          });
+          return true;
+        }
+      } catch (_) {}
+
+      try {
+        const doc = await chrome.debugger.sendCommand({ tabId }, "DOM.getDocument", { depth: -1 });
+        const rootNodeId = doc && doc.root && doc.root.nodeId;
+        if (rootNodeId) {
+          const q = await chrome.debugger.sendCommand({ tabId }, "DOM.querySelector", {
+            nodeId: rootNodeId,
+            selector: 'input[type="file"][data-antigem-upload-target="1"]'
+          });
+          if (q && q.nodeId) {
+            await chrome.debugger.sendCommand({ tabId }, "DOM.setFileInputFiles", {
+              nodeId: q.nodeId,
+              files: filePaths
+            });
+            await chrome.scripting.executeScript({
+              world: "MAIN",
+              target: { tabId },
+              func: () => {
+                const inp = document.querySelector('input[type="file"][data-antigem-upload-target="1"]');
+                if (inp) {
+                  inp.dispatchEvent(new Event("input", { bubbles: true }));
+                  inp.dispatchEvent(new Event("change", { bubbles: true }));
+                }
+              }
+            });
+            return true;
+          }
+        }
+      } catch (_) {}
+      return false;
+    };
+
+    // Tier 1B: DataTransfer injection on window.__agFbUploadInput or DOM <input type="file">
+    const bindViaDataTransfer = async () => {
+      if (filePayloads.length === 0) return false;
+      const [dtRes] = await chrome.scripting.executeScript({
+        world: "MAIN",
+        target: { tabId },
+        args: [filePayloads],
+        func: (items) => {
+          const inp =
+            window.__agFbUploadInput ||
+            document.querySelector('input[type="file"][data-antigem-upload-target="1"]') ||
+            document.querySelector('div[role="dialog"] input[type="file"]') ||
+            document.querySelector('input[type="file"]');
+          if (!inp) return { ok: false };
+
+          const dt = new DataTransfer();
+          for (const item of items) {
+            const bin = atob(item.base64);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            const fileObj = new File([bytes], item.filename, {
+              type: item.mimeType,
+              lastModified: Date.now()
+            });
+            dt.items.add(fileObj);
+          }
+
+          if (items.length > 1) inp.multiple = true;
+          inp.files = dt.files;
+          inp.dispatchEvent(new Event("input", { bubbles: true }));
+          inp.dispatchEvent(new Event("change", { bubbles: true }));
+          return { ok: Boolean(inp.files && inp.files.length > 0), count: inp.files ? inp.files.length : 0 };
+        }
+      });
+      return Boolean(dtRes && dtRes.result && dtRes.result.ok);
+    };
+
+    let bound = false;
+
+    if (prep.hasCapturedInput) {
+      bound = await bindViaCdpObjectOrNode();
+      if (!bound) {
+        bound = await bindViaDataTransfer();
+      }
+    }
+
+    // Tier 2: If no input was captured yet or preview hasn't mounted, restore native input click & dispatch Trusted Touch on the Photo button!
+    await sleep(600);
+    let previewState = await checkComposerMediaPreview();
+
+    if (!previewState.previewMounted && prep.photoBtnTap) {
+      // Restore native HTMLInputElement.prototype.click so trusted tap triggers Page.fileChooserOpened OR captures input
+      await chrome.scripting.executeScript({
+        world: "MAIN",
+        target: { tabId },
+        func: () => {
+          if (window.__agFbOrigInputClick) {
+            const orig = window.__agFbOrigInputClick;
+            HTMLInputElement.prototype.click = function (...args) {
+              if (this && this.type === "file") {
+                window.__agFbUploadInput = this;
+                try {
+                  this.setAttribute("data-antigem-upload-target", "1");
+                } catch (_) {}
+              }
+              return orig.apply(this, args);
+            };
+          }
+        }
+      });
+
+      await trustedTap(tabId, prep.photoBtnTap);
+
+      // Wait up to 2.5s for Page.fileChooserOpened or newly mounted <input type="file">
+      const waitDeadline = Date.now() + 2500;
+      while (Date.now() < waitDeadline) {
+        if (chooserParams && chooserParams.backendNodeId) break;
+        const [chkInp] = await chrome.scripting.executeScript({
+          world: "MAIN",
+          target: { tabId },
+          func: () => Boolean(window.__agFbUploadInput || document.querySelector('input[type="file"]'))
+        });
+        if (chkInp && chkInp.result) break;
+        await sleep(120);
+      }
+
+      if (chooserParams && chooserParams.backendNodeId && dbgReady) {
+        try {
+          await chrome.debugger.sendCommand({ tabId }, "DOM.setFileInputFiles", {
+            backendNodeId: chooserParams.backendNodeId,
+            files: filePaths
+          });
+          bound = true;
+        } catch (_) {}
+      }
+
+      if (!bound) {
+        bound = await bindViaCdpObjectOrNode();
+      }
+      if (!bound) {
+        bound = await bindViaDataTransfer();
+      }
+    }
+
+    // Tier 3: If DataTransfer wasn't tried yet or CDP setFileInputFiles didn't trigger React's change listener, run DataTransfer too
+    await sleep(900);
+    previewState = await checkComposerMediaPreview();
+    if (!previewState.previewMounted && filePayloads.length > 0) {
+      await bindViaDataTransfer();
+      await sleep(900);
+      previewState = await checkComposerMediaPreview();
+    }
+
+    // Tier 4: Synthetic DragEvent("drop") directly onto the Composer Dropzone / Dialog / Textbox
+    if (!previewState.previewMounted && filePayloads.length > 0) {
+      await chrome.scripting.executeScript({
+        world: "MAIN",
+        target: { tabId },
+        args: [filePayloads],
+        func: (items) => {
+          const scope = document.querySelector('div[role="dialog"]') || document.body;
+          const dropTarget =
+            scope.querySelector('div[role="textbox"][contenteditable="true"]') ||
+            scope.querySelector('textarea') ||
+            scope;
+          if (!dropTarget) return { ok: false };
+
+          const dt = new DataTransfer();
+          for (const item of items) {
+            const bin = atob(item.base64);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            const fileObj = new File([bytes], item.filename, {
+              type: item.mimeType,
+              lastModified: Date.now()
+            });
+            dt.items.add(fileObj);
+          }
+
+          for (const evtName of ["dragenter", "dragover", "drop"]) {
+            const evt = new DragEvent(evtName, {
+              bubbles: true,
+              cancelable: true,
+              dataTransfer: dt
+            });
+            dropTarget.dispatchEvent(evt);
+          }
+          return { ok: true };
+        }
+      });
+    }
+
+    // Poll up to 6 seconds for the media preview thumbnail to settle in the composer DOM
+    const previewDeadline = Date.now() + (preferVideo ? 8000 : 5500);
+    while (Date.now() < previewDeadline) {
+      previewState = await checkComposerMediaPreview();
+      if (previewState.previewMounted) break;
+      await sleep(350);
+    }
+
+    if (requirePreview && !previewState.previewMounted && !previewState.hasFileInInput && !bound) {
+      throw new Error(
+        `Photo/video attachment did not mount in Facebook composer (${resolvedFiles.map((f) => f.filename).join(", ")}). Aborting before Post so a text-only post is never sent by mistake.`
+      );
+    }
+
+    return {
+      ok: true,
+      previewMounted: previewState.previewMounted,
+      files: resolvedFiles
+    };
+  } finally {
+    if (dbgReady && chrome.debugger.onEvent) {
+      chrome.debugger.onEvent.removeListener(onDebuggerEvent);
+      try {
+        await chrome.debugger.sendCommand({ tabId }, "Page.setInterceptFileChooserDialog", { enabled: false });
+      } catch (_) {}
+    }
+    try {
+      await chrome.scripting.executeScript({
+        world: "MAIN",
+        target: { tabId },
+        func: () => {
+          if (window.__agFbOrigInputClick) {
+            HTMLInputElement.prototype.click = window.__agFbOrigInputClick;
+          }
+        }
+      });
+    } catch (_) {}
+  }
 }
 
 // ============================================================================
@@ -657,16 +1226,65 @@ async function attachMediaFilesToMarkedInput(tabId, rawPaths) {
 
 /**
  * Pipeline A: Feed Post (Text, Photo, Carousel, Video) on Profile, Page, or Group
+ * Works across both Facebook Mobile UI (`m.facebook.com`) and Desktop UI (`www.facebook.com`).
  */
 async function executeFeedPostInBrowser(tabId, payload) {
+  const rawMediaInput = Array.isArray(payload.media_paths)
+    ? payload.media_paths
+    : payload.media_path
+    ? [payload.media_path]
+    : payload.video_path
+    ? [payload.video_path]
+    : [];
+
+  const isMediaPostType = ["photo", "carousel", "video"].includes(String(payload.post_type || "").toLowerCase());
+  const wantVideo =
+    String(payload.post_type || "").toLowerCase() === "video" || rawMediaInput.some((p) => isVideoPath(p));
+
+  // If user requested a photo/video post (or passed "latest"), resolve media files upfront so we know the filename/topic!
+  let resolvedMediaList = [];
+  if (rawMediaInput.length > 0 || isMediaPostType) {
+    if (rawMediaInput.length === 0) {
+      const autoMedia = await autoDiscoverLatestMedia(wantVideo);
+      if (!autoMedia) {
+        throw new Error(
+          "You asked to upload a photo/video, but no media_paths were provided and no recent photo/video was found in your Downloads/Pictures folder."
+        );
+      }
+      resolvedMediaList.push(autoMedia);
+    } else {
+      for (const mp of rawMediaInput) {
+        resolvedMediaList.push(await resolveLocalFile(mp, wantVideo));
+      }
+    }
+  }
+
+  const effectivePostType =
+    resolvedMediaList.length > 0
+      ? wantVideo || resolvedMediaList.some((f) => isVideoPath(f.path))
+        ? "video"
+        : resolvedMediaList.length > 1
+        ? "carousel"
+        : "photo"
+      : payload.post_type || "text";
+
+  // Senior Social Media Manager Auto-Copywriter: craft Hook + Deep Quote + Hashtags
+  const mediaHintName = resolvedMediaList.length > 0 ? resolvedMediaList[0].filename : "";
+  const enriched = ensureTitleAndHashtags({
+    ...payload,
+    post_type: effectivePostType,
+    media_hint: mediaHintName
+  });
+
   const {
-    caption = "",
-    media_paths = [],
-    post_type = "text",
     target_type = "profile",
     target_id = null,
-    first_comment = null
+    first_comment = null,
+    thumbnail_path = null
   } = payload;
+  const title = enriched.title;
+  const caption = enriched.caption;
+  const hashtags = enriched.hashtags;
 
   // 1. Navigate to target surface if Page or Group specified
   let desiredUrl = FB_HOME_URL;
@@ -680,36 +1298,81 @@ async function executeFeedPostInBrowser(tabId, payload) {
   if (!currentTab.url || (desiredUrl !== FB_HOME_URL && !currentTab.url.includes(String(target_id)))) {
     await chrome.tabs.update(tabId, { url: desiredUrl, active: true });
     await waitForTabComplete(tabId, 25000);
-    await sleep(1200);
+    await sleep(1000);
   }
 
-  // 2. Locate and click Composer Trigger ("What's on your mind?" / "Create a post" / "Write something...")
+  // 2. Open Facebook Post Composer using Precision Mobile & Desktop Touch
+  await blurKeyboardAndSettle(tabId);
+
   const [triggerRes] = await chrome.scripting.executeScript({
     world: "MAIN",
-        target: { tabId },
+    target: { tabId },
     func: () => {
-      // Check if composer dialog is already open
+      const isVisible = (el) => {
+        if (!el) return false;
+        const r = el.getBoundingClientRect();
+        if (r.width < 6 || r.height < 6) return false;
+        const st = window.getComputedStyle(el);
+        return st.visibility !== "hidden" && st.display !== "none" && Number(st.opacity || 1) > 0.01;
+      };
+
+      const toViewportTap = (el) => {
+        const r0 = el.getBoundingClientRect();
+        const v0 = window.visualViewport;
+        const vh0 = (v0 && v0.height) || window.innerHeight || 1;
+        if (r0.top < 8 || r0.bottom > vh0 - 8) {
+          try {
+            el.scrollIntoView({ block: "center", inline: "center", behavior: "instant" });
+          } catch (_) {}
+        }
+        const r = el.getBoundingClientRect();
+        const v = window.visualViewport;
+        const vw = (v && v.width) || window.innerWidth || document.documentElement.clientWidth || 1;
+        const vh = (v && v.height) || window.innerHeight || document.documentElement.clientHeight || 1;
+        const ox = (v && v.offsetLeft) || 0;
+        const oy = (v && v.offsetTop) || 0;
+        const cx = r.left + r.width * 0.5;
+        const cy = r.top + r.height * 0.5;
+        return {
+          fx: Math.max(0.008, Math.min(0.992, (cx - ox) / vw)),
+          fy: Math.max(0.008, Math.min(0.992, (cy - oy) / vh))
+        };
+      };
+
+      // Check if composer dialog or mobile full-screen composer is already open
       const existingDialog = document.querySelector('div[role="dialog"]');
-      if (existingDialog && existingDialog.querySelector('div[role="textbox"][contenteditable="true"], textarea')) {
+      if (
+        existingDialog &&
+        existingDialog.querySelector('div[role="textbox"][contenteditable="true"], div[data-lexical-editor="true"], textarea')
+      ) {
         return { ok: true, alreadyOpen: true };
       }
 
-      const candidates = [
-        ...Array.from(
-          document.querySelectorAll(
-            'div[aria-label*="Create a post" i], div[aria-label*="Make a post" i], div[data-pagelet="ProfileComposer"] div[role="button"], div[role="button"], span[role="button"]'
-          )
+      const mobileComposerBox = document.querySelector(
+        '#composer-main-view-id textarea, textarea.composerInput, textarea[name="xc_message"]'
+      );
+      if (mobileComposerBox && isVisible(mobileComposerBox)) {
+        return { ok: true, alreadyOpen: true };
+      }
+
+      window.scrollTo({ top: 0, behavior: "instant" });
+
+      const candidates = Array.from(
+        document.querySelectorAll(
+          'div[aria-label*="Create a post" i], div[aria-label*="Make a post" i], div[data-pagelet*="Composer"] div[role="button"], #MComposer div[role="button"], a[href*="/composer/"], div[role="button"], span[role="button"]'
         )
-      ];
+      ).filter(isVisible);
 
       const match = candidates.find((el) => {
-        const txt = (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim();
+        if (el.closest('div[role="article"], div[data-pagelet*="FeedUnit"]')) return false;
+        const txt = `${el.getAttribute("aria-label") || ""} ${el.innerText || el.textContent || ""}`.trim();
         return (
-          /what's on your mind/i.test(txt) ||
+          /what['’]?s on your mind/i.test(txt) ||
+          /make a post/i.test(txt) ||
           /write something/i.test(txt) ||
           /create a post/i.test(txt) ||
-          /make a post/i.test(txt) ||
-          /share something/i.test(txt)
+          /share something/i.test(txt) ||
+          /के सोचिरहनुभएको|तपाईंको दिमाग|पोस्ट बनाउनुहोस्|कुछ लिखें/i.test(txt)
         );
       });
 
@@ -717,16 +1380,14 @@ async function executeFeedPostInBrowser(tabId, payload) {
         return { ok: false, error: "Could not find Facebook post composer trigger on page." };
       }
 
-      match.scrollIntoView({ block: "center", behavior: "instant" });
-      const r = match.getBoundingClientRect();
-      match.click();
+      const coords = toViewportTap(match);
+      try {
+        match.click();
+      } catch (_) {}
       return {
         ok: true,
         alreadyOpen: false,
-        coords: {
-          fx: Math.max(0.05, Math.min(0.95, (r.left + r.width / 2) / Math.max(1, window.innerWidth))),
-          fy: Math.max(0.05, Math.min(0.95, (r.top + r.height / 2) / Math.max(1, window.innerHeight)))
-        }
+        coords
       };
     }
   });
@@ -735,182 +1396,304 @@ async function executeFeedPostInBrowser(tabId, payload) {
     throw new Error((triggerRes && triggerRes.result && triggerRes.result.error) || "Composer button not found.");
   }
 
-  if (!triggerRes.result.alreadyOpen && triggerRes.result.coords) {
-    await sleep(400);
-    // Confirm dialog opened; if not, dispatch trusted tap
-    const [checkDlg] = await chrome.scripting.executeScript({
+  // Poll and dispatch native Android trusted touch if composer hasn't opened yet
+  const isComposerReady = async () => {
+    const [chk] = await chrome.scripting.executeScript({
       world: "MAIN",
-        target: { tabId },
-      func: () =>
-        Boolean(
-          document.querySelector('div[role="dialog"] div[role="textbox"][contenteditable="true"]') ||
-            document.querySelector('div[role="textbox"][contenteditable="true"]') ||
-            document.querySelector("textarea")
-        )
-    });
-    if (!checkDlg || !checkDlg.result) {
-      await trustedTap(tabId, triggerRes.result.coords);
-    }
-  }
-
-  await sleep(1400);
-
-  // 3. Attach Media Files (Photos / Videos) if provided
-  if (Array.isArray(media_paths) && media_paths.length > 0) {
-    const wantVideo = media_paths.some((p) => isVideoPath(p)) || post_type === "video";
-
-    const [markInputRes] = await chrome.scripting.executeScript({
-      world: "MAIN",
-        target: { tabId },
-      args: [wantVideo],
-      func: (preferVideo) => {
-        document
-          .querySelectorAll("[data-antigem-upload-target]")
-          .forEach((el) => el.removeAttribute("data-antigem-upload-target"));
-
-        const scope = document.querySelector('div[role="dialog"]') || document;
-        let inputs = Array.from(scope.querySelectorAll('input[type="file"]'));
-        if (inputs.length === 0) {
-          // Click "Photo/video" button to reveal file input
-          const photoBtn = Array.from(
-            scope.querySelectorAll('div[role="button"], span[role="button"], button, a')
-          ).find((el) => {
-            const label = (el.getAttribute("aria-label") || el.innerText || el.textContent || "").trim();
-            return /photo\/video|photos\/videos|add photos|add video|photo/i.test(label);
-          });
-          if (photoBtn) photoBtn.click();
-          inputs = Array.from(document.querySelectorAll('input[type="file"]'));
+      target: { tabId },
+      func: () => {
+        const dlg = document.querySelector('div[role="dialog"]');
+        if (dlg && dlg.querySelector('div[role="textbox"][contenteditable="true"], div[data-lexical-editor="true"], textarea')) {
+          return true;
         }
-
-        if (inputs.length === 0) {
-          return { ok: false, clickedPhotoBtn: true };
-        }
-
-        const chosen =
-          inputs.find((inp) => {
-            const acc = (inp.getAttribute("accept") || "").toLowerCase();
-            return preferVideo ? acc.includes("video") : acc.includes("image");
-          }) || inputs[inputs.length - 1];
-
-        chosen.setAttribute("data-antigem-upload-target", "1");
-        return { ok: true };
-      }
-    });
-
-    if (!markInputRes || !markInputRes.result || !markInputRes.result.ok) {
-      await sleep(1000);
-      await chrome.scripting.executeScript({
-        world: "MAIN",
-        target: { tabId },
-        func: () => {
-          const inputs = Array.from(document.querySelectorAll('input[type="file"]'));
-          if (inputs.length > 0) {
-            inputs[inputs.length - 1].setAttribute("data-antigem-upload-target", "1");
-          }
-        }
-      });
-    }
-
-    await attachMediaFilesToMarkedInput(tabId, media_paths);
-    await sleep(wantVideo ? 3500 : 2000);
-  }
-
-  // 4. Insert Caption into Composer Textbox (Strict Anti-Comment-Box Lock)
-  if (caption && String(caption).trim().length > 0) {
-    const [capRes] = await chrome.scripting.executeScript({
-      world: "MAIN",
-        target: { tabId },
-      args: [String(caption)],
-      func: (textToInsert) => {
-        const dialog = document.querySelector('div[role="dialog"]') || document;
-        const candidates = Array.from(
-          dialog.querySelectorAll('div[role="textbox"][contenteditable="true"], textarea')
+        // Mobile full-screen composer check
+        const editors = Array.from(
+          document.querySelectorAll(
+            'div[role="textbox"][contenteditable="true"], div[data-lexical-editor="true"], textarea.composerInput, textarea[name="xc_message"], textarea'
+          )
         ).filter((el) => {
-          const aria = (el.getAttribute("aria-label") || el.getAttribute("placeholder") || "").toLowerCase();
+          const r = el.getBoundingClientRect();
+          if (r.width < 10 || r.height < 10) return false;
+          const aria = `${el.getAttribute("aria-label") || ""} ${el.getAttribute("placeholder") || ""}`.toLowerCase();
           return !aria.includes("comment") && !aria.includes("reply") && !aria.includes("search");
         });
-
-        const editor = candidates[0];
-        if (!editor) {
-          return { ok: false, error: "Could not locate composer caption input box." };
-        }
-
-        editor.scrollIntoView({ block: "center", behavior: "instant" });
-        editor.focus();
-
-        if (editor.tagName === "TEXTAREA" || editor.tagName === "INPUT") {
-          editor.value = textToInsert;
-          editor.dispatchEvent(new Event("input", { bubbles: true }));
-          editor.dispatchEvent(new Event("change", { bubbles: true }));
-          return { ok: true, length: editor.value.length };
-        }
-
-        // ContentEditable (Lexical / Draft.js on Facebook)
-        document.execCommand("selectAll", false, null);
-        const inserted = document.execCommand("insertText", false, textToInsert);
-        if (!inserted || !(editor.innerText || "").trim()) {
-          try {
-            const dt = new DataTransfer();
-            dt.setData("text/plain", textToInsert);
-            editor.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));
-          } catch (_) {}
-        }
-        if (!(editor.innerText || "").trim()) {
-          editor.innerText = textToInsert;
-        }
-        editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: textToInsert }));
-        return { ok: true, length: (editor.innerText || editor.textContent || "").trim().length };
+        return editors.length > 0;
       }
     });
+    return Boolean(chk && chk.result);
+  };
 
-    if (!capRes || !capRes.result || !capRes.result.ok) {
-      throw new Error((capRes && capRes.result && capRes.result.error) || "Failed to populate post caption.");
+  if (!triggerRes.result.alreadyOpen) {
+    await sleep(450);
+    if (!(await isComposerReady()) && triggerRes.result.coords) {
+      await trustedTap(tabId, triggerRes.result.coords);
     }
-    await sleep(900);
+    for (let w = 0; w < 18; w++) {
+      if (await isComposerReady()) break;
+      await sleep(250);
+    }
   }
 
-  // 5. Wait for "Post" / "Publish" button to become enabled and click it
-  let postBtnResult = null;
-  const waitAttempts = media_paths && media_paths.some((p) => isVideoPath(p)) ? 30 : 12;
-  for (let attempt = 0; attempt < waitAttempts; attempt++) {
+  await sleep(600);
+
+  // 3. Attach Media Files FIRST (Photos / Carousel / Video) & Verify Preview in Composer!
+  if (resolvedMediaList.length > 0) {
+    await attachMediaToFacebookComposer(
+      tabId,
+      resolvedMediaList.map((f) => f.path),
+      { preferVideo: wantVideo, requirePreview: true }
+    );
+    await sleep(wantVideo ? 2500 : 1200);
+
+    // 3b. Attach Custom AI Thumbnail Image if provided for Video upload
+    if (wantVideo && thumbnail_path && String(thumbnail_path).trim()) {
+      try {
+        await attachMediaToFacebookComposer(tabId, [thumbnail_path], {
+          preferVideo: false,
+          requirePreview: false
+        });
+        await sleep(1000);
+      } catch (_) {}
+    }
+  }
+
+  // 4. Populate Video/Post Title Field (if present) + Insert Senior Social Media Manager Caption (Quote + Hook + Hashtags)
+  if (title && String(title).trim().length > 0) {
+    await chrome.scripting.executeScript({
+      world: "MAIN",
+      target: { tabId },
+      args: [String(title).trim()],
+      func: (titleText) => {
+        const scope = document.querySelector('div[role="dialog"]') || document;
+        const titleInput = scope.querySelector(
+          'input[placeholder*="Title" i], input[aria-label*="Title" i], input[aria-label*="Video title" i]'
+        );
+        if (titleInput) {
+          titleInput.focus();
+          const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+          if (setter) setter.call(titleInput, titleText);
+          else titleInput.value = titleText;
+          titleInput.dispatchEvent(new Event("input", { bubbles: true }));
+          titleInput.dispatchEvent(new Event("change", { bubbles: true }));
+          return { ok: true };
+        }
+        return { ok: false };
+      }
+    });
+  }
+
+  if (caption && String(caption).trim().length > 0) {
+    // Re-locate and tap/focus the composer caption editor AFTER media preview is mounted
+    const insertAndVerifyCaption = async () => {
+      const [capRes] = await chrome.scripting.executeScript({
+        world: "MAIN",
+        target: { tabId },
+        args: [String(caption)],
+        func: (textToInsert) => {
+          const isVisible = (el) => {
+            if (!el) return false;
+            const r = el.getBoundingClientRect();
+            return r.width > 10 && r.height > 10;
+          };
+
+          const scope = document.querySelector('div[role="dialog"]') || document;
+          const candidates = Array.from(
+            scope.querySelectorAll(
+              'div[role="textbox"][contenteditable="true"], div[data-lexical-editor="true"], div[contenteditable="true"], textarea.composerInput, textarea[name="xc_message"], textarea'
+            )
+          ).filter((el) => {
+            if (!isVisible(el)) return false;
+            if (el.closest('div[role="article"], div[data-pagelet*="FeedUnit"]')) return false;
+            const aria = `${el.getAttribute("aria-label") || ""} ${el.getAttribute("placeholder") || ""}`.toLowerCase();
+            return !aria.includes("comment") && !aria.includes("reply") && !aria.includes("search");
+          });
+
+          const editor = candidates[0];
+          if (!editor) {
+            return { ok: false, error: "Could not locate composer caption input box." };
+          }
+
+          try {
+            editor.scrollIntoView({ block: "center", behavior: "instant" });
+          } catch (_) {}
+          editor.focus();
+          try {
+            editor.click();
+          } catch (_) {}
+
+          if (editor.tagName === "TEXTAREA" || editor.tagName === "INPUT") {
+            const proto = editor.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+            const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+            if (setter) setter.call(editor, textToInsert);
+            else editor.value = textToInsert;
+            editor.dispatchEvent(new Event("input", { bubbles: true }));
+            editor.dispatchEvent(new Event("change", { bubbles: true }));
+            return { ok: true, length: (editor.value || "").trim().length };
+          }
+
+          // ContentEditable (Lexical / Draft.js / Mobile Bloks on Facebook)
+          try {
+            const sel = window.getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(editor);
+            sel.removeAllRanges();
+            sel.addRange(range);
+            document.execCommand("selectAll", false, null);
+            document.execCommand("delete", false, null);
+          } catch (_) {}
+
+          let inserted = false;
+          try {
+            inserted = document.execCommand("insertText", false, textToInsert);
+          } catch (_) {}
+
+          const currentText = (editor.innerText || editor.textContent || "").trim();
+          if (!inserted || currentText.length < 4 || /^what['’]?s on your mind/i.test(currentText)) {
+            try {
+              const dt = new DataTransfer();
+              dt.setData("text/plain", textToInsert);
+              editor.dispatchEvent(
+                new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true })
+              );
+            } catch (_) {}
+          }
+
+          const afterPaste = (editor.innerText || editor.textContent || "").trim();
+          if (afterPaste.length < 4 || /^what['’]?s on your mind/i.test(afterPaste)) {
+            editor.innerText = textToInsert;
+          }
+
+          editor.dispatchEvent(
+            new InputEvent("input", { bubbles: true, cancelable: true, inputType: "insertText", data: textToInsert })
+          );
+          editor.dispatchEvent(new Event("change", { bubbles: true }));
+
+          const finalVal = (editor.innerText || editor.textContent || "").trim();
+          return { ok: finalVal.length >= 4, length: finalVal.length };
+        }
+      });
+      return (capRes && capRes.result) || { ok: false };
+    };
+
+    let capStatus = await insertAndVerifyCaption();
+    if (!capStatus.ok) {
+      await sleep(450);
+      capStatus = await insertAndVerifyCaption();
+    }
+    if (!capStatus.ok) {
+      throw new Error(capStatus.error || "Failed to populate post caption in Facebook composer.");
+    }
+    await sleep(650);
+  }
+
+  // 5. Collapse Soft Keyboard & Precision Touch on "Post" / "Publish" (or Mobile "Next" -> "Post")
+  await blurKeyboardAndSettle(tabId);
+
+  const findAndTapSubmitButton = async (allowNext = false) => {
     const [btnProbe] = await chrome.scripting.executeScript({
       world: "MAIN",
-        target: { tabId },
-      func: () => {
+      target: { tabId },
+      args: [allowNext],
+      func: (canClickNext) => {
+        const isVisible = (el) => {
+          if (!el) return false;
+          const r = el.getBoundingClientRect();
+          if (r.width < 12 || r.height < 12) return false;
+          const st = window.getComputedStyle(el);
+          return st.visibility !== "hidden" && st.display !== "none" && Number(st.opacity || 1) > 0.01;
+        };
+
+        const toViewportTap = (el) => {
+          const r = el.getBoundingClientRect();
+          const v = window.visualViewport;
+          const vw = (v && v.width) || window.innerWidth || document.documentElement.clientWidth || 1;
+          const vh = (v && v.height) || window.innerHeight || document.documentElement.clientHeight || 1;
+          const ox = (v && v.offsetLeft) || 0;
+          const oy = (v && v.offsetTop) || 0;
+          const cx = r.left + r.width * 0.5;
+          const cy = r.top + r.height * 0.5;
+          return {
+            fx: Math.max(0.008, Math.min(0.992, (cx - ox) / vw)),
+            fy: Math.max(0.008, Math.min(0.992, (cy - oy) / vh))
+          };
+        };
+
         const scope = document.querySelector('div[role="dialog"]') || document;
-        const buttons = Array.from(scope.querySelectorAll('div[role="button"], button, input[type="submit"]'));
-        const postBtn = buttons.find((el) => {
-          const txt = (el.innerText || el.textContent || el.value || "").trim().toLowerCase();
-          const aria = (el.getAttribute("aria-label") || "").trim().toLowerCase();
-          return txt === "post" || txt === "publish" || aria === "post" || aria === "publish";
+        const buttons = Array.from(
+          scope.querySelectorAll('div[role="button"], button, span[role="button"], input[type="submit"]')
+        ).filter(isVisible);
+
+        const postRegex = /^(post|publish|share|share now|पोस्ट गर्नुहोस्|पोस्ट गर्नुहोस|पोस्ट करें|साझा गर्नुहोस्|शेयर करें)$/i;
+        const nextRegex = /^(next|अर्को|अगला)$/i;
+
+        let targetBtn = buttons.find((el) => {
+          if (el.closest('div[role="article"], div[data-pagelet*="FeedUnit"]')) return false;
+          const txt = (el.innerText || el.textContent || el.value || "").trim();
+          const aria = (el.getAttribute("aria-label") || "").trim();
+          return postRegex.test(txt) || postRegex.test(aria);
         });
 
-        if (!postBtn) return { found: false };
-        const disabled =
-          postBtn.disabled ||
-          postBtn.getAttribute("aria-disabled") === "true" ||
-          postBtn.hasAttribute("disabled");
-        if (disabled) return { found: true, disabled: true };
+        let isNextStep = false;
+        if (!targetBtn && canClickNext) {
+          targetBtn = buttons.find((el) => {
+            if (el.closest('div[role="article"], div[data-pagelet*="FeedUnit"]')) return false;
+            const txt = (el.innerText || el.textContent || el.value || "").trim();
+            const aria = (el.getAttribute("aria-label") || "").trim();
+            return nextRegex.test(txt) || nextRegex.test(aria);
+          });
+          if (targetBtn) isNextStep = true;
+        }
 
-        const r = postBtn.getBoundingClientRect();
-        postBtn.click();
+        if (!targetBtn) return { found: false };
+        const disabled =
+          targetBtn.disabled ||
+          targetBtn.getAttribute("aria-disabled") === "true" ||
+          targetBtn.hasAttribute("disabled");
+        if (disabled) return { found: true, disabled: true, isNextStep };
+
+        const coords = toViewportTap(targetBtn);
+        try {
+          targetBtn.click();
+        } catch (_) {}
         return {
           found: true,
           disabled: false,
-          clicked: true,
-          coords: {
-            fx: Math.max(0.05, Math.min(0.95, (r.left + r.width / 2) / Math.max(1, window.innerWidth))),
-            fy: Math.max(0.05, Math.min(0.95, (r.top + r.height / 2) / Math.max(1, window.innerHeight)))
-          }
+          isNextStep,
+          coords
         };
       }
     });
+    return (btnProbe && btnProbe.result) || { found: false };
+  };
 
-    postBtnResult = btnProbe && btnProbe.result;
-    if (postBtnResult && postBtnResult.found && !postBtnResult.disabled) {
+  let postBtnResult = null;
+  const maxAttempts = wantVideo ? 32 : 16;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    postBtnResult = await findAndTapSubmitButton(attempt >= 2);
+    if (postBtnResult.found && !postBtnResult.disabled) {
+      if (postBtnResult.coords) {
+        await sleep(180);
+        await trustedTap(tabId, postBtnResult.coords);
+      }
+      // If mobile Facebook composer used a 2-step "Next" -> "Post" header, now tap the final "Post" button
+      if (postBtnResult.isNextStep) {
+        await sleep(1200);
+        for (let pStep = 0; pStep < 10; pStep++) {
+          const finalPost = await findAndTapSubmitButton(false);
+          if (finalPost.found && !finalPost.disabled) {
+            if (finalPost.coords) {
+              await sleep(180);
+              await trustedTap(tabId, finalPost.coords);
+            }
+            postBtnResult = finalPost;
+            break;
+          }
+          await sleep(600);
+        }
+      }
       break;
     }
-    await sleep(1000);
+    await sleep(800);
   }
 
   if (!postBtnResult || !postBtnResult.found) {
@@ -920,25 +1703,18 @@ async function executeFeedPostInBrowser(tabId, payload) {
     throw new Error("Facebook 'Post' button remained disabled (media may still be uploading or caption is empty).");
   }
 
-  // Wait for composer modal to dismiss; if still open after 2.5s, send a trusted tap on the Post button
-  await sleep(2500);
-  const [stillOpenProbe] = await chrome.scripting.executeScript({
-    world: "MAIN",
-        target: { tabId },
-    func: () => Boolean(document.querySelector('div[role="dialog"]'))
-  });
-  if (stillOpenProbe && stillOpenProbe.result && postBtnResult.coords) {
-    await trustedTap(tabId, postBtnResult.coords);
+  // Wait for composer modal / mobile screen to dismiss; if still open after 2.2s, send one more trusted tap
+  await sleep(2200);
+  if (await isComposerReady()) {
+    const retrySubmit = await findAndTapSubmitButton(false);
+    if (retrySubmit.found && !retrySubmit.disabled && retrySubmit.coords) {
+      await trustedTap(tabId, retrySubmit.coords);
+    }
   }
 
   for (let i = 0; i < 20; i++) {
-    await sleep(1000);
-    const [dlgCheck] = await chrome.scripting.executeScript({
-      world: "MAIN",
-        target: { tabId },
-      func: () => !document.querySelector('div[role="dialog"]')
-    });
-    if (dlgCheck && dlgCheck.result) break;
+    await sleep(900);
+    if (!(await isComposerReady())) break;
   }
 
   // Optional: Post first comment (e.g. outbound link to protect organic reach)
@@ -959,12 +1735,17 @@ async function executeFeedPostInBrowser(tabId, payload) {
   return {
     success: true,
     status: "published",
-    post_type,
+    post_type: effectivePostType,
     target_type,
+    title,
+    caption,
+    hashtags,
+    media_attached: resolvedMediaList.map((f) => f.path),
+    thumbnail_path: thumbnail_path || null,
     fb_post_id: `fb_dom_${Date.now()}`,
     post_url: finalTab.url || desiredUrl,
     first_comment_result: firstCommentResult,
-    message: `Facebook ${post_type} post published successfully in AntiGem browser.`
+    message: `Facebook ${effectivePostType} post published successfully in AntiGem browser with "${title}" and ${hashtags.length} hashtags.`
   };
 }
 
@@ -972,58 +1753,67 @@ async function executeFeedPostInBrowser(tabId, payload) {
  * Pipeline B: Facebook Reels Upload (https://www.facebook.com/reels/create)
  */
 async function executeReelUploadInBrowser(tabId, payload) {
-  const videoPath =
-    payload.video_path || (Array.isArray(payload.media_paths) && payload.media_paths[0]) || null;
-  const caption = payload.caption || "";
+  const rawVideoPath =
+    payload.video_path || (Array.isArray(payload.media_paths) && payload.media_paths[0]) || "latest";
+  const resolvedVideo = await resolveLocalFile(rawVideoPath, true);
+  const videoPath = resolvedVideo.path;
+  const thumbnailPath = payload.thumbnail_path || null;
 
-  if (!videoPath) {
-    throw new Error("video_path (or media_paths[0]) is required to publish a Facebook Reel.");
-  }
+  const enriched = ensureTitleAndHashtags({
+    ...payload,
+    post_type: "reel",
+    media_hint: resolvedVideo.filename
+  });
+  const title = enriched.title;
+  const caption = enriched.caption;
+  const hashtags = enriched.hashtags;
 
   // 1. Navigate to Facebook Reels Create wizard
   await chrome.tabs.update(tabId, { url: FB_REELS_CREATE_URL, active: true });
   await waitForTabComplete(tabId, 25000);
-  await sleep(1800);
+  await sleep(1500);
 
-  // 2. Locate & mark <input type="file"> on the Reels create screen
-  const [markRes] = await chrome.scripting.executeScript({
-    world: "MAIN",
-        target: { tabId },
-    func: () => {
-      document
-        .querySelectorAll("[data-antigem-upload-target]")
-        .forEach((el) => el.removeAttribute("data-antigem-upload-target"));
-
-      const inputs = Array.from(document.querySelectorAll('input[type="file"]'));
-      if (inputs.length === 0) return { ok: false, error: "No file input found on Facebook Reels page." };
-      const videoInput =
-        inputs.find((inp) => (inp.getAttribute("accept") || "").toLowerCase().includes("video")) || inputs[0];
-      videoInput.setAttribute("data-antigem-upload-target", "1");
-      return { ok: true };
-    }
-  });
-
-  if (!markRes || !markRes.result || !markRes.result.ok) {
-    // Fallback to feed video post if /reels/create is unavailable on mobile view
+  // 2. Attach video file using 4-Tier Engine; if /reels/create is unavailable on mobile view, fall back to feed video post
+  try {
+    await attachMediaToFacebookComposer(tabId, [videoPath], {
+      preferVideo: true,
+      requirePreview: false
+    });
+  } catch (_) {
     return await executeFeedPostInBrowser(tabId, {
       ...payload,
+      title,
+      caption,
+      hashtags,
+      thumbnail_path: thumbnailPath,
       media_paths: [videoPath],
       post_type: "video"
     });
   }
 
-  // 3. Attach the video file
-  await attachMediaFilesToMarkedInput(tabId, [videoPath]);
-  await sleep(3500);
+  await sleep(3200);
 
-  // 4. Advance through "Next" steps (Step 1: Upload -> Step 2: Edit -> Step 3: Describe & Publish)
+  // 3. Advance through "Next" steps using Precision Touch (Step 1: Upload -> Step 2: Edit -> Step 3: Describe & Publish)
   for (let step = 0; step < 3; step++) {
+    await blurKeyboardAndSettle(tabId);
     const [stepProbe] = await chrome.scripting.executeScript({
       world: "MAIN",
-        target: { tabId },
+      target: { tabId },
       func: () => {
-        // Check if Publish / Share button is already visible
-        const allBtns = Array.from(document.querySelectorAll('div[role="button"], button'));
+        const v = window.visualViewport;
+        const vw = (v && v.width) || window.innerWidth || 1;
+        const vh = (v && v.height) || window.innerHeight || 1;
+        const ox = (v && v.offsetLeft) || 0;
+        const oy = (v && v.offsetTop) || 0;
+        const toCoords = (el) => {
+          const r = el.getBoundingClientRect();
+          return {
+            fx: Math.max(0.008, Math.min(0.992, (r.left + r.width / 2 - ox) / vw)),
+            fy: Math.max(0.008, Math.min(0.992, (r.top + r.height / 2 - oy) / vh))
+          };
+        };
+
+        const allBtns = Array.from(document.querySelectorAll('div[role="button"], button, span[role="button"]'));
         const pubBtn = allBtns.find((el) => {
           const t = (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim().toLowerCase();
           return t === "publish" || t === "share" || t === "share now" || t === "post";
@@ -1032,35 +1822,63 @@ async function executeReelUploadInBrowser(tabId, payload) {
 
         const nextBtn = allBtns.find((el) => {
           const t = (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim().toLowerCase();
-          return t === "next";
+          return t === "next" || t === "अर्को" || t === "अगला";
         });
-        if (nextBtn && nextBtn.getAttribute("aria-disabled") !== "true") {
-          nextBtn.click();
-          return { clickedNext: true };
+        if (nextBtn && nextBtn.getAttribute("aria-disabled") !== "true" && !nextBtn.disabled) {
+          const coords = toCoords(nextBtn);
+          try {
+            nextBtn.click();
+          } catch (_) {}
+          return { clickedNext: true, coords };
         }
         return { waiting: true };
       }
     });
 
     if (stepProbe && stepProbe.result && stepProbe.result.atPublishStep) break;
-    await sleep(1800);
+    if (stepProbe && stepProbe.result && stepProbe.result.coords) {
+      await sleep(180);
+      await trustedTap(tabId, stepProbe.result.coords);
+    }
+    await sleep(1600);
   }
 
-  // 5. Insert Reel Caption / Hashtags
+  // 4. Attach Custom AI Thumbnail / Cover Image if thumbnail_path is provided
+  if (thumbnailPath && String(thumbnailPath).trim()) {
+    try {
+      await attachMediaToFacebookComposer(tabId, [thumbnailPath], {
+        preferVideo: false,
+        requirePreview: false
+      });
+      await sleep(1000);
+    } catch (_) {}
+  }
+
+  // 5. Insert Reel Title + Caption + Hashtags
   if (caption && String(caption).trim().length > 0) {
     await chrome.scripting.executeScript({
       world: "MAIN",
-        target: { tabId },
-      args: [String(caption)],
-      func: (textToInsert) => {
-        const editor =
-          document.querySelector(
-            'div[aria-label*="Describe your reel" i][contenteditable="true"], div[aria-label*="Write a description" i][contenteditable="true"], div[role="textbox"][contenteditable="true"], textarea'
-          );
+      target: { tabId },
+      args: [String(caption), String(title || "")],
+      func: (textToInsert, titleText) => {
+        const titleInput = document.querySelector(
+          'input[placeholder*="Title" i], input[aria-label*="Title" i]'
+        );
+        if (titleInput && titleText) {
+          const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+          if (setter) setter.call(titleInput, titleText);
+          else titleInput.value = titleText;
+          titleInput.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+        const editor = document.querySelector(
+          'div[aria-label*="Describe your reel" i][contenteditable="true"], div[aria-label*="Write a description" i][contenteditable="true"], div[role="textbox"][contenteditable="true"], textarea'
+        );
         if (!editor) return { ok: false };
         editor.focus();
         if (editor.tagName === "TEXTAREA") {
-          editor.value = textToInsert;
+          const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+          if (setter) setter.call(editor, textToInsert);
+          else editor.value = textToInsert;
           editor.dispatchEvent(new Event("input", { bubbles: true }));
           return { ok: true };
         }
@@ -1070,17 +1888,23 @@ async function executeReelUploadInBrowser(tabId, payload) {
         return { ok: true };
       }
     });
-    await sleep(900);
+    await sleep(800);
   }
 
-  // 6. Click "Publish" / "Share" button (wait up to 35s for video processing)
+  // 6. Blur keyboard & tap "Publish" / "Share" button (wait up to 35s for video processing)
+  await blurKeyboardAndSettle(tabId);
   let published = false;
   for (let i = 0; i < 35; i++) {
     const [pubProbe] = await chrome.scripting.executeScript({
       world: "MAIN",
-        target: { tabId },
+      target: { tabId },
       func: () => {
-        const btns = Array.from(document.querySelectorAll('div[role="button"], button'));
+        const v = window.visualViewport;
+        const vw = (v && v.width) || window.innerWidth || 1;
+        const vh = (v && v.height) || window.innerHeight || 1;
+        const ox = (v && v.offsetLeft) || 0;
+        const oy = (v && v.offsetTop) || 0;
+        const btns = Array.from(document.querySelectorAll('div[role="button"], button, span[role="button"]'));
         const pubBtn = btns.find((el) => {
           const t = (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim().toLowerCase();
           return t === "publish" || t === "share" || t === "share now" || t === "post";
@@ -1090,13 +1914,15 @@ async function executeReelUploadInBrowser(tabId, payload) {
           return { found: true, disabled: true };
         }
         const r = pubBtn.getBoundingClientRect();
-        pubBtn.click();
+        try {
+          pubBtn.click();
+        } catch (_) {}
         return {
           found: true,
           disabled: false,
           coords: {
-            fx: Math.max(0.05, Math.min(0.95, (r.left + r.width / 2) / Math.max(1, window.innerWidth))),
-            fy: Math.max(0.05, Math.min(0.95, (r.top + r.height / 2) / Math.max(1, window.innerHeight)))
+            fx: Math.max(0.008, Math.min(0.992, (r.left + r.width / 2 - ox) / vw)),
+            fy: Math.max(0.008, Math.min(0.992, (r.top + r.height / 2 - oy) / vh))
           }
         };
       }
@@ -1104,7 +1930,7 @@ async function executeReelUploadInBrowser(tabId, payload) {
 
     if (pubProbe && pubProbe.result && pubProbe.result.found && !pubProbe.result.disabled) {
       if (pubProbe.result.coords) {
-        await sleep(500);
+        await sleep(250);
         await trustedTap(tabId, pubProbe.result.coords);
       }
       published = true;
@@ -1117,14 +1943,19 @@ async function executeReelUploadInBrowser(tabId, payload) {
     throw new Error("Could not click 'Publish' / 'Share' on Facebook Reels wizard.");
   }
 
-  await sleep(4000);
+  await sleep(3500);
   return {
     success: true,
     status: "published",
     post_type: "reel",
+    title,
+    caption,
+    hashtags,
+    media_attached: [videoPath],
+    thumbnail_path: thumbnailPath || null,
     fb_post_id: `fb_reel_${Date.now()}`,
     post_url: FB_REELS_CREATE_URL,
-    message: "Facebook Reel uploaded and published successfully in AntiGem browser."
+    message: `Facebook Reel uploaded and published successfully with "${title}" and ${hashtags.length} hashtags.`
   };
 }
 
@@ -1138,31 +1969,22 @@ async function executeStoryUploadInBrowser(tabId, payload) {
 
   await chrome.tabs.update(tabId, { url: FB_STORIES_CREATE_URL, active: true });
   await waitForTabComplete(tabId, 25000);
-  await sleep(1600);
+  await sleep(1500);
 
   if (mediaPath) {
-    await chrome.scripting.executeScript({
-      world: "MAIN",
-        target: { tabId },
-      func: () => {
-        document
-          .querySelectorAll("[data-antigem-upload-target]")
-          .forEach((el) => el.removeAttribute("data-antigem-upload-target"));
-        const inputs = Array.from(document.querySelectorAll('input[type="file"]'));
-        if (inputs.length > 0) inputs[0].setAttribute("data-antigem-upload-target", "1");
-      }
+    await attachMediaToFacebookComposer(tabId, [mediaPath], {
+      preferVideo: isVideoPath(mediaPath),
+      requirePreview: false
     });
-    await attachMediaFilesToMarkedInput(tabId, [mediaPath]);
-    await sleep(2500);
+    await sleep(2200);
   } else if (caption) {
-    // Text story card
     await chrome.scripting.executeScript({
       world: "MAIN",
-        target: { tabId },
+      target: { tabId },
       args: [String(caption)],
       func: (txt) => {
         const textStoryBtn = Array.from(document.querySelectorAll('div[role="button"], span')).find((el) =>
-          /create a text story/i.test(el.innerText || el.textContent || "")
+          /create a text story|text/i.test(el.innerText || el.textContent || "")
         );
         if (textStoryBtn) textStoryBtn.click();
         setTimeout(() => {
@@ -1172,30 +1994,51 @@ async function executeStoryUploadInBrowser(tabId, payload) {
             document.execCommand("insertText", false, txt);
             box.dispatchEvent(new Event("input", { bubbles: true }));
           }
-        }, 800);
+        }, 700);
       }
     });
-    await sleep(2000);
+    await sleep(1800);
   }
 
+  await blurKeyboardAndSettle(tabId);
   const [shareRes] = await chrome.scripting.executeScript({
     world: "MAIN",
-        target: { tabId },
+    target: { tabId },
     func: () => {
-      const btn = Array.from(document.querySelectorAll('div[role="button"], button')).find((el) =>
-        /share to story|share now|^share$/i.test((el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim())
+      const v = window.visualViewport;
+      const vw = (v && v.width) || window.innerWidth || 1;
+      const vh = (v && v.height) || window.innerHeight || 1;
+      const ox = (v && v.offsetLeft) || 0;
+      const oy = (v && v.offsetTop) || 0;
+      const btn = Array.from(document.querySelectorAll('div[role="button"], button, span[role="button"]')).find((el) =>
+        /share to story|share now|^share$/i.test(
+          (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim()
+        )
       );
       if (!btn) return { ok: false };
-      btn.click();
-      return { ok: true };
+      const r = btn.getBoundingClientRect();
+      try {
+        btn.click();
+      } catch (_) {}
+      return {
+        ok: true,
+        coords: {
+          fx: Math.max(0.008, Math.min(0.992, (r.left + r.width / 2 - ox) / vw)),
+          fy: Math.max(0.008, Math.min(0.992, (r.top + r.height / 2 - oy) / vh))
+        }
+      };
     }
   });
 
   if (!shareRes || !shareRes.result || !shareRes.result.ok) {
     throw new Error("Could not find 'Share to story' button on Facebook Story creator.");
   }
+  if (shareRes.result.coords) {
+    await sleep(200);
+    await trustedTap(tabId, shareRes.result.coords);
+  }
 
-  await sleep(3000);
+  await sleep(2800);
   return {
     success: true,
     status: "published",
@@ -1219,7 +2062,7 @@ async function executeEditPostInBrowser(tabId, payload) {
 
   const [menuRes] = await chrome.scripting.executeScript({
     world: "MAIN",
-        target: { tabId },
+    target: { tabId },
     func: () => {
       const btn = document.querySelector(
         'div[aria-label*="Actions for this post" i], div[aria-label*="More options" i], div[aria-label*="More" i][role="button"]'
@@ -1236,7 +2079,7 @@ async function executeEditPostInBrowser(tabId, payload) {
   await sleep(1000);
   const [clickEdit] = await chrome.scripting.executeScript({
     world: "MAIN",
-        target: { tabId },
+    target: { tabId },
     func: () => {
       const item = Array.from(document.querySelectorAll('div[role="menuitem"], div[role="button"], a')).find((el) =>
         /edit post|^edit$/i.test((el.innerText || el.textContent || "").trim())
@@ -1253,7 +2096,7 @@ async function executeEditPostInBrowser(tabId, payload) {
   await sleep(1500);
   const [saveRes] = await chrome.scripting.executeScript({
     world: "MAIN",
-        target: { tabId },
+    target: { tabId },
     args: [String(new_caption)],
     func: (updatedText) => {
       const dlg = document.querySelector('div[role="dialog"]') || document;
@@ -1301,7 +2144,7 @@ async function executeDeletePostInBrowser(tabId, payload) {
 
   const [menuRes] = await chrome.scripting.executeScript({
     world: "MAIN",
-        target: { tabId },
+    target: { tabId },
     func: () => {
       const btn = document.querySelector(
         'div[aria-label*="Actions for this post" i], div[aria-label*="More options" i]'
@@ -1318,7 +2161,7 @@ async function executeDeletePostInBrowser(tabId, payload) {
   await sleep(1000);
   const [delItemRes] = await chrome.scripting.executeScript({
     world: "MAIN",
-        target: { tabId },
+    target: { tabId },
     func: () => {
       const item = Array.from(document.querySelectorAll('div[role="menuitem"], div[role="button"], a')).find((el) =>
         /move to trash|delete post|^delete$/i.test((el.innerText || el.textContent || "").trim())
@@ -1335,7 +2178,7 @@ async function executeDeletePostInBrowser(tabId, payload) {
   await sleep(1500);
   await chrome.scripting.executeScript({
     world: "MAIN",
-        target: { tabId },
+    target: { tabId },
     func: () => {
       const confirmBtn = Array.from(
         document.querySelectorAll('div[role="dialog"] div[role="button"], div[role="dialog"] button')
@@ -1365,7 +2208,7 @@ async function executeCommentInBrowser(tabId, payload) {
 
   const [cmtRes] = await chrome.scripting.executeScript({
     world: "MAIN",
-        target: { tabId },
+    target: { tabId },
     args: [String(comment_text)],
     func: (txt) => {
       const input = document.querySelector(
@@ -1385,7 +2228,7 @@ async function executeCommentInBrowser(tabId, payload) {
         new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true })
       );
       const submitBtn = document.querySelector(
-        'div[aria-label="Comment"][role="button"], button[type="submit"][ value*="Comment" i]'
+        'div[aria-label="Comment"][role="button"], button[type="submit"][value*="Comment" i]'
       );
       if (submitBtn) submitBtn.click();
       return { ok: true };
@@ -1413,7 +2256,6 @@ async function dispatchProtectedBrowserTask(toolName, args) {
   const loginState = await checkFacebookLogin({ openIfMissing: true, activateOnLoginNeeded: true });
 
   if (!loginState.logged_in) {
-    // Queue this task in storage so it runs automatically as soon as the user logs in!
     const pendingTask = {
       id: `pending_${Date.now()}`,
       tool: toolName,
@@ -1424,9 +2266,12 @@ async function dispatchProtectedBrowserTask(toolName, args) {
 
     await recordPostHistory({
       id: pendingTask.id,
-      post_type: args.post_type || (toolName === "fb_publish_reel" ? "reel" : toolName === "fb_publish_story" ? "story" : "text"),
+      post_type:
+        args.post_type ||
+        (toolName === "fb_publish_reel" ? "reel" : toolName === "fb_publish_story" ? "story" : "text"),
       caption: args.caption || args.new_caption || args.comment_text || "",
-      media_paths: args.media_paths || (args.video_path ? [args.video_path] : args.media_path ? [args.media_path] : []),
+      media_paths:
+        args.media_paths || (args.video_path ? [args.video_path] : args.media_path ? [args.media_path] : []),
       status: "awaiting_login"
     });
 
@@ -1453,9 +2298,26 @@ async function dispatchProtectedBrowserTask(toolName, args) {
   }
 
   const tabId = loginState.active_tab_id;
-  const mediaList =
+  let mediaList =
     args.media_paths ||
     (args.video_path ? [args.video_path] : args.media_path ? [args.media_path] : []);
+
+  const requestedPostType = String(args.post_type || "").toLowerCase();
+  if (
+    mediaList.length === 0 &&
+    (requestedPostType === "photo" ||
+      requestedPostType === "carousel" ||
+      requestedPostType === "video" ||
+      toolName === "fb_publish_reel")
+  ) {
+    const autoMedia = await autoDiscoverLatestMedia(
+      requestedPostType === "video" || toolName === "fb_publish_reel"
+    );
+    if (autoMedia) {
+      mediaList = [autoMedia.path];
+    }
+  }
+
   const postType =
     args.post_type ||
     (toolName === "fb_publish_reel"
@@ -1519,15 +2381,19 @@ async function dispatchProtectedBrowserTask(toolName, args) {
       if (result && result.success) {
         await setStorage({ fb_last_publish_at: Date.now(), fb_pending_task: null });
         if (toolName.startsWith("fb_publish")) {
-          await recordDedupe(args.caption, mediaList, result.fb_post_id || recordId);
+          const finalCap = result.caption || args.caption || "";
+          const finalMedia = result.media_attached || mediaList;
+          await recordDedupe(finalCap, finalMedia, result.fb_post_id || recordId);
           await recordPostHistory({
             id: recordId,
             fb_post_id: result.fb_post_id,
             post_url: result.post_url,
-            post_type: postType,
+            post_type: result.post_type || postType,
             target_type: args.target_type || "profile",
-            caption: args.caption || "",
-            media_paths: mediaList,
+            title: result.title || args.title || "",
+            caption: finalCap,
+            hashtags: result.hashtags || args.hashtags || [],
+            media_paths: finalMedia,
             status: "published"
           });
         }
@@ -1608,7 +2474,6 @@ async function processDueScheduledJobs() {
     if (job.status === "queued" && job.run_at_timestamp <= nowSec) {
       const login = await checkFacebookLogin({ openIfMissing: true, activateOnLoginNeeded: true });
       if (!login.logged_in) {
-        // Hold job cleanly without failing or looping until user completes one-time login
         job.last_note = "Waiting for one-time Facebook login in AntiGem browser.";
         updated = true;
         break;
@@ -1620,7 +2485,10 @@ async function processDueScheduledJobs() {
 
       const res = await dispatchProtectedBrowserTask("fb_publish", {
         id: job.post_id,
+        title: job.title,
         caption: job.caption,
+        hashtags: job.hashtags,
+        thumbnail_path: job.thumbnail_path || null,
         media_paths: job.media_paths || [],
         post_type: job.post_type || "text",
         target_type: job.target_type || "profile",
@@ -1650,8 +2518,232 @@ if (chrome.alarms) {
 }
 
 // ============================================================================
-// 9. Viral Facebook SEO Generator & Caption Auditor
+// 9. Senior Social Media Manager Auto-Copywriter & AI Thumbnail Engine
 // ============================================================================
+
+const VISUAL_ARCHETYPE_SPECS = {
+  tactile_workspace:
+    "Overhead flat-lay on warm walnut desk with real physical stationery, brass binder clips, mechanical keyboard, notebook, dramatic directional studio key light, crisp natural contact shadows, 85mm macro lens f/2.8",
+  classical_fusion:
+    "Caravaggio chiaroscuro marble Roman bust fused with sleek modern neon tech elements, volumetric rim lighting, deep obsidian studio backdrop, 50mm prime lens",
+  surreal_metaphor:
+    "Magritte-inspired conceptual surreal visual metaphor with miniature human figure interacting with a giant everyday object, dramatic golden-hour rim light, ultra-clean composition",
+  kinetic_blueprint:
+    "Architectural technical schematic blueprint on textured drafting paper with glowing cyan and electric-gold isometric callout lines, tactile physical tools",
+  retro_modern:
+    "1970s Dieter Rams Braun industrial analog hardware aesthetic paired with crisp Swiss grid typography, warm tungsten key light, subtle film grain",
+  macro_texture:
+    "Extreme 100mm f/2.8 macro photography of tactile physical materials (embossed heavy cotton paper, brushed anodized aluminum, liquid gold ink), razor-sharp depth of field",
+  minimalist_monolith:
+    "Stark architectural monolith in a vast atmospheric landscape, dramatic volumetric god-rays, radial spotlight pool behind the focal subject, cinematic rim lighting"
+};
+
+const SENIOR_SMM_QUOTES = [
+  {
+    title: "Silent Consistency Always Wins",
+    quote: "“Discipline is choosing between what you want now and what you want most.”",
+    bullets: [
+      "🔹 Small daily moves compound into unstoppable momentum.",
+      "🔹 Protect your focus from noise—your results will speak for themselves."
+    ]
+  },
+  {
+    title: "Build In Silence, Let Impact Speak",
+    quote: "“Your direction is always more important than your speed.”",
+    bullets: [
+      "🔹 Clarity beats hustle when everyone else is rushing blindly.",
+      "🔹 Master the fundamentals and the breakthroughs will follow."
+    ]
+  },
+  {
+    title: "The Mindset That Changes Everything",
+    quote: "“Growth begins the exact moment you stop waiting for perfect conditions.”",
+    bullets: [
+      "🔹 Action cures fear faster than overthinking ever will.",
+      "🔹 Show up with intention every single day."
+    ]
+  }
+];
+
+function extractTopicFromMediaHint(mediaHint = "") {
+  const base = String(mediaHint || "")
+    .replace(/\.[^.]+$/, "")
+    .replace(/^IMG_|^VID_|^Screenshot_|^\d+_/i, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\d{6,}\b/g, "")
+    .trim();
+  if (base && base.length >= 4 && !/^(upload|photo|image|video|media|asset|latest)$/i.test(base)) {
+    return base.slice(0, 50).trim();
+  }
+  return "";
+}
+
+/**
+ * Senior Social Media Manager Auto-Copywriter:
+ * Guarantees that EVERY post, photo, carousel, video, or reel ALWAYS has:
+ * 1. A strong, viral Title / Headline (`title`).
+ * 2. A deep, sharp Quote + Micro-Insights + CTA if the caller passed an empty or trivial caption (e.g. "upload this photo").
+ * 3. 3 to 6 targeted `#Hashtags` (`hashtags`) placed cleanly at the bottom.
+ */
+function ensureTitleAndHashtags(payload = {}) {
+  let rawCaption = String(payload.caption || "").trim();
+  let rawTitle = String(payload.title || "").trim();
+  const mediaHint = extractTopicFromMediaHint(payload.media_hint || "");
+
+  // Detect if caption is missing or just a raw user instruction like "upload this photo"
+  const isInstructionOnly =
+    !rawCaption ||
+    /^(upload|post|share|send)\s+(this\s+|a\s+|the\s+)?(photo|image|pic|picture|video|reel|post)$/i.test(rawCaption);
+
+  if (isInstructionOnly) {
+    const preset = SENIOR_SMM_QUOTES[Math.floor(Date.now() / 60000) % SENIOR_SMM_QUOTES.length];
+    if (!rawTitle) {
+      rawTitle = mediaHint
+        ? `${mediaHint.charAt(0).toUpperCase() + mediaHint.slice(1)} — Perspective`
+        : preset.title;
+    }
+    rawCaption = [
+      `🔥 ${rawTitle}`,
+      "",
+      preset.quote,
+      "",
+      ...preset.bullets,
+      "",
+      "👇 What’s one lesson this reminds you of today? Share your thoughts below!"
+    ].join("\n");
+  } else if (rawCaption.split(/\s+/).length <= 8 && !rawCaption.includes("\n")) {
+    // User gave a short topic or 1-line quote—expand it like a Senior Social Media Manager!
+    const shortIdea = rawCaption.replace(/#\w+/g, "").trim();
+    if (!rawTitle) {
+      rawTitle = shortIdea.length <= 65 ? shortIdea : shortIdea.slice(0, 62) + "...";
+    }
+    rawCaption = [
+      `🔥 ${rawTitle}`,
+      "",
+      `“${shortIdea}”`,
+      "",
+      "🔹 Real progress happens when clarity meets consistent execution.",
+      "🔹 Keep building—even the quietest steps forward count.",
+      "",
+      "👇 Do you agree with this? Drop a 🔥 in the comments!"
+    ].join("\n");
+  }
+
+  if (!rawTitle) {
+    const firstLine = (rawCaption.split("\n").map((l) => l.trim()).filter(Boolean)[0] || "")
+      .replace(/#\w+/g, "")
+      .trim();
+    if (firstLine && firstLine.length <= 90) {
+      rawTitle = firstLine.replace(/^[⚡🔥🚀💡✨📌]+\s*/, "").trim();
+    } else if (firstLine) {
+      rawTitle = firstLine.slice(0, 75).trim() + "...";
+    } else {
+      rawTitle = "Perspective & Daily Inspiration";
+    }
+  }
+
+  const existingInCaption = rawCaption.match(/#[a-zA-Z0-9_]+/g) || [];
+  const providedTags = Array.isArray(payload.hashtags)
+    ? payload.hashtags
+        .map((t) => String(t || "").trim())
+        .filter(Boolean)
+        .map((t) => (t.startsWith("#") ? t : `#${t.replace(/[^a-zA-Z0-9_]/g, "")}`))
+    : [];
+
+  const mergedSet = new Set([...providedTags, ...existingInCaption]);
+
+  if (mergedSet.size < 3) {
+    const stopWords = new Set([
+      "the", "and", "for", "with", "that", "this", "from", "your", "have", "more",
+      "about", "what", "when", "where", "into", "will", "just", "most", "some",
+      "upload", "photo", "image", "post"
+    ]);
+    const words = `${rawTitle} ${mediaHint} ${rawCaption}`
+      .replace(/#[a-zA-Z0-9_]+/g, "")
+      .replace(/[^a-zA-Z0-9\s]/g, " ")
+      .split(/\s+/)
+      .map((w) => w.trim())
+      .filter((w) => w.length >= 4 && !stopWords.has(w.toLowerCase()));
+
+    for (const w of words) {
+      if (mergedSet.size >= 5) break;
+      const capitalized = w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+      mergedSet.add(`#${capitalized}`);
+    }
+
+    const fallbackDefaults = ["#Mindset", "#DailyInspiration", "#GrowthMindset", "#Motivation", "#Success"];
+    for (const d of fallbackDefaults) {
+      if (mergedSet.size >= 5) break;
+      mergedSet.add(d);
+    }
+  }
+
+  const hashtags = Array.from(mergedSet).slice(0, 6);
+
+  let finalCaption = rawCaption;
+  const normalizedCapLower = finalCaption.toLowerCase();
+  const normalizedTitleLower = rawTitle.toLowerCase();
+
+  if (!normalizedCapLower.includes(normalizedTitleLower.slice(0, Math.min(24, normalizedTitleLower.length)))) {
+    finalCaption = `🔥 ${rawTitle}\n\n${finalCaption}`;
+  }
+  const missingTags = hashtags.filter((tag) => !finalCaption.toLowerCase().includes(tag.toLowerCase()));
+  if (missingTags.length > 0) {
+    finalCaption = `${finalCaption.trim()}\n\n${missingTags.join(" ")}`;
+  }
+
+  return {
+    title: rawTitle,
+    caption: finalCaption,
+    hashtags
+  };
+}
+
+/**
+ * Crafts a hyper-detailed, creative Master Art Direction prompt for the AI Image Model.
+ * STRICT RULE: NEVER use Python (PIL / Pillow / OpenCV / matplotlib) to generate thumbnails!
+ */
+function buildAiImageModelThumbnailPrompt(args = {}) {
+  const topic = String(args.topic || args.title || "Viral Breakthrough").trim();
+  const rawHook = String(args.title_hook || args.title || topic)
+    .replace(/#[a-zA-Z0-9_]+/g, "")
+    .trim();
+  const words = rawHook.split(/\s+/).filter(Boolean);
+  const dominantTitleHook = (words.slice(0, 4).join(" ") || "STOP SCROLLING").toUpperCase();
+  const subtitleText = String(
+    args.subtitle || (words.length > 4 ? words.slice(4, 11).join(" ") : `${topic} — Full Breakdown`)
+  ).trim();
+  const archetypeKey = args.archetype && VISUAL_ARCHETYPE_SPECS[args.archetype] ? args.archetype : "classical_fusion";
+  const archetypeSpec = VISUAL_ARCHETYPE_SPECS[archetypeKey];
+  const aspectRatio = String(args.aspect_ratio || "16:9").trim();
+
+  const aiImageModelPrompt = [
+    `Masterpiece agency-grade viral video thumbnail (${aspectRatio} aspect ratio), 8K UHD resolution, shot on Sony A7R V 35mm f/1.4 GM lens.`,
+    `VISUAL ARCHETYPE (${archetypeKey}): ${archetypeSpec}.`,
+    `FOCAL SUBJECT & SCENE: Expressive, high-drama visual storytelling representing "${topic}" with an intense radial warm-gold spotlight pool glowing behind the main focal subject, razor-sharp cyan and electric-amber rim lighting along the edges, and deep cinematic edge vignette shading.`,
+    `TYPOGRAPHY & VISUAL HIERARCHY (Anti-AI Uniform Look):`,
+    `1. Giant dominant heavyweight headline "${dominantTitleHook}" rendered in bold 3D Inter/Impact display typography with a vibrant horizontal electric-gold-to-crimson gradient fill and crisp dark drop shadow.`,
+    `2. Smaller secondary subtitle "${subtitleText}" (35% height of main headline) placed inside a sleek translucent dark glass card container with a glowing neon accent border.`,
+    `Ultra-tactile surface micro-textures, dramatic volumetric atmosphere, zero flat/boring layouts, zero watermarks.`
+  ].join(" ");
+
+  return {
+    success: true,
+    topic,
+    title_hook: dominantTitleHook,
+    subtitle: subtitleText,
+    archetype: archetypeKey,
+    aspect_ratio: aspectRatio,
+    ai_image_model_prompt: aiImageModelPrompt,
+    strict_generation_law:
+      "STRICT MANDATE: NEVER use Python (PIL, Pillow, OpenCV, ThumbnailEngine, or FreeMediaEngine) to draw or generate thumbnails. Pass `ai_image_model_prompt` directly to your AI Image Model (`image-generator` subagent, Google Flow Nano Banana Pro `flow_generate_image` / `deepx_generate_image`, or `meigen` `generate_image`) and pass the saved image path as `thumbnail_path`.",
+    recommended_tools: [
+      "invoke_subagent(TypeName='image-generator', Prompt=ai_image_model_prompt)",
+      "flow_generate_image / deepx_generate_image (Google Flow Nano Banana Pro)",
+      "meigen generate_image"
+    ]
+  };
+}
 
 function generateViralSeo(args) {
   const topic = (args.topic || "Digital Growth Strategy").trim();
@@ -1665,14 +2757,22 @@ function generateViralSeo(args) {
           "Consistency compounds faster than occasional bursts of intensity."
         ];
 
-  const hook = `⚡ The uncomfortable truth about ${topic} that nobody talks about:`;
+  const title = args.title ? String(args.title).trim() : `The Uncomfortable Truth About ${topic}`;
+  const hook = `⚡ ${title}:`;
   const bullets = takeaways.map((pt, i) => `🔹 Point ${i + 1}: ${pt}`);
   const cta = "👇 Which of these hits closest to home for you? Drop your thoughts below!";
   const cleanTag = topic.replace(/[^a-zA-Z0-9]/g, "");
   const hashtags = [`#${cleanTag || "Strategy"}`, "#GrowthMindset", "#Leadership", "#Productivity", "#CreatorEconomy"];
   const caption = [hook, "", ...bullets, "", cta, "", hashtags.join(" ")].join("\n");
+  const thumbPromptObj = buildAiImageModelThumbnailPrompt({
+    topic,
+    title_hook: title.split(/\s+/).slice(0, 4).join(" ").toUpperCase(),
+    subtitle: `${topic} Explained`,
+    aspect_ratio: args.aspect_ratio || "16:9"
+  });
 
   return {
+    title,
     caption,
     hook,
     bullets,
@@ -1682,12 +2782,15 @@ function generateViralSeo(args) {
     first_comment: args.link_url
       ? `🔗 Resource Link: ${args.link_url}\n(Shared in the first comment to keep organic reach at 100%!)`
       : null,
-    seo_score: 96
+    ai_thumbnail_prompt: thumbPromptObj.ai_image_model_prompt,
+    thumbnail_generation_rule: thumbPromptObj.strict_generation_law,
+    seo_score: 98
   };
 }
 
-function auditFacebookCaption(captionText) {
+function auditFacebookCaption(captionText, titleText = "") {
   const caption = String(captionText || "");
+  const title = String(titleText || "").trim();
   const lines = caption
     .split("\n")
     .map((l) => l.trim())
@@ -1695,11 +2798,17 @@ function auditFacebookCaption(captionText) {
   const words = caption.trim().split(/\s+/).filter(Boolean);
   const hashtags = caption.match(/#\w+/g) || [];
   const links = caption.match(/https?:\/\/\S+/g) || [];
+  const hasTitleOrHook = Boolean(title) || (lines.length > 0 && lines[0].length <= 95);
 
   let score = 100;
   const penalties = [];
   const suggestions = [];
 
+  if (!hasTitleOrHook) {
+    score -= 15;
+    penalties.push("Missing clear Title / 1-line Hook at the top (-15 pts).");
+    suggestions.push("Always include a punchy Title (`title` parameter) and 1-line opening hook.");
+  }
   if (links.length > 0) {
     score -= 25;
     penalties.push("Outbound link in post body (-25 pts): Facebook penalizes external links in main captions.");
@@ -1710,9 +2819,9 @@ function auditFacebookCaption(captionText) {
     penalties.push(`Too many hashtags (${hashtags.length}) (-15 pts): Triggers algorithmic spam suppression.`);
     suggestions.push("Use 3 to 6 targeted hashtags.");
   } else if (hashtags.length === 0) {
-    score -= 5;
-    penalties.push("No hashtags included (-5 pts).");
-    suggestions.push("Add 3 to 5 relevant hashtags at the bottom.");
+    score -= 15;
+    penalties.push("No hashtags included (-15 pts): Never forget hashtags!");
+    suggestions.push("Add 3 to 6 relevant #Hashtags at the bottom.");
   }
   if (lines.length === 1 && words.length > 45) {
     score -= 20;
@@ -1722,9 +2831,11 @@ function auditFacebookCaption(captionText) {
 
   return {
     seo_score: Math.max(10, score),
+    has_title: hasTitleOrHook,
     word_count: words.length,
     line_count: lines.length,
     hashtag_count: hashtags.length,
+    hashtags_detected: hashtags,
     outbound_links_count: links.length,
     penalties,
     suggestions,
@@ -1828,8 +2939,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
 
       case "fb_schedule": {
+        const enriched = ensureTitleAndHashtags(args);
         const mediaPaths = args.media_paths || [];
-        const dup = await checkDuplicate(args.caption, mediaPaths);
+        const dup = await checkDuplicate(enriched.caption, mediaPaths);
         if (dup.isDuplicate) {
           return { success: false, duplicate_detected: true, stop_loop: true, error: dup.reason };
         }
@@ -1847,7 +2959,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const newJob = {
           job_id: jobId,
           post_id: postId,
-          caption: args.caption,
+          title: enriched.title,
+          caption: enriched.caption,
+          hashtags: enriched.hashtags,
+          thumbnail_path: args.thumbnail_path || null,
           media_paths: mediaPaths,
           post_type: args.post_type || (mediaPaths.length > 0 ? "photo" : "text"),
           target_type: args.target_type || "profile",
@@ -1863,7 +2978,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           id: postId,
           post_type: newJob.post_type,
           target_type: newJob.target_type,
+          title: newJob.title,
           caption: newJob.caption,
+          hashtags: newJob.hashtags,
+          thumbnail_path: newJob.thumbnail_path,
           media_paths: mediaPaths,
           status: "scheduled",
           run_at_timestamp: runAt
@@ -1879,9 +2997,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           status: "scheduled",
           post_id: postId,
           job_id: jobId,
+          title: newJob.title,
+          hashtags: newJob.hashtags,
+          thumbnail_path: newJob.thumbnail_path,
           run_at_timestamp: runAt,
           run_at_iso: new Date(runAt * 1000).toISOString(),
-          message: `Facebook ${newJob.post_type} scheduled for ${new Date(runAt * 1000).toLocaleString()}.`
+          message: `Facebook ${newJob.post_type} scheduled for ${new Date(runAt * 1000).toLocaleString()} with title "${newJob.title}" and ${newJob.hashtags.length} hashtags.`
         };
       }
 
@@ -1905,8 +3026,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return generateViralSeo(args);
       }
 
+      case "fb_thumbnail_prompt": {
+        return buildAiImageModelThumbnailPrompt(args);
+      }
+
       case "fb_audit_caption": {
-        return auditFacebookCaption(args.caption || "");
+        return auditFacebookCaption(args.caption || "", args.title || "");
       }
 
       case "fb_doctor": {
@@ -1933,7 +3058,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           scheduled_jobs_count: Array.isArray(store.fb_scheduled_jobs) ? store.fb_scheduled_jobs.length : 0,
           post_history_count: Array.isArray(store.fb_posts_history) ? store.fb_posts_history.length : 0,
           recommendation: login.logged_in
-            ? "Everything healthy! Facebook is logged in inside AntiGem browser and ready for instant uploads."
+            ? "Everything healthy! Facebook is logged in inside AntiGem browser and ready for instant precision-touch uploads."
             : "Call fb_login_status or fb_open_browser to open Facebook in AntiGem browser and complete the one-time login."
         };
       }

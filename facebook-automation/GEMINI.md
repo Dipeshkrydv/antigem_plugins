@@ -1,28 +1,25 @@
-# Facebook Automation & SEO Studio — Operational Rules (v1.1.0)
+# Facebook Automation & SEO Studio — Operational Rules (v1.3.0)
 
-## 1. Mobile AntiGem Browser Auto-Open & One-Time Login Law (CRITICAL)
-- **Automatic Facebook Launch in AntiGem Browser**:
-  - Whenever a user assigns any Facebook task (post, photo, video, reel, story, edit, delete, comment), call `fb_publish`, `fb_publish_reel`, `fb_publish_story`, or `fb_login_status` directly.
-  - `worker.js` natively opens `https://www.facebook.com/` inside the AntiGem WebView browser (`chrome.tabs.create`) if no Facebook tab is open.
-- **One-Time Login Gatekeeper & Zero-Loop Mandate**:
-  - `worker.js` checks Facebook session cookies (`c_user` + `xs`) and DOM state.
-  - **If `logged_in: false` (`action_required: "ONE_TIME_LOGIN_REQUIRED"`, `stop_loop: true`)**:
-    1. Facebook is now open and focused on the login screen in the AntiGem browser.
-    2. The user's task is automatically saved in `fb_pending_task` (`chrome.storage.local`).
-    3. **STOP IMMEDIATELY**: Never call `fb_login_status`, `fb_publish`, or `fb_status` again in a loop!
-    4. Ask the user **once**: *"I've opened Facebook in your AntiGem browser. Please complete the one-time login there—your task is saved and will start automatically as soon as you sign in (or reply 'continue' once logged in)."*
-  - **After One-Time Login**:
-    - As soon as the user signs in, `worker.js` detects the session via `chrome.tabs.onUpdated` / `chrome.alarms`, persists `fb_one_time_login_verified: true`, and **auto-executes the saved task** (or executes immediately on `fb_resume_pending` / `fb_publish`).
-    - All subsequent tasks run immediately without asking for login again.
+## 0. Senior Social Media Manager & Zero-Overthinking Law (CRITICAL MANDATE)
+- **Instant 1-Call Execution (`< 2s` Thinking Time)**:
+  - Act as an **Executive Senior Social Media Manager**.
+  - When asked to upload a photo, post a quote, or publish a video/reel/story, call `fb_publish`, `fb_publish_reel`, or `fb_publish_story` **directly in 1 step**.
+  - **NEVER** call `fb_status`, `fb_login_status`, `fb_seo_generate`, `fb_audit_caption`, or bash search commands before `fb_publish`.
+- **Unified Photo + Deep Quote Law (Never Upload Text-Only or Bare Photo!)**:
+  - When the user says *"upload a photo"* or *"upload this photo"*:
+    1. **NEVER** upload only text! Always set `post_type="photo"` and pass `media_paths=["<file_path>"]` (or `media_paths=["latest"]` to auto-attach the newest photo on the device).
+    2. **NEVER** upload a naked photo without a quote/caption, and **NEVER** wait for a second message asking for a quote!
+    3. Immediately craft a scroll-stopping `title` (1-line Hook), a deep & sharp `caption` (**Quote `"..."` + 2–3 Micro-Insights + Question CTA**), and 4–6 targeted `hashtags`, and pass them TOGETHER with `media_paths` in **ONE `fb_publish` call**!
 
-## 2. Full Upload & Lifecycle Capabilities
-- **Posts (`fb_publish`)**: Text, Single Photo, Multi-Photo Carousel, Video, Reel, or Story on Personal Profile, Managed Page, or Group.
-- **Reels (`fb_publish_reel`)**: Uploads vertical `.mp4`/`.mov` videos via `https://www.facebook.com/reels/create` using CDP `DOM.setFileInputFiles` (zero base64 RAM overhead) + `DataTransfer` fallback, stepping through `Next` $\to$ `Next` $\to$ Caption $\to$ `Publish`.
-- **Stories (`fb_publish_story`)**: Uploads photo, video, or text stories via `https://www.facebook.com/stories/create`.
-- **Scheduling (`fb_schedule`)**: Queues posts via `chrome.alarms` + `chrome.storage.local` (and SQLite) with login-aware hold protection.
-- **Post Management**: Re-edit captions (`fb_edit_post`), delete/trash posts (`fb_delete_post`), and post first-comment links (`fb_comments`).
+## 1. Mobile (`m.facebook.com`) & Desktop (`www.facebook.com`) Precision Touch
+- `worker.js` uses `window.visualViewport` (`offsetLeft`, `offsetTop`, `width`, `height`) for pixel-accurate Android WebView touch coordinates (`fx, fy` in `[0.008, 0.992]`), collapses the soft keyboard (`blur()`) before tapping buttons, verifies hit-testing (`elementFromPoint`), and attaches media via the **4-Tier Media Attachment Engine** (`Page.setInterceptFileChooserDialog` + `HTMLInputElement.prototype.click` hook + Trusted Native Tap + `DOM.setFileInputFiles` + `DataTransfer`) with **strict DOM preview verification** before clicking Post.
 
-## 3. Anti-Duplicate, Anti-Comment-Box & Reach Protection Laws
-- **Zero Duplicate Posts**: SHA-256 caption hashing and file fingerprinting prevent duplicate posts within 48 hours. Only published/scheduled posts lock hashes, so tasks paused for one-time login can always resume cleanly.
-- **Strict Anti-Comment-Box Lock**: Never paste post captions into feed comment inputs.
-- **First-Comment Outbound Links**: Keep external URLs out of main captions; pass them via `first_comment` in `fb_publish` or `fb_comments` to avoid Facebook's 50% external-link reach penalty.
+## 2. One-Time Login Gatekeeper & Zero-Loop Mandate
+- If `logged_in: false` (`action_required: "ONE_TIME_LOGIN_REQUIRED"`, `stop_loop: true`):
+  - The user's task is saved in `fb_pending_task` and Facebook is open on the login screen in the AntiGem browser.
+  - **STOP IMMEDIATELY**: Never call `fb_login_status` or `fb_publish` in a loop!
+  - Ask the user **once** to complete their one-time login in the AntiGem browser. Once signed in, `worker.js` auto-resumes the upload.
+
+## 3. Mandatory Title, Hashtags & AI Image Model Thumbnail Law
+- Every post, photo, video, and reel must include `title` and 3–6 `hashtags`.
+- For Videos & Reels without `thumbnail_path`, ask the user if they want to provide a thumbnail or have you generate one using the **AI Image Model** (`fb_thumbnail_prompt` $\to$ `image-generator` / Google Flow Nano Banana Pro). **NEVER use Python (`PIL`/`OpenCV`) to generate thumbnails.**

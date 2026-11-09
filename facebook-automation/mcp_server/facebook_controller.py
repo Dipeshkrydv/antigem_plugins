@@ -1,11 +1,14 @@
 """
-Facebook Controller Module (v1.1.0)
-Coordinates One-Time Login Verification, Auto-Opening Facebook in Browser,
-Publishing (Text, Photo, Carousel, Video, Reel, Story), Scheduling,
-Post Re-Editing, Post Deleting, Deduplication, and Rate Limits.
+Facebook Controller Module (v1.3.0)
+Senior Social Media Manager & Precision Touch Coordinator:
+- One-Time Login Verification & Auto-Opening Facebook in Browser
+- Automatic Latest Photo/Video Discovery (`media_paths=["latest"]` or omitted on photo/video posts)
+- Unified Photo + Deep Quote/Caption + Title + 3-6 Hashtags in ONE Single Post
+- Publishing (Text, Photo, Carousel, Video, Reel, Story), Scheduling, Re-Editing, Deleting, and Comments
 """
 
 import os
+import re
 import time
 import uuid
 import base64
@@ -16,17 +19,86 @@ from pathlib import Path
 from .database import FacebookDatabase
 from .policy_guardian import PolicyGuardian
 from .bridge_server import FacebookBridgeServer
+from .fb_seo import FacebookSEO
 
 logger = logging.getLogger("FacebookController")
 
 
-def resolve_media_path(raw_path: str) -> str:
-    """Resolves ~/ and Android /sdcard/ paths to real filesystem paths."""
-    p = os.path.expanduser(str(raw_path).strip())
+def auto_discover_latest_media(prefer_video: bool = False) -> Optional[str]:
+    """Finds the most recently modified photo or video file across standard mobile & desktop folders."""
+    search_dirs = [
+        "/sdcard/Download/AntiGem",
+        "/storage/emulated/0/Download/AntiGem",
+        "/sdcard/Download",
+        "/storage/emulated/0/Download",
+        "/sdcard/Pictures",
+        "/storage/emulated/0/Pictures",
+        "/sdcard/DCIM/Camera",
+        "/storage/emulated/0/DCIM/Camera",
+        os.path.expanduser("~/Downloads"),
+        os.path.expanduser("~/Pictures"),
+        "/home/cat/Music/phone/Download/AntiGem",
+        "/home/cat/Music/phone/Download",
+        "/home/cat/facebook automation/assets",
+    ]
+    valid_exts = {".mp4", ".mov", ".m4v", ".webm"} if prefer_video else {".jpg", ".jpeg", ".png", ".webp"}
+    best_path: Optional[str] = None
+    best_mtime: float = -1.0
+
+    for d in search_dirs:
+        if not os.path.isdir(d):
+            continue
+        try:
+            for entry in os.scandir(d):
+                if not entry.is_file():
+                    continue
+                ext = os.path.splitext(entry.name)[1].lower()
+                if ext not in valid_exts:
+                    continue
+                st = entry.stat()
+                if st.st_size < 1024:
+                    continue
+                if st.st_mtime > best_mtime:
+                    best_mtime = st.st_mtime
+                    best_path = entry.path
+        except Exception:
+            continue
+    return best_path
+
+
+def resolve_media_path(raw_path: str, prefer_video: bool = False) -> str:
+    """Resolves 'latest', ~/ and Android /sdcard/ paths to real filesystem paths."""
+    trimmed = str(raw_path or "").strip()
+    if not trimmed or re.match(r"^(latest|newest|auto|last|recent)$", trimmed, re.IGNORECASE):
+        latest = auto_discover_latest_media(prefer_video=prefer_video)
+        if latest:
+            return latest
+        return trimmed
+
+    p = os.path.expanduser(trimmed)
     if p.startswith("/sdcard/"):
-        alt = "/storage/emulated/0/" + p[len("/sdcard/"):]
-        if os.path.exists(alt):
-            return alt
+        rel = p[len("/sdcard/"):]
+        for prefix in ("/storage/emulated/0/", "/home/cat/Music/phone/"):
+            alt = prefix + rel
+            if os.path.exists(alt):
+                return alt
+    if os.path.exists(p):
+        return p
+
+    # Fallback search if a bare filename was given
+    if "/" not in p:
+        for folder in (
+            "/sdcard/Download/AntiGem",
+            "/storage/emulated/0/Download/AntiGem",
+            "/sdcard/Download",
+            "/home/cat/Music/phone/Download/AntiGem",
+            "/home/cat/Music/phone/Download",
+            "/home/cat/facebook automation/assets",
+        ):
+            candidate = os.path.join(folder, p)
+            if os.path.exists(candidate):
+                return candidate
+
     return p
 
 
@@ -118,31 +190,61 @@ class FacebookController:
 
     async def publish_post(
         self,
-        caption: str,
+        caption: str = "",
         media_paths: Optional[List[str]] = None,
         post_type: str = "text",
         target_type: str = "profile",
         target_id: Optional[str] = None,
-        first_comment: Optional[str] = None
+        first_comment: Optional[str] = None,
+        title: Optional[str] = None,
+        hashtags: Optional[List[str]] = None,
+        thumbnail_path: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Publishes a post (text, photo, carousel, video, reel, or story) with:
-        0. Pre-Flight Browser Open & One-Time Login Check (Zero Loop Guarantee)
-        1. Strict Anti-Duplicate Check (SHA-256 + Caption Hash)
-        2. Policy Guardian Rate Pacing
-        3. In-Flight Concurrency Lock
+        Senior Social Media Manager Publisher:
+        0. Auto-discovers latest photo/video if post_type is photo/video/reel and media_paths is empty or ['latest']
+        1. Auto-crafts Title + Deep Quote + 3-6 Hashtags (never uploads bare photo or text-only by mistake!)
+        2. Pre-Flight Browser Open & One-Time Login Check (Zero Loop Guarantee)
+        3. Strict Anti-Duplicate Check (SHA-256 + Caption Hash)
         4. Verified DOM Upload & Publish Confirmation
         """
-        raw_paths = media_paths or []
+        prefer_vid = post_type in ("video", "reel")
+        raw_paths = list(media_paths or [])
+        if not raw_paths and post_type in ("photo", "carousel", "video", "reel"):
+            auto_file = auto_discover_latest_media(prefer_video=prefer_vid)
+            if auto_file:
+                raw_paths = [auto_file]
+
         resolved_paths: List[str] = []
         for p in raw_paths:
-            rp = resolve_media_path(p)
-            if not Path(rp).exists():
+            rp = resolve_media_path(p, prefer_video=prefer_vid)
+            if not rp or not Path(rp).exists():
                 return {"success": False, "stop_loop": True, "error": f"Media file not found: {p}"}
             resolved_paths.append(rp)
 
+        if resolved_paths and post_type == "text":
+            ext = os.path.splitext(resolved_paths[0])[1].lower()
+            post_type = "video" if ext in (".mp4", ".mov", ".m4v", ".webm") else ("carousel" if len(resolved_paths) > 1 else "photo")
+
+        media_hint = os.path.basename(resolved_paths[0]) if resolved_paths else ""
+        enriched = FacebookSEO.ensure_title_and_hashtags(
+            caption=caption,
+            title=title,
+            hashtags=hashtags,
+            media_hint=media_hint
+        )
+        final_title = enriched["title"]
+        final_caption = enriched["caption"]
+        final_hashtags = enriched["hashtags"]
+
+        resolved_thumbnail: Optional[str] = None
+        if thumbnail_path and str(thumbnail_path).strip():
+            rt = resolve_media_path(thumbnail_path, prefer_video=False)
+            if rt and Path(rt).exists():
+                resolved_thumbnail = rt
+
         # 1. Anti-Duplicate Check
-        is_dup, dup_reason = self.db.check_duplicate(media_paths=resolved_paths, caption=caption)
+        is_dup, dup_reason = self.db.check_duplicate(media_paths=resolved_paths, caption=final_caption)
         if is_dup:
             logger.warning("Duplicate post blocked: %s", dup_reason)
             return {"success": False, "error": dup_reason, "duplicate_detected": True, "stop_loop": True}
@@ -153,7 +255,10 @@ class FacebookController:
             self.pending_task = {
                 "action": "publish_post",
                 "kwargs": {
-                    "caption": caption,
+                    "caption": final_caption,
+                    "title": final_title,
+                    "hashtags": final_hashtags,
+                    "thumbnail_path": resolved_thumbnail,
                     "media_paths": resolved_paths,
                     "post_type": post_type,
                     "target_type": target_type,
@@ -165,7 +270,9 @@ class FacebookController:
             return {
                 **login_state,
                 "pending_task_saved": True,
-                "pending_post_type": post_type
+                "pending_post_type": post_type,
+                "title": final_title,
+                "hashtags": final_hashtags
             }
 
         # 3. Policy Guardian Check
@@ -186,7 +293,7 @@ class FacebookController:
         post_id = self.db.record_post(
             client_id=client_id,
             post_type=post_type,
-            caption=caption,
+            caption=final_caption,
             media_paths=resolved_paths,
             target_type=target_type,
             target_id=target_id,
@@ -206,9 +313,25 @@ class FacebookController:
                     "base64": b64
                 })
 
+            thumbnail_file = None
+            if resolved_thumbnail:
+                t_mime, _ = mimetypes.guess_type(resolved_thumbnail)
+                with open(resolved_thumbnail, "rb") as tf:
+                    t_b64 = base64.b64encode(tf.read()).decode("ascii")
+                thumbnail_file = {
+                    "path": resolved_thumbnail,
+                    "filename": os.path.basename(resolved_thumbnail),
+                    "mime_type": t_mime or "image/png",
+                    "base64": t_b64
+                }
+
             payload = {
                 "client_id": client_id,
-                "caption": caption,
+                "title": final_title,
+                "caption": final_caption,
+                "hashtags": final_hashtags,
+                "thumbnail_path": resolved_thumbnail,
+                "thumbnail_file": thumbnail_file,
                 "media_paths": resolved_paths,
                 "media_files": media_files,
                 "post_type": post_type,
@@ -237,6 +360,11 @@ class FacebookController:
                     "fb_post_id": fb_id,
                     "post_url": post_url,
                     "post_type": post_type,
+                    "title": final_title,
+                    "caption": final_caption,
+                    "hashtags": final_hashtags,
+                    "media_attached": resolved_paths,
+                    "thumbnail_path": resolved_thumbnail,
                     "first_comment_result": first_comment_res,
                     "status": "published"
                 }

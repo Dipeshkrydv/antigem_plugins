@@ -1,7 +1,8 @@
 """
-Facebook Automation MCP Server (v1.1.0)
+Facebook Automation MCP Server (v1.3.0)
+Senior Social Media Manager & Mobile Precision Touch Edition:
 Exposes Production-Grade Tools for Facebook One-Time Login Verification,
-Auto-Opening Facebook in Browser, Post/Photo/Carousel/Video/Reel/Story Publishing,
+Auto-Opening Facebook in Browser, Unified Photo/Carousel/Video/Reel/Story + Deep Quote Publishing,
 Scheduling, Re-Editing, Deleting, Anti-Duplicate Guard, and Viral SEO.
 """
 
@@ -33,8 +34,7 @@ async def fb_status(open_browser: bool = True) -> Dict[str, Any]:
     """
     Check Facebook Automation status, open Facebook in the browser if needed,
     and verify one-time login readiness.
-    IMPORTANT: If logged_in is false (action_required='ONE_TIME_LOGIN_REQUIRED'),
-    tell the user once to sign in to Facebook in the open browser tab and STOP immediately (do not loop).
+    NOTE: When publishing, do NOT call fb_status first—call fb_publish directly in 1 step!
     """
     connected = bridge.is_connected()
     due_jobs = db.get_due_jobs()
@@ -76,7 +76,10 @@ async def fb_open_browser(view: str = "feed", target_id: Optional[str] = None) -
 
 @mcp.tool()
 async def fb_publish(
-    caption: str,
+    caption: str = "",
+    title: Optional[str] = None,
+    hashtags: Optional[List[str]] = None,
+    thumbnail_path: Optional[str] = None,
     media_paths: Optional[List[str]] = None,
     post_type: str = "text",
     target_type: str = "profile",
@@ -84,12 +87,18 @@ async def fb_publish(
     first_comment: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Publish a post (text, photo, carousel, video, reel, or story) to Facebook immediately with DOM confirmation.
-    Automatically opens Facebook in the browser first and checks one-time login.
-    If not logged in, saves the task and returns action_required='ONE_TIME_LOGIN_REQUIRED' (STOP and ask user once to sign in).
+    ONE-TOUCH SENIOR SOCIAL MEDIA MANAGER PUBLISHER:
+    Publishes a Facebook post (photo, carousel, video, reel, story, or text) immediately with DOM confirmation.
+    MANDATORY SENIOR SOCIAL MEDIA MANAGER LAWS:
+    1. ZERO OVERTHINKING: Call `fb_publish` directly as your FIRST and ONLY tool call!
+    2. UNIFIED PHOTO + DEEP QUOTE IN ONE CALL: When the user asks to upload a photo, NEVER upload only text and NEVER upload a bare photo without a quote! Pass `post_type="photo"`, `media_paths=["latest"]` (or the user's file path), a viral `title`, a deep `caption` (quote + micro-insights + CTA), and 3-6 `hashtags` in THIS SINGLE CALL.
+    3. THUMBNAIL FOR VIDEOS/REELS: When uploading a video or reel without `thumbnail_path`, ask the user if they want to provide a thumbnail or have you generate one using the AI Image Model (`fb_thumbnail_prompt`).
     """
     return await controller.publish_post(
         caption=caption,
+        title=title,
+        hashtags=hashtags,
+        thumbnail_path=thumbnail_path,
         media_paths=media_paths,
         post_type=post_type,
         target_type=target_type,
@@ -100,17 +109,23 @@ async def fb_publish(
 
 @mcp.tool()
 async def fb_publish_reel(
-    video_path: str,
-    caption: str,
+    video_path: str = "latest",
+    caption: str = "",
+    title: Optional[str] = None,
+    hashtags: Optional[List[str]] = None,
+    thumbnail_path: Optional[str] = None,
     target_type: str = "profile",
     target_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Upload and publish a vertical video as a Facebook Reel (https://www.facebook.com/reels/create).
-    Automatically opens Facebook, checks one-time login, attaches the MP4 video, and completes the Reel wizard.
+    Supports `video_path="latest"` to automatically attach the newest vertical video on the device.
     """
     return await controller.publish_post(
         caption=caption,
+        title=title,
+        hashtags=hashtags,
+        thumbnail_path=thumbnail_path,
         media_paths=[video_path],
         post_type="reel",
         target_type=target_type,
@@ -147,8 +162,11 @@ async def fb_resume_pending() -> Dict[str, Any]:
 
 @mcp.tool()
 async def fb_schedule(
-    caption: str,
     run_at_timestamp: float,
+    caption: str = "",
+    title: Optional[str] = None,
+    hashtags: Optional[List[str]] = None,
+    thumbnail_path: Optional[str] = None,
     media_paths: Optional[List[str]] = None,
     post_type: str = "text",
     target_type: str = "profile",
@@ -156,8 +174,11 @@ async def fb_schedule(
 ) -> Dict[str, Any]:
     """
     Schedule a Facebook post, reel, or story for future publication.
+    Always enforces a viral Title (`title`), Deep Quote/Caption, and 3-6 `#Hashtags` (`hashtags`).
     """
-    is_dup, dup_reason = db.check_duplicate(media_paths=media_paths, caption=caption)
+    enriched = FacebookSEO.ensure_title_and_hashtags(caption=caption, title=title, hashtags=hashtags)
+    final_caption = enriched["caption"]
+    is_dup, dup_reason = db.check_duplicate(media_paths=media_paths, caption=final_caption)
     if is_dup:
         return {"success": False, "error": dup_reason, "duplicate_detected": True, "stop_loop": True}
 
@@ -165,7 +186,7 @@ async def fb_schedule(
     post_id = db.record_post(
         client_id=client_id,
         post_type=post_type,
-        caption=caption,
+        caption=final_caption,
         media_paths=media_paths or [],
         target_type=target_type,
         target_id=target_id,
@@ -176,7 +197,10 @@ async def fb_schedule(
         "success": True,
         "message": f"Post scheduled for timestamp {run_at_timestamp}",
         "post_id": post_id,
-        "job_id": job_id
+        "job_id": job_id,
+        "title": enriched["title"],
+        "hashtags": enriched["hashtags"],
+        "thumbnail_path": thumbnail_path
     }
 
 
@@ -202,24 +226,53 @@ async def fb_list_posts(limit: int = 15, status: Optional[str] = None) -> List[D
 async def fb_seo_generate(
     topic: str,
     key_takeaways: Optional[List[str]] = None,
-    link_url: Optional[str] = None
+    link_url: Optional[str] = None,
+    aspect_ratio: str = "16:9"
 ) -> Dict[str, Any]:
     """
     Generate an algorithm-optimized viral Facebook post with:
-    - 1-line retention hook
+    - Mandatory Viral Title (`title`)
+    - 1-line retention hook & deep quote
     - 3-4 punchy micro-bullets
     - Engagement CTA
-    - 3-6 targeted hashtags
-    - Alt-text for image accessibility
+    - 3-6 targeted `#Hashtags` (`hashtags`)
+    - AI Image Model Thumbnail Prompt (`ai_thumbnail_prompt`)
     - First-comment link recommendation (protects organic reach)
     """
-    return FacebookSEO.generate_post_seo(topic, key_takeaways=key_takeaways, link_url=link_url)
+    return FacebookSEO.generate_post_seo(
+        topic,
+        key_takeaways=key_takeaways,
+        link_url=link_url,
+        aspect_ratio=aspect_ratio
+    )
 
 
 @mcp.tool()
-async def fb_audit_caption(caption: str) -> Dict[str, Any]:
-    """Audit a post caption for Facebook algorithmic penalties (outbound links, hashtag stuffing, dense text)."""
-    return FacebookSEO.audit_caption(caption)
+async def fb_thumbnail_prompt(
+    topic: str,
+    title_hook: Optional[str] = None,
+    subtitle: Optional[str] = None,
+    archetype: str = "classical_fusion",
+    aspect_ratio: str = "16:9"
+) -> Dict[str, Any]:
+    """
+    Craft a hyper-detailed, creative Master Art Direction prompt for generating a viral video/reel/post thumbnail
+    using an AI Image Model (Nano Banana Pro / `image-generator` / Google Flow / Imagen 3).
+    STRICT MANDATE: NEVER use Python (PIL, Pillow, OpenCV, ThumbnailEngine, or FreeMediaEngine) to generate thumbnails!
+    """
+    return FacebookSEO.generate_thumbnail_prompt(
+        topic=topic,
+        title_hook=title_hook,
+        subtitle=subtitle,
+        archetype=archetype,
+        aspect_ratio=aspect_ratio
+    )
+
+
+@mcp.tool()
+async def fb_audit_caption(caption: str, title: str = "") -> Dict[str, Any]:
+    """Audit a post caption for Title, Hashtags, and Facebook algorithmic penalties (outbound links, hashtag stuffing, dense text)."""
+    return FacebookSEO.audit_caption(caption, title=title)
 
 
 @mcp.tool()

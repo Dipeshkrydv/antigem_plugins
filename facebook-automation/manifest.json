@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "id": "facebook-automation",
   "name": "Facebook Automation & SEO Studio",
-  "version": "1.1.0",
-  "description": "Production-grade Facebook automation engine for AntiGem Mobile Browser, Kiwi Browser, Termux, and Desktop: auto-opens Facebook in AntiGem browser, one-time login persistence, autonomous post/photo/video/reel/story publishing, scheduling, anti-duplicate protection, post re-edit/delete, and viral SEO generation.",
+  "version": "1.3.0",
+  "description": "Senior Social Media Manager & Mobile Precision Touch Facebook automation engine for AntiGem Mobile Browser, Kiwi Browser, Termux, and Desktop: auto-opens Facebook in AntiGem browser, one-time login persistence, visualViewport precision touch for Mobile (m.facebook.com) & Desktop (www.facebook.com), 4-tier bulletproof photo/video attachment with DOM preview verification, unified Photo + Deep Quote + 3-6 Hashtags in 1 call, and AI Image Model thumbnail generation.",
   "author": "Dipesh Kr Yadav",
   "icon": "icon.png",
   "icons": {
@@ -36,7 +36,7 @@
   "mcp_tools": [
     {
       "name": "fb_status",
-      "description": "Check Facebook Automation status, automatically open Facebook in the AntiGem browser if not open, and verify one-time login state. IMPORTANT: If logged_in is false (action_required='ONE_TIME_LOGIN_REQUIRED'), tell the user once to sign in to Facebook in the open AntiGem browser tab and STOP immediately—NEVER poll or retry in a loop.",
+      "description": "Check Facebook Automation status, automatically open Facebook in the AntiGem browser if not open, and verify one-time login state. NOTE: Do NOT call fb_status before fb_publish—call fb_publish directly in 1 step! If logged_in is false (action_required='ONE_TIME_LOGIN_REQUIRED'), tell the user once to sign in to Facebook in the open AntiGem browser tab and STOP immediately.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -90,20 +90,35 @@
     },
     {
       "name": "fb_publish",
-      "description": "Publish a Facebook post (text, photo, carousel, video, reel, or story) directly inside the AntiGem browser with DOM verification and SHA-256 anti-duplicate protection. Automatically opens Facebook in the AntiGem browser first. If the user is not logged in yet, it queues the task as pending_task, shows the Facebook login screen in the AntiGem browser, and returns action_required='ONE_TIME_LOGIN_REQUIRED' (STOP immediately and ask the user once to log in; once they log in, the task auto-executes or can be triggered via fb_resume_pending).",
+      "description": "ONE-TOUCH SENIOR SOCIAL MEDIA MANAGER PUBLISHER: Publishes a Facebook post (photo, carousel, video, reel, story, or text) directly inside the AntiGem browser using Mobile & Desktop visualViewport Precision Touch. CRITICAL SENIOR SOCIAL MEDIA MANAGER LAWS: 1) ZERO OVERTHINKING: Call fb_publish directly as your FIRST and ONLY tool call! Do NOT call fb_status, fb_login_status, or fb_seo_generate before fb_publish. 2) UNIFIED PHOTO + QUOTE IN ONE STEP: When the user says 'upload a photo' or 'upload this photo', NEVER upload only text and NEVER upload a bare photo without a quote! Always pass post_type='photo', media_paths=['latest'] (or the user's file path), a scroll-stopping `title`, a deep & sharp `caption` (quote + micro-insights + CTA), and 4-6 `hashtags` in THIS SINGLE CALL. 3) 4-Tier Media Attachment verifies the photo preview is mounted in the composer before inserting the quote and tapping Post.",
       "inputSchema": {
         "type": "object",
         "properties": {
+          "title": {
+            "type": "string",
+            "description": "Scroll-stopping viral Title / Headline for the post, photo, video, or reel (auto-crafted if omitted)."
+          },
           "caption": {
             "type": "string",
-            "description": "Post caption, reel description, or story text."
+            "description": "Senior Social Media Manager caption combining a deep quote, 2-3 punchy micro-insights, and an engaging question CTA (auto-crafted if omitted or short)."
+          },
+          "hashtags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of 3-6 targeted hashtags (e.g. ['#Mindset', '#Growth']). Automatically appended to the caption."
           },
           "media_paths": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "description": "List of file paths to photos or videos (supports /sdcard/..., ~/..., or absolute paths)."
+            "description": "List of file paths to photos or videos (supports /sdcard/..., ~/..., absolute paths, or ['latest'] to automatically attach the newest photo/video on the device)."
+          },
+          "thumbnail_path": {
+            "type": "string",
+            "description": "Optional path to the thumbnail image for video/reel uploads (must be user-supplied or generated via AI Image Model—NEVER generated via Python)."
           },
           "post_type": {
             "type": "string",
@@ -115,7 +130,7 @@
               "reel",
               "story"
             ],
-            "description": "Format of the Facebook upload: 'text', 'photo', 'carousel', 'video', 'reel', or 'story'."
+            "description": "Format of the Facebook upload: 'photo', 'carousel', 'video', 'reel', 'story', or 'text'. Always set 'photo' when uploading a photo!"
           },
           "target_type": {
             "type": "string",
@@ -135,25 +150,37 @@
             "description": "Optional first comment (e.g. external resource link) to post immediately after publishing."
           }
         },
-        "required": [
-          "caption"
-        ],
         "additionalProperties": false
       }
     },
     {
       "name": "fb_publish_reel",
-      "description": "Upload and publish a vertical video as a Facebook Reel (https://www.facebook.com/reels/create) in the AntiGem browser. Automatically opens Facebook if needed, checks one-time login, attaches the MP4 video, navigates Next -> Next -> Caption -> Publish. If logged_in is false, saves the Reel task and stops for one-time login.",
+      "description": "Upload and publish a vertical video as a Facebook Reel (https://www.facebook.com/reels/create) in the AntiGem browser with guaranteed Title, Deep Quote/Caption, 3-6 Hashtags, and optional custom/AI-generated Thumbnail. Pass video_path='latest' if the user says 'upload my latest video/reel'. Always ask the user about the thumbnail if not provided; if generating it yourself, NEVER use Python—use the AI Image Model with fb_thumbnail_prompt.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "video_path": {
             "type": "string",
-            "description": "Path to the vertical MP4/MOV video file (supports /sdcard/..., ~/..., or absolute paths)."
+            "description": "Path to the vertical MP4/MOV video file (supports /sdcard/..., ~/..., absolute paths, or 'latest')."
+          },
+          "title": {
+            "type": "string",
+            "description": "Viral Reel title / hook headline."
           },
           "caption": {
             "type": "string",
-            "description": "Reel caption and hashtags."
+            "description": "Reel caption body with hook, quote, and CTA."
+          },
+          "hashtags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of 3-6 targeted hashtags (auto-appended if not already in caption)."
+          },
+          "thumbnail_path": {
+            "type": "string",
+            "description": "Optional path to cover/thumbnail image (generated by AI Image Model or supplied by user—never Python)."
           },
           "target_type": {
             "type": "string",
@@ -169,21 +196,20 @@
           }
         },
         "required": [
-          "video_path",
-          "caption"
+          "video_path"
         ],
         "additionalProperties": false
       }
     },
     {
       "name": "fb_publish_story",
-      "description": "Upload and publish a photo, video, or text Story to Facebook (https://www.facebook.com/stories/create) in the AntiGem browser. Automatically checks one-time login first.",
+      "description": "Upload and publish a photo, video, or text Story to Facebook (https://www.facebook.com/stories/create) in the AntiGem browser using Mobile & Desktop Precision Touch.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "media_path": {
             "type": "string",
-            "description": "Optional path to photo or video for the Story."
+            "description": "Optional path to photo or video for the Story (or 'latest' for newest photo/video)."
           },
           "caption": {
             "type": "string",
@@ -206,6 +232,54 @@
       }
     },
     {
+      "name": "fb_thumbnail_prompt",
+      "description": "Craft an ultra-detailed, creative Master Art Direction prompt for generating a high-CTR clickbait thumbnail using an AI Image Model (Nano Banana Pro / Google Flow / image-generator subagent). STRICT MANDATE: NEVER use Python (PIL/Pillow/OpenCV) to generate thumbnails! Always pass this tool's prompt to the AI Image Model to render the thumbnail.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "topic": {
+            "type": "string",
+            "description": "Core topic or subject of the video/reel/post."
+          },
+          "title_hook": {
+            "type": "string",
+            "description": "Dominant 2-4 word bold hook text to render in the thumbnail (e.g. 'STOP DOING THIS', 'SECRET REVEALED')."
+          },
+          "subtitle": {
+            "type": "string",
+            "description": "Short 3-6 word subtitle badge text explaining what it is about."
+          },
+          "archetype": {
+            "type": "string",
+            "enum": [
+              "surreal_metaphor",
+              "tactile_workspace",
+              "classical_fusion",
+              "kinetic_blueprint",
+              "retro_modern",
+              "macro_texture",
+              "minimalist_monolith"
+            ],
+            "description": "Creative visual archetype for the AI Image Model (default: 'surreal_metaphor')."
+          },
+          "aspect_ratio": {
+            "type": "string",
+            "enum": [
+              "16:9",
+              "9:16",
+              "4:5",
+              "1:1"
+            ],
+            "description": "Thumbnail aspect ratio: '9:16' for Reels/Stories, '16:9' for landscape video, '4:5' for feed portrait."
+          }
+        },
+        "required": [
+          "topic"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
       "name": "fb_resume_pending",
       "description": "Resume and execute any pending Facebook upload task (post, reel, story, edit, delete, comment) after the user has completed their one-time login in the AntiGem browser.",
       "inputSchema": {
@@ -216,13 +290,24 @@
     },
     {
       "name": "fb_schedule",
-      "description": "Schedule a Facebook post, reel, or story for future publication via AntiGem background alarms and local queue.",
+      "description": "Schedule a Facebook post, reel, or story for future publication via AntiGem background alarms and local queue, ensuring Title, Deep Quote/Caption, 3-6 Hashtags, and optional Thumbnail are preserved.",
       "inputSchema": {
         "type": "object",
         "properties": {
+          "title": {
+            "type": "string",
+            "description": "Viral post/video/reel title."
+          },
           "caption": {
             "type": "string",
             "description": "Post caption."
+          },
+          "hashtags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of 3-6 targeted hashtags."
           },
           "run_at_timestamp": {
             "type": "number",
@@ -233,7 +318,11 @@
             "items": {
               "type": "string"
             },
-            "description": "List of file paths to media."
+            "description": "List of file paths to media (or ['latest'])."
+          },
+          "thumbnail_path": {
+            "type": "string",
+            "description": "Optional path to AI-Image-Model-generated or custom thumbnail."
           },
           "post_type": {
             "type": "string",
@@ -262,7 +351,6 @@
           }
         },
         "required": [
-          "caption",
           "run_at_timestamp"
         ],
         "additionalProperties": false
@@ -334,7 +422,7 @@
     },
     {
       "name": "fb_seo_generate",
-      "description": "Generate an algorithm-optimized viral Facebook post with 1-line hook, 3-4 micro-bullets, engagement CTA, 3-6 hashtags, alt-text, and first-comment link.",
+      "description": "Generate a complete algorithm-optimized viral Facebook package: Title, 1-line Hook, Deep Quote, 3-4 punchy Micro-Bullets, Engagement CTA, 3-6 targeted Hashtags, Alt-Text, First-Comment Link, AND a detailed AI Image Model Thumbnail Prompt.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -352,6 +440,16 @@
           "link_url": {
             "type": "string",
             "description": "Optional outbound link to place in first comment."
+          },
+          "aspect_ratio": {
+            "type": "string",
+            "enum": [
+              "16:9",
+              "9:16",
+              "4:5",
+              "1:1"
+            ],
+            "description": "Aspect ratio for the AI Image Model thumbnail prompt (default: '9:16' for Reels, '16:9' for Video)."
           }
         },
         "required": [
@@ -362,7 +460,7 @@
     },
     {
       "name": "fb_audit_caption",
-      "description": "Audit a post caption for Facebook algorithmic penalties (outbound links in body, hashtag stuffing, wall-of-text density).",
+      "description": "Audit a post caption for Facebook algorithmic penalties (missing title/hook, missing hashtags, outbound links in body, hashtag stuffing, wall-of-text density).",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -415,8 +513,10 @@
     "facebook",
     "automation",
     "social-media",
+    "senior-social-media-manager",
     "reels",
     "stories",
+    "thumbnails",
     "seo",
     "anti-duplicate",
     "antigem-browser",

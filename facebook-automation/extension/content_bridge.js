@@ -1,8 +1,10 @@
 /**
- * Content Bridge Script for Facebook DOM Automation (v1.1.0)
- * Handles: Accurate One-Time Login Detection, Feed Post Creation (Text/Photo/Carousel/Video),
- * Reels Upload (/reels/create), Stories Upload (/stories/create), Caption Pasting,
- * File Attachment via DataTransfer, Post Re-Editing, Post Deleting, and Comments.
+ * Content Bridge Script for Facebook DOM Automation (v1.3.0)
+ * Senior Social Media Manager & Mobile + Desktop Precision DOM Engine:
+ * - Supports both Mobile Touch UI (`m.facebook.com`) and Desktop UI (`www.facebook.com`).
+ * - Captures detached `<input type="file">` via `HTMLInputElement.prototype.click` hook + `DataTransfer` + `DragEvent("drop")` fallback.
+ * - Verifies photo/video preview is genuinely mounted in the composer DOM before clicking Post (zero text-only mistakes!).
+ * - Handles both direct `Post`/`Publish` and 2-step Mobile `Next -> Post` flows.
  */
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -44,6 +46,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isVisible(el) {
+  if (!el) return false;
+  const r = el.getBoundingClientRect();
+  if (r.width < 6 || r.height < 6) return false;
+  const st = window.getComputedStyle(el);
+  return st.visibility !== "hidden" && st.display !== "none" && Number(st.opacity || 1) > 0.01;
 }
 
 function checkSession(payload = {}) {
@@ -95,11 +105,16 @@ function checkSession(payload = {}) {
 
   const hasComposer = Boolean(
     document.querySelector(
-      'div[aria-label*="Create a post" i], div[aria-label*="Make a post" i], div[data-pagelet="ProfileComposer"]'
+      'div[aria-label*="Create a post" i], div[aria-label*="Make a post" i], div[data-pagelet="ProfileComposer"], #MComposer, a[href*="/composer/"]'
     ) ||
-      Array.from(document.querySelectorAll('div[role="button"], span')).some((el) => {
-        const t = (el.innerText || el.textContent || "").trim();
-        return t.includes("What's on your mind") || t.includes("Write something") || t.includes("Create a post");
+      Array.from(document.querySelectorAll('div[role="button"], span, a')).some((el) => {
+        const t = (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim();
+        return (
+          /what['’]?s on your mind/i.test(t) ||
+          /make a post/i.test(t) ||
+          /write something/i.test(t) ||
+          /create a post/i.test(t)
+        );
       })
   );
 
@@ -143,8 +158,7 @@ function checkSession(payload = {}) {
   };
 }
 
-function attachBase64MediaToInput(fileInput, mediaFiles) {
-  if (!fileInput || !Array.isArray(mediaFiles) || mediaFiles.length === 0) return false;
+function buildDataTransferFromMediaFiles(mediaFiles) {
   const dt = new DataTransfer();
   for (const item of mediaFiles) {
     if (!item || !item.base64) continue;
@@ -159,6 +173,12 @@ function attachBase64MediaToInput(fileInput, mediaFiles) {
     });
     dt.items.add(fileObj);
   }
+  return dt;
+}
+
+function attachBase64MediaToInput(fileInput, mediaFiles) {
+  if (!fileInput || !Array.isArray(mediaFiles) || mediaFiles.length === 0) return false;
+  const dt = buildDataTransferFromMediaFiles(mediaFiles);
   if (mediaFiles.length > 1) fileInput.multiple = true;
   fileInput.files = dt.files;
   fileInput.dispatchEvent(new Event("input", { bubbles: true }));
@@ -166,17 +186,51 @@ function attachBase64MediaToInput(fileInput, mediaFiles) {
   return Boolean(fileInput.files && fileInput.files.length > 0);
 }
 
+function hasMediaPreviewMounted(scope = document) {
+  const hasBlobOrDataImg = Array.from(scope.querySelectorAll("img")).some((img) => {
+    const src = img.getAttribute("src") || "";
+    const r = img.getBoundingClientRect();
+    return (src.startsWith("blob:") || src.startsWith("data:image/")) && r.width >= 36 && r.height >= 36;
+  });
+  const hasVideo = Boolean(scope.querySelector("video"));
+  const hasRemoveOrEdit = Boolean(
+    scope.querySelector(
+      '[aria-label*="Remove photo" i], [aria-label*="Remove video" i], [aria-label*="Remove media" i], [aria-label*="Edit photo" i], [aria-label*="Edit All" i], [data-sigil*="photo-preview"]'
+    )
+  );
+  return Boolean(hasBlobOrDataImg || hasVideo || hasRemoveOrEdit);
+}
+
 function insertTextFast(editor, text) {
   if (!editor || !text) return;
-  editor.scrollIntoView({ block: "center", behavior: "instant" });
+  try {
+    editor.scrollIntoView({ block: "center", behavior: "instant" });
+  } catch (_) {}
   editor.focus();
+  try {
+    editor.click();
+  } catch (_) {}
+
   if (editor.tagName === "TEXTAREA" || editor.tagName === "INPUT") {
-    editor.value = text;
+    const proto = editor.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+    if (setter) setter.call(editor, text);
+    else editor.value = text;
     editor.dispatchEvent(new Event("input", { bubbles: true }));
     editor.dispatchEvent(new Event("change", { bubbles: true }));
     return;
   }
-  document.execCommand("selectAll", false, null);
+
+  try {
+    const sel = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    document.execCommand("selectAll", false, null);
+    document.execCommand("delete", false, null);
+  } catch (_) {}
+
   const ok = document.execCommand("insertText", false, text);
   if (!ok || !(editor.innerText || "").trim()) {
     try {
@@ -188,7 +242,8 @@ function insertTextFast(editor, text) {
   if (!(editor.innerText || "").trim()) {
     editor.innerText = text;
   }
-  editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+  editor.dispatchEvent(new InputEvent("input", { bubbles: true, cancelable: true, inputType: "insertText", data: text }));
+  editor.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
 async function publishReelDom(payload) {
@@ -204,9 +259,8 @@ async function publishReelDom(payload) {
   attachBase64MediaToInput(videoInput, media_files);
   await sleep(3500);
 
-  // Advance through Next -> Next
   for (let step = 0; step < 3; step++) {
-    const allBtns = Array.from(document.querySelectorAll('div[role="button"], button'));
+    const allBtns = Array.from(document.querySelectorAll('div[role="button"], button, span[role="button"]'));
     const pubBtn = allBtns.find((el) => {
       const t = (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim().toLowerCase();
       return t === "publish" || t === "share" || t === "share now";
@@ -215,7 +269,7 @@ async function publishReelDom(payload) {
 
     const nextBtn = allBtns.find((el) => {
       const t = (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim().toLowerCase();
-      return t === "next";
+      return t === "next" || t === "अर्को" || t === "अगला";
     });
     if (nextBtn && nextBtn.getAttribute("aria-disabled") !== "true") {
       nextBtn.click();
@@ -234,7 +288,7 @@ async function publishReelDom(payload) {
   }
 
   for (let i = 0; i < 30; i++) {
-    const btns = Array.from(document.querySelectorAll('div[role="button"], button'));
+    const btns = Array.from(document.querySelectorAll('div[role="button"], button, span[role="button"]'));
     const pubBtn = btns.find((el) => {
       const t = (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim().toLowerCase();
       return t === "publish" || t === "share" || t === "share now" || t === "post";
@@ -265,7 +319,7 @@ async function publishStoryDom(payload) {
     }
   } else if (caption) {
     const textStoryBtn = Array.from(document.querySelectorAll('div[role="button"], span')).find((el) =>
-      /create a text story/i.test(el.innerText || el.textContent || "")
+      /create a text story|text/i.test(el.innerText || el.textContent || "")
     );
     if (textStoryBtn) {
       textStoryBtn.click();
@@ -278,10 +332,11 @@ async function publishStoryDom(payload) {
     }
   }
 
-  const shareBtn = Array.from(document.querySelectorAll('div[role="button"], button')).find((el) =>
-    /share to story|share now|^share$/i.test(
-      (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim()
-    )
+  const shareBtn = Array.from(document.querySelectorAll('div[role="button"], button, span[role="button"]')).find(
+    (el) =>
+      /share to story|share now|^share$/i.test(
+        (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim()
+      )
   );
   if (!shareBtn) {
     throw new Error("Could not find 'Share to story' button.");
@@ -297,7 +352,6 @@ async function publishStoryDom(payload) {
 }
 
 async function publishPost(payload) {
-  // 0. Pre-flight One-Time Login Check
   const session = checkSession(payload);
   if (!session.logged_in) {
     return {
@@ -319,20 +373,24 @@ async function publishPost(payload) {
     return await publishStoryDom(payload);
   }
 
-  // 1. Locate Composer Trigger ("What's on your mind?" / "Create a post") using standard valid DOM queries
+  // 1. Locate Composer Trigger on Mobile (m.facebook.com) or Desktop (www.facebook.com)
   let dialog = document.querySelector('div[role="dialog"]');
-  if (!dialog || !dialog.querySelector('div[role="textbox"][contenteditable="true"], textarea')) {
+  const mobileBox = document.querySelector(
+    '#composer-main-view-id textarea, textarea.composerInput, textarea[name="xc_message"]'
+  );
+  if ((!dialog || !dialog.querySelector('div[role="textbox"][contenteditable="true"], textarea')) && !mobileBox) {
     const composerTrigger =
       document.querySelector(
-        'div[aria-label*="Create a post" i], div[aria-label*="Make a post" i], div[data-pagelet="ProfileComposer"] div[role="button"]'
+        'div[aria-label*="Create a post" i], div[aria-label*="Make a post" i], div[data-pagelet*="Composer"] div[role="button"], #MComposer div[role="button"], a[href*="/composer/"]'
       ) ||
-      Array.from(document.querySelectorAll('div[role="button"], span[role="button"]')).find((el) => {
-        const txt = (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim();
+      Array.from(document.querySelectorAll('div[role="button"], span[role="button"], a')).find((el) => {
+        if (el.closest('div[role="article"], div[data-pagelet*="FeedUnit"]')) return false;
+        const txt = `${el.getAttribute("aria-label") || ""} ${el.innerText || el.textContent || ""}`.trim();
         return (
-          /what's on your mind/i.test(txt) ||
+          /what['’]?s on your mind/i.test(txt) ||
+          /make a post/i.test(txt) ||
           /write something/i.test(txt) ||
-          /create a post/i.test(txt) ||
-          /make a post/i.test(txt)
+          /create a post/i.test(txt)
         );
       });
 
@@ -345,39 +403,77 @@ async function publishPost(payload) {
     composerTrigger.click();
     await sleep(1500);
     dialog = document.querySelector('div[role="dialog"]') || document;
+  } else {
+    dialog = dialog || document;
   }
 
-  // 2. Attach Media if provided
+  // 2. Attach Media FIRST if provided (with detached input capture + drop fallback + preview verification)
   if (Array.isArray(media_files) && media_files.length > 0) {
-    let fileInput = dialog.querySelector(
-      'input[type="file"][accept*="image"], input[type="file"][accept*="video"], input[type="file"]'
-    );
-    if (!fileInput) {
-      const photoBtn = Array.from(dialog.querySelectorAll('div[role="button"], span[role="button"], button')).find(
-        (el) => {
-          const label = (el.getAttribute("aria-label") || el.innerText || el.textContent || "").trim();
-          return /photo\/video|photos\/videos|add photos|photo/i.test(label);
-        }
-      );
+    let capturedInput = null;
+    const origClick = HTMLInputElement.prototype.click;
+    HTMLInputElement.prototype.click = function (...args) {
+      if (this && this.type === "file") {
+        capturedInput = this;
+        return;
+      }
+      return origClick.apply(this, args);
+    };
+
+    try {
+      const photoBtn = Array.from(
+        dialog.querySelectorAll('div[role="button"], span[role="button"], button, a, label')
+      ).find((el) => {
+        const label = `${el.getAttribute("aria-label") || ""} ${el.innerText || el.textContent || ""}`.trim();
+        if (/remove|delete|edit|tag/i.test(label)) return false;
+        return /^(photo\/video|photos\/videos|photos|photo|add photos|add video|फोटो\/भिडियो|फोटो)$/i.test(label) ||
+          /photo\/video|photos\/videos|add photos/i.test(label);
+      });
       if (photoBtn) {
         photoBtn.click();
-        await sleep(1000);
+        await sleep(500);
       }
-      fileInput = document.querySelector('div[role="dialog"] input[type="file"], input[type="file"]');
+    } finally {
+      HTMLInputElement.prototype.click = origClick;
     }
+
+    const fileInput =
+      capturedInput ||
+      dialog.querySelector('input[type="file"][accept*="image"], input[type="file"][accept*="video"], input[type="file"]') ||
+      document.querySelector('input[type="file"]');
 
     if (fileInput) {
       attachBase64MediaToInput(fileInput, media_files);
-      await sleep(2200);
+      await sleep(1800);
+    }
+
+    if (!hasMediaPreviewMounted(dialog)) {
+      const dt = buildDataTransferFromMediaFiles(media_files);
+      const dropZone =
+        dialog.querySelector('div[role="textbox"][contenteditable="true"]') ||
+        dialog.querySelector("textarea") ||
+        dialog;
+      for (const evtName of ["dragenter", "dragover", "drop"]) {
+        dropZone.dispatchEvent(new DragEvent(evtName, { bubbles: true, cancelable: true, dataTransfer: dt }));
+      }
+      await sleep(1800);
+    }
+
+    if (!hasMediaPreviewMounted(dialog) && !fileInput) {
+      throw new Error("Could not attach photo/video to Facebook composer. Aborting so text-only is not posted.");
     }
   }
 
-  // 3. Locate Text Editor Area (Strictly excluding comment inputs)
+  // 3. Locate Text Editor Area & Insert Caption (Quote + Hook + Hashtags)
   if (caption && String(caption).trim().length > 0) {
+    const scope = document.querySelector('div[role="dialog"]') || document;
     const editors = Array.from(
-      dialog.querySelectorAll('div[role="textbox"][contenteditable="true"], textarea')
+      scope.querySelectorAll(
+        'div[role="textbox"][contenteditable="true"], div[data-lexical-editor="true"], textarea.composerInput, textarea[name="xc_message"], textarea'
+      )
     ).filter((el) => {
-      const aria = (el.getAttribute("aria-label") || el.getAttribute("placeholder") || "").toLowerCase();
+      if (!isVisible(el)) return false;
+      if (el.closest('div[role="article"], div[data-pagelet*="FeedUnit"]')) return false;
+      const aria = `${el.getAttribute("aria-label") || ""} ${el.getAttribute("placeholder") || ""}`.toLowerCase();
       return !aria.includes("comment") && !aria.includes("reply") && !aria.includes("search");
     });
 
@@ -387,36 +483,60 @@ async function publishPost(payload) {
     }
 
     insertTextFast(textEditor, caption);
-    await sleep(800);
+    await sleep(750);
   }
 
-  // 4. Locate & Click "Post" / "Publish" Button
-  let postBtn = null;
-  for (let attempt = 0; attempt < 20; attempt++) {
-    const candidate = Array.from(dialog.querySelectorAll('div[role="button"], button, input[type="submit"]')).find(
-      (el) => {
-        const txt = (el.innerText || el.textContent || el.getAttribute("aria-label") || el.value || "")
-          .trim()
-          .toLowerCase();
-        return txt === "post" || txt === "publish";
-      }
-    );
-    if (candidate && candidate.getAttribute("aria-disabled") !== "true" && !candidate.disabled) {
-      postBtn = candidate;
-      break;
+  // 4. Locate & Click "Post" / "Publish" Button (or Mobile "Next" -> "Post")
+  const findSubmitBtn = (allowNext = false) => {
+    const scope = document.querySelector('div[role="dialog"]') || document;
+    const allBtns = Array.from(
+      scope.querySelectorAll('div[role="button"], button, span[role="button"], input[type="submit"]')
+    ).filter(isVisible);
+    const postBtn = allBtns.find((el) => {
+      if (el.closest('div[role="article"], div[data-pagelet*="FeedUnit"]')) return false;
+      const txt = (el.innerText || el.textContent || el.getAttribute("aria-label") || el.value || "")
+        .trim()
+        .toLowerCase();
+      return txt === "post" || txt === "publish" || txt === "share" || txt === "share now";
+    });
+    if (postBtn && postBtn.getAttribute("aria-disabled") !== "true" && !postBtn.disabled) {
+      return { btn: postBtn, isNext: false };
     }
-    await sleep(800);
+    if (allowNext) {
+      const nextBtn = allBtns.find((el) => {
+        if (el.closest('div[role="article"], div[data-pagelet*="FeedUnit"]')) return false;
+        const txt = (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim().toLowerCase();
+        return txt === "next";
+      });
+      if (nextBtn && nextBtn.getAttribute("aria-disabled") !== "true" && !nextBtn.disabled) {
+        return { btn: nextBtn, isNext: true };
+      }
+    }
+    return null;
+  };
+
+  let foundSubmit = null;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    foundSubmit = findSubmitBtn(attempt >= 2);
+    if (foundSubmit) break;
+    await sleep(750);
   }
 
-  if (!postBtn) {
+  if (!foundSubmit) {
     throw new Error("Could not find enabled 'Post' button in composer dialog.");
   }
 
-  postBtn.click();
+  foundSubmit.btn.click();
+  if (foundSubmit.isNext) {
+    await sleep(1200);
+    const finalSubmit = findSubmitBtn(false);
+    if (finalSubmit && finalSubmit.btn) {
+      finalSubmit.btn.click();
+    }
+  }
 
-  // 5. Wait for dialog to dismiss
   for (let i = 0; i < 20; i++) {
-    await sleep(1000);
+    await sleep(900);
     if (!document.querySelector('div[role="dialog"]')) {
       break;
     }
