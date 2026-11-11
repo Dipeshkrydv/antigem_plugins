@@ -92,24 +92,38 @@ class FacebookSEO:
         caption: str = "",
         title: Optional[str] = None,
         hashtags: Optional[List[str]] = None,
-        media_hint: str = ""
+        media_hint: str = "",
+        post_type: str = "text",
+        story_text: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Senior Social Media Manager Auto-Copywriter:
-        Guarantees that EVERY post, photo, carousel, video, or reel ALWAYS has:
-        1. A strong, viral Title / Headline (never forgotten).
-        2. A deep, sharp Quote + Micro-Insights + CTA if the caller passed an empty or trivial caption.
-        3. 3 to 6 targeted #Hashtags (never forgotten).
+        - For feed posts, photos, carousels, videos, and reels: guarantees a punchy Title,
+          properly formatted multiline Description/Quote + Micro-Insights + CTA, and 3-6 #Hashtags.
+        - For Stories (`post_type="story"`): never forces feed essays or hashtag clouds;
+          preserves clean overlay `story_text` only.
         """
-        raw_caption = (caption or "").strip()
+        raw_caption = (caption or "").replace("\r\n", "\n").strip()
         raw_title = (title or "").strip()
+
+        if str(post_type or "").lower() == "story":
+            first_line = next((l.strip() for l in raw_caption.split("\n") if l.strip()), "")
+            first_line = re.sub(r"#[\w\u0900-\u097F]+", "", first_line).strip()
+            overlay = str(story_text or raw_title or first_line or "").strip()[:120]
+            return {
+                "title": raw_title or overlay,
+                "caption": raw_caption,
+                "hashtags": [],
+                "story_text": overlay
+            }
+
         topic_hint = FacebookSEO._extract_topic_from_hint(media_hint)
 
         is_instruction_only = (
             not raw_caption
             or bool(
                 re.match(
-                    r"^(upload|post|share|send)\s+(this\s+|a\s+|the\s+)?(photo|image|pic|picture|video|reel|post)$",
+                    r"^(upload|post|share|send)\s+(this\s+|a\s+|the\s+)?(photo|image|pic|picture|video|reel|story|post)$",
                     raw_caption,
                     re.IGNORECASE,
                 )
@@ -132,7 +146,7 @@ class FacebookSEO:
                 ]
             )
         elif len(raw_caption.split()) <= 8 and "\n" not in raw_caption:
-            short_idea = re.sub(r"#\w+", "", raw_caption).strip()
+            short_idea = re.sub(r"#[\w\u0900-\u097F]+", "", raw_caption).strip()
             if not raw_title:
                 raw_title = short_idea if len(short_idea) <= 65 else short_idea[:62] + "..."
             raw_caption = "\n".join(
@@ -150,7 +164,7 @@ class FacebookSEO:
 
         if not raw_title:
             first_line = next((l.strip() for l in raw_caption.split("\n") if l.strip()), "")
-            first_line = re.sub(r"#\w+", "", first_line).strip()
+            first_line = re.sub(r"#[\w\u0900-\u097F]+", "", first_line).strip()
             if first_line and len(first_line) <= 90:
                 raw_title = re.sub(r"^[⚡🔥🚀💡✨📌]+\s*", "", first_line).strip()
             elif first_line:
@@ -158,15 +172,15 @@ class FacebookSEO:
             else:
                 raw_title = "Perspective & Daily Inspiration"
 
-        existing_in_caption = re.findall(r"#[a-zA-Z0-9_]+", raw_caption)
+        existing_in_caption = re.findall(r"#[\w\u0900-\u097F]+", raw_caption)
         provided_tags: List[str] = []
         if hashtags:
             for t in hashtags:
                 clean = str(t or "").strip()
                 if clean:
-                    provided_tags.append(
-                        clean if clean.startswith("#") else f"#{re.sub(r'[^a-zA-Z0-9_]', '', clean)}"
-                    )
+                    tag = clean if clean.startswith("#") else f"#{re.sub(r'[^\w\u0900-\u097F]', '', clean)}"
+                    if len(tag) > 1:
+                        provided_tags.append(tag)
 
         merged: List[str] = []
         for tag in provided_tags + existing_in_caption:
@@ -177,12 +191,12 @@ class FacebookSEO:
             stop_words = {
                 "the", "and", "for", "with", "that", "this", "from", "your", "have", "more",
                 "about", "what", "when", "where", "into", "will", "just", "most", "some",
-                "upload", "photo", "image", "post"
+                "upload", "photo", "image", "post", "reel", "video", "story"
             }
             words = re.sub(
                 r"[^a-zA-Z0-9\s]",
                 " ",
-                re.sub(r"#[a-zA-Z0-9_]+", "", f"{raw_title} {topic_hint} {raw_caption}")
+                re.sub(r"#[\w\u0900-\u097F]+", "", f"{raw_title} {topic_hint} {raw_caption}")
             ).split()
             for w in words:
                 if len(merged) >= 5:

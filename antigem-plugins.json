@@ -13,8 +13,8 @@
       "path": "facebook-automation",
       "id": "facebook-automation",
       "name": "Facebook Automation & SEO Studio",
-      "version": "1.4.0",
-      "description": "Pre-Trained Phone (Desktop-on-Phone www.facebook.com + Mobile Touch m.facebook.com) & Desktop Precision Facebook Automation Engine (v1.4.0): Smart Composer Dialog Scorer, Single-Shot Instant Media Attachment (zero double-photo bugs), 5-Tier Lexical/CDP Input.insertText Caption Injector, Direct Reference File Fast-Path, Reels & Stories wizards, and 1-Call Unified Photo + Deep Quote + 3-6 Hashtags publishing.",
+      "version": "1.5.0",
+      "description": "Pre-Trained Phone (Desktop-on-Phone www.facebook.com & Mobile Touch m.facebook.com) and Desktop Facebook Automation Engine (v1.5.0): Dedicated Feed Posts (Text/Photo/Carousel/Video), Reels (/reels/create + mobile fallback), Stories (/stories/create Photo/Video with overlay story_text & Text Story), Real Video/Reel Thumbnail & Cover Uploader, Multiline Formatted Caption Engine (Title + Description + Bullets + CTA + 3-6 #Hashtags), and Zero-Overthinking 1-Call Dispatch.",
       "icon": "icon.png"
     }
   ]

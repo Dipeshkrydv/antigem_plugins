@@ -1,6 +1,6 @@
-# Facebook Automation Studio — Claude / Agent Operational Guide (v1.4.0)
+# Facebook Automation Studio — Claude / Agent Operational Guide (v1.5.0)
 
-- **1-Step Direct Execution**: Call `fb_publish`, `fb_publish_reel`, or `fb_publish_story` directly in 1 call. Never pre-call `fb_status` or `fb_login_status`, and never read `worker.js`, `fb_doctor.json`, or `webview_extension_logs.json`.
-- **Direct Reference Fast-Path**: Pass any user-provided photo/video path directly in `media_paths=["<reference_path>"]` (or `["latest"]` for newest device media).
-- **Unified Photo + Quote Law**: Always pass `post_type="photo"`, `media_paths`, `title`, `caption` (Quote + 2-3 bullets + CTA), and 4-6 `hashtags` together in 1 `fb_publish` call.
-- **Phone (Desktop-on-Phone `www.facebook.com` + Mobile `m.facebook.com`) & Desktop**: Pre-trained in `worker.js` v1.4.0 with Smart Composer Dialog Scorer, Single-Shot Media Attachment (zero duplicate photos), and 5-Tier Lexical/CDP `Input.insertText` Caption Injector.
+- **Exact 1-Call Tool Routing**: Call `fb_publish` (Text/Photo/Carousel/Feed Video), `fb_publish_reel` (Reels + Cover `thumbnail_path` + formatted Description/Hashtags), or `fb_publish_story` (Photo/Video Story with optional `story_text` overlay, or Text Story) directly in 1 step. Never pre-call `fb_status` or `fb_login_status`, and never read `worker.js`, `fb_doctor.json`, or `webview_extension_logs.json`.
+- **Direct Reference Fast-Path & Multiline Format**: Pass user photo/video/`thumbnail_path` paths directly (`file://`, `/sdcard/...`, `/home/...`, or `"latest"`). Preserve `\n\n` formatting across Hook/Title, Quote/Description, Bullets, CTA, and 3–6 `#Hashtags` on Feed/Video/Reel posts (Stories use short `story_text` overlay only).
+- **Custom Thumbnail Law**: Videos and Reels upload `thumbnail_path` inside Facebook's Video Thumbnail / Reel Cover panel (never as an extra post photo). If no thumbnail is provided, ask the user or generate via **AI Image Model ONLY** (`fb_thumbnail_prompt` — never Python).
+- **Phone (`m.facebook.com` + `www.facebook.com`) & Desktop Parity**: Both `worker.js` and `extension/content_bridge.js` share the v1.5.0 Dialog Scorer, Single-Shot Media Attachment, Multiline Paste/Paragraph/CDP Caption Engine + Anti-Duplicate Verifier, Thumbnail Uploader, and Reels/Stories wizards.

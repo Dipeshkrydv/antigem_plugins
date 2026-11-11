@@ -1,5 +1,5 @@
 /**
- * Background Service Worker: Facebook WebSocket Bridge Client (v1.1.0)
+ * Background Service Worker: Facebook WebSocket Bridge Client (v1.5.0)
  * Connects to ws://127.0.0.1:8766 and relays commands to Facebook DOM tabs.
  * Automatically opens Facebook in the browser, waits for tab load, checks cookies
  * for one-time login verification, and injects content_bridge.js if needed.
@@ -34,7 +34,7 @@ function connectBridge() {
           type: "STATUS",
           client_info: {
             client: "antigravity-facebook-extension",
-            version: "1.1.0",
+            version: "1.5.0",
             platform: navigator.userAgent
           }
         })
@@ -99,6 +99,7 @@ async function findOrCreateFacebookTab(targetUrl = null, activate = true) {
     return tab;
   }
 
+  const isWizardUrl = Boolean(targetUrl && /\/reels\/create|\/stories\/create/.test(targetUrl));
   const updateProps = {};
   if (activate && !tab.active) updateProps.active = true;
   if (targetUrl && tab.url !== targetUrl) updateProps.url = targetUrl;
@@ -106,7 +107,11 @@ async function findOrCreateFacebookTab(targetUrl = null, activate = true) {
   if (Object.keys(updateProps).length > 0) {
     tab = await chrome.tabs.update(tab.id, updateProps);
     await waitForTabComplete(tab.id, 25000);
-    await sleep(800);
+    await sleep(isWizardUrl ? 1200 : 800);
+  } else if (isWizardUrl) {
+    await chrome.tabs.reload(tab.id);
+    await waitForTabComplete(tab.id, 25000);
+    await sleep(1200);
   } else if (tab.status !== "complete") {
     await waitForTabComplete(tab.id, 15000);
   }

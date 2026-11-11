@@ -1,12 +1,16 @@
-# Facebook Automation Studio — Universal Agent Laws (v1.4.0)
+# Facebook Automation Studio — Universal Agent Laws (v1.5.0)
 
-1. **1-Call Senior Social Media Manager Law (Zero Overthinking & Zero Log-Probing)**:
-   - Call `fb_publish`, `fb_publish_reel`, or `fb_publish_story` directly in **1 single step** without pre-calling `fb_status` or `fb_login_status`, and **NEVER** read `worker.js`, `fb_doctor.json`, or `webview_extension_logs.json`.
-   - When the user provides a reference photo/video path, pass it directly in `media_paths=["<reference_path>"]` (or `["latest"]` if no path was given).
-   - When asked to upload a photo, **ALWAYS** combine `post_type="photo"`, `media_paths`, a viral `title` hook, a deep `caption` (**Quote + 2-3 Micro-Insights + CTA**), and 4-6 `hashtags` in **ONE unified `fb_publish` call**.
-2. **Pre-Trained Phone (Mobile + Desktop-on-Phone) & Desktop Precision Touch**:
-   - `worker.js` (v1.4.0) includes the complete `FB_UI_ATLAS`, Smart Composer Dialog Scorer, Single-Shot Instant Media Attachment (zero double-photo bugs), and 5-Tier Lexical + CDP `Input.insertText` Caption Injector across `m.facebook.com` and `www.facebook.com`.
-3. **One-Time Login & Zero-Loop Law**:
-   - If any tool returns `logged_in: false` or `stop_loop: true`, **STOP IMMEDIATELY** and report to the user in 1 concise sentence.
-4. **AI Image Model Thumbnail Law**:
-   - For videos/reels, never use Python (`PIL`/`OpenCV`) for thumbnails—always use the AI Image Model via `fb_thumbnail_prompt`.
+1. **Exact 1-Call Routing (Zero Overthinking & Zero Log-Probing)**:
+   - Call the right tool directly as your first step (never pre-call `fb_status` or `fb_login_status`, and never read `worker.js`, `fb_doctor.json`, or `webview_extension_logs.json`):
+     - **Feed Photo / Carousel / Text**: `fb_publish`
+     - **Feed Video + Custom Thumbnail**: `fb_publish(..., post_type="video", thumbnail_path=...)`
+     - **Facebook Reel + Cover Thumbnail + Description**: `fb_publish_reel(video_path=..., thumbnail_path=..., title=..., caption=..., hashtags=[...])`
+     - **Facebook Story (Photo/Video Overlay or Text)**: `fb_publish_story(media_path=..., story_text=...)`
+2. **Unified Quote + Formatted Description + 3–6 Hashtags**:
+   - Posts, Photos, Videos, and Reels require `title`, formatted multiline `caption` (`\n\n` separating Hook, Description/Quote, Bullets, CTA), and 3–6 `hashtags`.
+   - Stories have no caption/hashtag box—pass short overlay text in `story_text` (`<=120c`) instead.
+3. **Real Custom Thumbnail Flow & AI Image Model Law**:
+   - `thumbnail_path` is uploaded inside Facebook's Thumbnail/Cover panel (`Edit video -> Thumbnail` or `Reel Cover`)—never attached as a duplicate feed item.
+   - If Video/Reel lacks `thumbnail_path`, ask the user to supply one or generate via **AI Image Model ONLY** (`fb_thumbnail_prompt` — strictly zero Python PIL/OpenCV).
+4. **One-Time Login & Zero-Loop Law**:
+   - If `logged_in: false` or `stop_loop: true`, **STOP IMMEDIATELY** and inform the user once.

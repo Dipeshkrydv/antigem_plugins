@@ -201,15 +201,15 @@ class FacebookController:
         first_comment: Optional[str] = None,
         title: Optional[str] = None,
         hashtags: Optional[List[str]] = None,
-        thumbnail_path: Optional[str] = None
+        thumbnail_path: Optional[str] = None,
+        story_text: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Senior Social Media Manager Publisher:
         0. Auto-discovers latest photo/video if post_type is photo/video/reel and media_paths is empty or ['latest']
-        1. Auto-crafts Title + Deep Quote + 3-6 Hashtags (never uploads bare photo or text-only by mistake!)
-        2. Pre-Flight Browser Open & One-Time Login Check (Zero Loop Guarantee)
-        3. Strict Anti-Duplicate Check (SHA-256 + Caption Hash)
-        4. Verified DOM Upload & Publish Confirmation
+        1. For feed posts/videos/reels: auto-crafts Title + formatted Description + 3-6 Hashtags; for Stories: preserves clean `story_text` overlay only.
+        2. Validates & resolves `thumbnail_path` and passes `thumbnail_file` into the Video Options / Reel Cover panel (never drops silently).
+        3. Strict Anti-Duplicate Check & Verified DOM Upload reporting honest status flags.
         """
         prefer_vid = post_type in ("video", "reel")
         raw_paths = list(media_paths or [])
@@ -234,17 +234,21 @@ class FacebookController:
             caption=caption,
             title=title,
             hashtags=hashtags,
-            media_hint=media_hint
+            media_hint=media_hint,
+            post_type=post_type,
+            story_text=story_text
         )
         final_title = enriched["title"]
         final_caption = enriched["caption"]
         final_hashtags = enriched["hashtags"]
+        final_story_text = enriched.get("story_text") if post_type == "story" else story_text
 
         resolved_thumbnail: Optional[str] = None
         if thumbnail_path and str(thumbnail_path).strip():
             rt = resolve_media_path(thumbnail_path, prefer_video=False)
-            if rt and Path(rt).exists():
-                resolved_thumbnail = rt
+            if not rt or not Path(rt).exists():
+                return {"success": False, "stop_loop": True, "error": f"Thumbnail image file not found: {thumbnail_path}"}
+            resolved_thumbnail = rt
 
         # 1. Anti-Duplicate Check
         is_dup, dup_reason = self.db.check_duplicate(media_paths=resolved_paths, caption=final_caption)
@@ -262,6 +266,7 @@ class FacebookController:
                     "title": final_title,
                     "hashtags": final_hashtags,
                     "thumbnail_path": resolved_thumbnail,
+                    "story_text": final_story_text,
                     "media_paths": resolved_paths,
                     "post_type": post_type,
                     "target_type": target_type,
@@ -333,6 +338,7 @@ class FacebookController:
                 "title": final_title,
                 "caption": final_caption,
                 "hashtags": final_hashtags,
+                "story_text": final_story_text,
                 "thumbnail_path": resolved_thumbnail,
                 "thumbnail_file": thumbnail_file,
                 "media_paths": resolved_paths,
@@ -342,7 +348,7 @@ class FacebookController:
                 "target_id": target_id
             }
 
-            timeout = 180.0 if post_type in ("video", "reel") else 75.0
+            timeout = 180.0 if post_type in ("video", "reel") else (90.0 if post_type == "story" else 75.0)
             res = await self.bridge.send_command("PUBLISH_POST", payload, timeout=timeout)
 
             if res.get("success"):
@@ -354,7 +360,7 @@ class FacebookController:
                 self.pending_task = None
 
                 first_comment_res = None
-                if first_comment and first_comment.strip():
+                if first_comment and first_comment.strip() and post_type != "story":
                     first_comment_res = await self.add_comment("latest", first_comment.strip())
 
                 return {
@@ -363,13 +369,22 @@ class FacebookController:
                     "fb_post_id": fb_id,
                     "post_url": post_url,
                     "post_type": post_type,
+                    "surface": res.get("surface"),
+                    "fallback_used": bool(res.get("fallback_used", False)),
                     "title": final_title,
                     "caption": final_caption,
                     "hashtags": final_hashtags,
                     "media_attached": resolved_paths,
                     "thumbnail_path": resolved_thumbnail,
+                    "thumbnail_applied": bool(res.get("thumbnail_applied", False)),
+                    "thumbnail_note": res.get("thumbnail_note"),
+                    "caption_verified": bool(res.get("caption_verified", post_type != "story")),
+                    "formatting_preserved": bool(res.get("formatting_preserved", True)),
+                    "story_text": res.get("story_text") or final_story_text,
+                    "story_text_applied": bool(res.get("story_text_applied", False)),
                     "first_comment_result": first_comment_res,
-                    "status": "published"
+                    "status": res.get("status", "published"),
+                    "message": res.get("message")
                 }
             else:
                 if res.get("action_required") == "ONE_TIME_LOGIN_REQUIRED":

@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "id": "facebook-automation",
   "name": "Facebook Automation & SEO Studio",
-  "version": "1.4.0",
-  "description": "Pre-Trained Phone (Desktop-on-Phone www.facebook.com + Mobile Touch m.facebook.com) & Desktop Precision Facebook Automation Engine (v1.4.0): Smart Composer Dialog Scorer, Single-Shot Instant Media Attachment (zero double-photo bugs), 5-Tier Lexical/CDP Input.insertText Caption Injector, Direct Reference File Fast-Path, Reels & Stories wizards, and 1-Call Unified Photo + Deep Quote + 3-6 Hashtags publishing.",
+  "version": "1.5.0",
+  "description": "Pre-Trained Phone (Desktop-on-Phone www.facebook.com & Mobile Touch m.facebook.com) and Desktop Facebook Automation Engine (v1.5.0): Dedicated Feed Posts (Text/Photo/Carousel/Video), Reels (/reels/create + mobile fallback), Stories (/stories/create Photo/Video with overlay story_text & Text Story), Real Video/Reel Thumbnail & Cover Uploader, Multiline Formatted Caption Engine (Title + Description + Bullets + CTA + 3-6 #Hashtags), and Zero-Overthinking 1-Call Dispatch.",
   "author": "Dipesh Kr Yadav",
   "icon": "icon.png",
   "icons": {
@@ -90,7 +90,7 @@
     },
     {
       "name": "fb_publish",
-      "description": "ONE-TOUCH SENIOR SOCIAL MEDIA MANAGER PUBLISHER: Publishes a Facebook post (photo, carousel, video, reel, story, or text) directly inside the AntiGem browser using Mobile & Desktop visualViewport Precision Touch. CRITICAL SENIOR SOCIAL MEDIA MANAGER LAWS: 1) ZERO OVERTHINKING: Call fb_publish directly as your FIRST and ONLY tool call! Do NOT call fb_status, fb_login_status, or fb_seo_generate before fb_publish. 2) UNIFIED PHOTO + QUOTE IN ONE STEP: When the user says 'upload a photo' or 'upload this photo', NEVER upload only text and NEVER upload a bare photo without a quote! Always pass post_type='photo', media_paths=['latest'] (or the user's file path), a scroll-stopping `title`, a deep & sharp `caption` (quote + micro-insights + CTA), and 4-6 `hashtags` in THIS SINGLE CALL. 3) 4-Tier Media Attachment verifies the photo preview is mounted in the composer before inserting the quote and tapping Post.",
+      "description": "1-STEP FEED PUBLISHER (Text, Photo, Carousel, Feed Video — also routes Reel/Story if post_type specifies). NOTE: Prefer `fb_publish_reel` for Facebook Reels and `fb_publish_story` for Facebook Stories! ALWAYS include `title`, formatted multiline `caption` (Title -> blank line -> Description/Quote -> Bullets -> CTA, keeping \\n\\n line breaks), and 3-6 `hashtags`. For Feed Videos (`post_type=\"video\"`), pass `thumbnail_path` and it will be uploaded inside Edit Video -> Thumbnail (NEVER attached as a second feed photo). For Photos (`post_type=\"photo\"`), combine `media_paths` + deep `caption` + `title` + 3-6 `hashtags` in ONE call.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -118,7 +118,7 @@
           },
           "thumbnail_path": {
             "type": "string",
-            "description": "Optional path to the thumbnail image for video/reel uploads (must be user-supplied or generated via AI Image Model—NEVER generated via Python)."
+            "description": "Optional path (local or file:// URI) to custom JPG/PNG/WebP thumbnail for Feed Video (`post_type=\"video\"`) or Reel. Uploaded via Edit Video -> Thumbnail / Reel Cover panel (never attached as extra feed photo). If missing for video/reel, ask user to provide one or generate via AI Image Model (`fb_thumbnail_prompt`)."
           },
           "post_type": {
             "type": "string",
@@ -148,6 +148,10 @@
           "first_comment": {
             "type": "string",
             "description": "Optional first comment (e.g. external resource link) to post immediately after publishing."
+          },
+          "story_text": {
+            "type": "string",
+            "description": "Short overlay text (<=120 chars) used ONLY when post_type='story' (Stories have no caption/hashtag field)."
           }
         },
         "additionalProperties": false
@@ -155,7 +159,7 @@
     },
     {
       "name": "fb_publish_reel",
-      "description": "Upload and publish a vertical video as a Facebook Reel (https://www.facebook.com/reels/create) in the AntiGem browser with guaranteed Title, Deep Quote/Caption, 3-6 Hashtags, and optional custom/AI-generated Thumbnail. Pass video_path='latest' if the user says 'upload my latest video/reel'. Always ask the user about the thumbnail if not provided; if generating it yourself, NEVER use Python—use the AI Image Model with fb_thumbnail_prompt.",
+      "description": "DEDICATED FACEBOOK REELS PUBLISHER (`https://www.facebook.com/reels/create` + automatic mobile Feed fallback). Use THIS tool whenever the user asks to post/upload a Facebook Reel! Supports `video_path` (local/file:///'latest'), custom cover `thumbnail_path` (applied in the Reel Cover/Thumbnail panel before Publish), `title`, formatted multiline `caption` description (`\\n\\n` spacing preserved), and 3-6 `hashtags`.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -180,7 +184,7 @@
           },
           "thumbnail_path": {
             "type": "string",
-            "description": "Optional path to cover/thumbnail image (generated by AI Image Model or supplied by user—never Python)."
+            "description": "Custom JPG/PNG/WebP cover image uploaded in the Reel Edit/Cover panel. If not provided, ask the user whether to supply one or generate via AI Image Model (`fb_thumbnail_prompt`)."
           },
           "target_type": {
             "type": "string",
@@ -203,17 +207,21 @@
     },
     {
       "name": "fb_publish_story",
-      "description": "Upload and publish a photo, video, or text Story to Facebook (https://www.facebook.com/stories/create) in the AntiGem browser using Mobile & Desktop Precision Touch.",
+      "description": "DEDICATED FACEBOOK STORIES PUBLISHER (`https://www.facebook.com/stories/create`). Use THIS tool whenever the user asks to upload a Photo Story, Video Story, or Text Story! Supports `media_path` (image/video or 'latest'; omit for a Text Story) and optional short `story_text` overlay (clicked into 'Add text' -> 'Done', <=120 chars). Note: Stories do NOT have feed captions or hashtags.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "media_path": {
             "type": "string",
-            "description": "Optional path to photo or video for the Story (or 'latest' for newest photo/video)."
+            "description": "Local or file:// path (or 'latest') to photo/video for Photo/Video Story. Omit to publish a Text Story."
+          },
+          "story_text": {
+            "type": "string",
+            "description": "Short overlay text (Photo/Video Story 'Add text') or full message for Text Story. Max 120 chars for media overlay."
           },
           "caption": {
             "type": "string",
-            "description": "Story text or overlay caption."
+            "description": "Legacy fallback text if `story_text` is omitted (first line used; Stories do not support feed captions or hashtags)."
           },
           "target_type": {
             "type": "string",
@@ -221,11 +229,11 @@
               "profile",
               "page"
             ],
-            "description": "Target profile or page."
+            "default": "profile"
           },
           "target_id": {
             "type": "string",
-            "description": "Optional Page ID."
+            "description": "Optional profile or page ID."
           }
         },
         "additionalProperties": false
@@ -290,7 +298,7 @@
     },
     {
       "name": "fb_schedule",
-      "description": "Schedule a Facebook post, reel, or story for future publication via AntiGem background alarms and local queue, ensuring Title, Deep Quote/Caption, 3-6 Hashtags, and optional Thumbnail are preserved.",
+      "description": "Schedule a Facebook post, carousel, video, reel, or story for future publication. Enforces Title + formatted multiline Description + 3-6 #Hashtags for feed/video/reel posts, or clean `story_text` for Stories.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -348,6 +356,10 @@
           "target_id": {
             "type": "string",
             "description": "Optional target Page or Group ID."
+          },
+          "story_text": {
+            "type": "string",
+            "description": "Short overlay text if post_type='story'."
           }
         },
         "required": [

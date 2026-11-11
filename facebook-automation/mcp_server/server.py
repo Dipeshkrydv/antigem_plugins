@@ -84,15 +84,17 @@ async def fb_publish(
     post_type: str = "text",
     target_type: str = "profile",
     target_id: Optional[str] = None,
-    first_comment: Optional[str] = None
+    first_comment: Optional[str] = None,
+    story_text: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    ONE-TOUCH SENIOR SOCIAL MEDIA MANAGER PUBLISHER:
-    Publishes a Facebook post (photo, carousel, video, reel, story, or text) immediately with DOM confirmation.
-    MANDATORY SENIOR SOCIAL MEDIA MANAGER LAWS:
-    1. ZERO OVERTHINKING: Call `fb_publish` directly as your FIRST and ONLY tool call!
-    2. UNIFIED PHOTO + DEEP QUOTE IN ONE CALL: When the user asks to upload a photo, NEVER upload only text and NEVER upload a bare photo without a quote! Pass `post_type="photo"`, `media_paths=["latest"]` (or the user's file path), a viral `title`, a deep `caption` (quote + micro-insights + CTA), and 3-6 `hashtags` in THIS SINGLE CALL.
-    3. THUMBNAIL FOR VIDEOS/REELS: When uploading a video or reel without `thumbnail_path`, ask the user if they want to provide a thumbnail or have you generate one using the AI Image Model (`fb_thumbnail_prompt`).
+    ONE-TOUCH SENIOR SOCIAL MEDIA MANAGER PUBLISHER (Feed Posts, Photos, Carousels, Feed Videos — and routes Reel/Story if specified):
+    NOTE: For Facebook REELS prefer `fb_publish_reel(...)`; for Facebook STORIES prefer `fb_publish_story(...)`.
+    MANDATORY RULES:
+    1. ZERO OVERTHINKING: Call `fb_publish`, `fb_publish_reel`, or `fb_publish_story` directly as your FIRST tool call.
+    2. UNIFIED PHOTO + DEEP QUOTE IN ONE CALL: When uploading a photo (`post_type="photo"`), NEVER upload bare text or bare photo — pass `media_paths=["latest"]` (or user file path), `title`, formatted multiline `caption` (Title -> blank line -> Quote -> Bullets -> CTA), and 3-6 `hashtags`.
+    3. FORMATTED CAPTION & HASHTAGS: Keep `\n\n` spacing between Title, Description, CTA, and `#Hashtags`.
+    4. CUSTOM VIDEO THUMBNAIL: When uploading a Feed Video (`post_type="video"`) with user's `thumbnail_path`, pass `thumbnail_path` and automation uploads it inside Facebook's Edit Video -> Thumbnail panel (never as a second post media item). If no `thumbnail_path` is provided for Video/Reel, ask the user whether to provide one or generate via AI Image Model (`fb_thumbnail_prompt`).
     """
     return await controller.publish_post(
         caption=caption,
@@ -103,7 +105,8 @@ async def fb_publish(
         post_type=post_type,
         target_type=target_type,
         target_id=target_id,
-        first_comment=first_comment
+        first_comment=first_comment,
+        story_text=story_text
     )
 
 
@@ -118,8 +121,11 @@ async def fb_publish_reel(
     target_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Upload and publish a vertical video as a Facebook Reel (https://www.facebook.com/reels/create).
-    Supports `video_path="latest"` to automatically attach the newest vertical video on the device.
+    DEDICATED FACEBOOK REELS PUBLISHER (`https://www.facebook.com/reels/create` + automatic mobile fallback):
+    Uploads a vertical video as a Facebook Reel with:
+    - Custom Cover / Thumbnail (`thumbnail_path`): automatically uploaded in the Reels Edit/Cover panel (NEVER attached as a feed photo). If missing, ask user to provide or generate with AI Image Model (`fb_thumbnail_prompt`).
+    - Viral `title` + formatted multiline `caption` description (`\n\n` spacing preserved) + 3-6 `#Hashtags`.
+    - Supports `video_path="latest"` to automatically pick the newest vertical video on the device.
     """
     return await controller.publish_post(
         caption=caption,
@@ -136,15 +142,19 @@ async def fb_publish_reel(
 @mcp.tool()
 async def fb_publish_story(
     media_path: Optional[str] = None,
+    story_text: Optional[str] = None,
     caption: str = "",
     target_type: str = "profile",
     target_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Upload and publish a photo, video, or text Story to Facebook (https://www.facebook.com/stories/create).
+    DEDICATED FACEBOOK STORIES PUBLISHER (`https://www.facebook.com/stories/create`):
+    Publishes a Photo/Video Story (with optional short overlay `story_text`) or a Text Story (`Create a text story`).
+    NOTE: Facebook Stories do NOT have a caption/description/hashtag field; use `story_text` (<=120 chars) for short overlay text on Photo/Video Stories or full text on Text Stories.
     """
     return await controller.publish_post(
         caption=caption,
+        story_text=story_text,
         media_paths=[media_path] if media_path else [],
         post_type="story",
         target_type=target_type,
@@ -170,13 +180,20 @@ async def fb_schedule(
     media_paths: Optional[List[str]] = None,
     post_type: str = "text",
     target_type: str = "profile",
-    target_id: Optional[str] = None
+    target_id: Optional[str] = None,
+    story_text: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Schedule a Facebook post, reel, or story for future publication.
-    Always enforces a viral Title (`title`), Deep Quote/Caption, and 3-6 `#Hashtags` (`hashtags`).
+    Always enforces a viral Title (`title`), formatted multiline Description, and 3-6 `#Hashtags` (`hashtags`) for posts/videos/reels, or clean `story_text` for Stories.
     """
-    enriched = FacebookSEO.ensure_title_and_hashtags(caption=caption, title=title, hashtags=hashtags)
+    enriched = FacebookSEO.ensure_title_and_hashtags(
+        caption=caption,
+        title=title,
+        hashtags=hashtags,
+        post_type=post_type,
+        story_text=story_text
+    )
     final_caption = enriched["caption"]
     is_dup, dup_reason = db.check_duplicate(media_paths=media_paths, caption=final_caption)
     if is_dup:

@@ -1,5 +1,5 @@
 /**
- * AntiGem WebView MCP Service Worker for Facebook Automation & SEO Studio (v1.4.0)
+ * AntiGem WebView MCP Service Worker for Facebook Automation & SEO Studio (v1.5.0)
  *
  * Pre-Trained Phone (Mobile UI + Desktop-on-Phone UI) & Desktop Precision Engine:
  * 1. Complete Built-In Knowledge Graph (`FB_UI_ATLAS`) for:
@@ -13,16 +13,18 @@
  *    - Purges any leftover/stale draft attachments in an already-open modal before attaching new media.
  *    - Directly binds existing DOM `<input type="file">` via CDP `DOM.setFileInputFiles` in <150ms without redundant manual `change` events (fixes double-photo attachment bug!).
  *    - Deduplicates previews if >1 preview ever mounts for a single-photo upload.
- * 4. 5-Tier Bulletproof Caption Locator & Lexical/CDP Injector:
- *    - Finds Lexical `div[role="textbox"][contenteditable="true"]`, `div[data-lexical-editor="true"]`, `div[contenteditable="true"]`, and mobile `textarea` even when collapsed (`height >= 0`) above a large photo preview on a phone screen.
- *    - Clicks the visible `"What's on your mind..."` / `"Describe your reel..."` placeholder to wake collapsed editors.
- *    - Combines `execCommand("insertText")`, `ClipboardEvent("paste")`, and Chromium native **CDP `Input.insertText`** so text sticks 100% of the time in Lexical/React.
- * 5. Direct Reference Fast-Path:
+ * 4. Formatted Multiline Caption Engine & Anti-Duplication Verifier (`populateComposerCaption`):
+ *    - Preserves blank-line spacing across Title/Hook, Description/Quote, Bullets, CTA, and 3–6 `#Hashtags` via Clipboard paste -> line-by-line paragraph insert -> CDP `Input.insertText` + `Shift+Enter`.
+ *    - Verifies head/tail and no duplication before publishing.
+ * 5. Real Thumbnail / Cover Uploader, Reels Wizard (`/reels/create`), & Stories Studio (`/stories/create`):
+ *    - Uploads custom `thumbnail_path` inside Facebook's Edit Video -> Thumbnail or Reel Cover panel (never attaches thumbnail as a second post media item).
+ *    - Supports Photo/Video Stories with optional `story_text` overlay and Text Stories.
+ * 6. Direct Reference Fast-Path:
  *    - Instantly resolves any user-supplied file path (`file:///...`, `/sdcard/...`, `/storage/emulated/0/...`, `.user_uploaded/...`, `~/...`, or `"latest"`) with zero search delay.
  */
 
 const PLUGIN_ID = "facebook-automation";
-const PLUGIN_VERSION = "1.4.0";
+const PLUGIN_VERSION = "1.5.0";
 const FB_HOME_URL = "https://www.facebook.com/";
 const FB_REELS_CREATE_URL = "https://www.facebook.com/reels/create";
 const FB_STORIES_CREATE_URL = "https://www.facebook.com/stories/create";
@@ -753,18 +755,44 @@ if (chrome.debugger && chrome.debugger.onDetach) {
 }
 
 /**
- * Universal 5-Tier Caption Locator & Injector for Phone (Desktop View & Mobile View) + Web:
- * - Locates the active Create Post / Reel / Story composer dialog (ignoring Notification/Messenger/Popover dialogs).
- * - Finds Lexical `div[role="textbox"][contenteditable="true"]`, `div[data-lexical-editor="true"]`, `div[contenteditable="true"]`, or `textarea` even when collapsed above a large photo preview on a phone screen.
- * - Clicks `"What's on your mind..."` placeholder if needed to wake up the editor.
- * - Uses `execCommand("insertText")`, `ClipboardEvent("paste")`, AND native Chromium `Input.insertText` via CDP so Lexical always updates its internal state!
+ * Formatted Caption Engine (v1.5.0)
+ * Writes Title + Description + Hashtags into the right editor and KEEPS the line-break formatting.
+ * Order of attempts (stops at the first verified one, never stacks duplicates):
+ *   1. Synthetic ClipboardEvent("paste") — Lexical splits text/plain into real paragraphs.
+ *   2. Line-by-line execCommand("insertText") + execCommand("insertParagraph").
+ *   3. Native trusted tap + CDP Input.insertText per line + Shift+Enter between lines.
+ * Every attempt clears the editor first and is verified (first line present, last hashtag present,
+ * first line appears exactly once).
  */
-async function populateComposerCaption(tabId, captionText, titleText = "") {
-  const cleanCaption = String(captionText || "").trim();
+function normalizeForCompare(s) {
+  return String(s || "")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function verifyCaptionText(actual, expected) {
+  const a = normalizeForCompare(actual);
+  const lines = String(expected || "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (lines.length === 0) return { ok: true, duplicated: false };
+  const head = normalizeForCompare(lines[0]).slice(0, 24);
+  const tail = normalizeForCompare(lines[lines.length - 1]).slice(-18);
+  const headCount = head ? a.split(head).length - 1 : 1;
+  const ok = a.length >= 4 && (!head || headCount >= 1) && (!tail || a.includes(tail));
+  return { ok: ok && headCount === 1, duplicated: headCount > 1, headFound: headCount >= 1 };
+}
+
+async function populateComposerCaption(tabId, captionText, titleText = "", options = {}) {
+  const { editorHint = "post", verifyOnly = false } = options;
+  const cleanCaption = String(captionText || "").replace(/\r\n/g, "\n").trim();
   const cleanTitle = String(titleText || "").trim();
 
-  // 1. Optional Title field (for Video / Reel / Page posts that show a dedicated Title input)
-  if (cleanTitle) {
+  // 1. Dedicated Title field (Video / Reel / Page composers that show a separate Title input)
+  if (cleanTitle && !verifyOnly) {
     try {
       await chrome.scripting.executeScript({
         world: "MAIN",
@@ -773,16 +801,17 @@ async function populateComposerCaption(tabId, captionText, titleText = "") {
         func: (tVal) => {
           const titleInputs = Array.from(
             document.querySelectorAll(
-              'input[placeholder*="Title" i], input[aria-label*="Title" i], input[aria-label*="Video title" i], input[aria-label*="Reel title" i]'
+              'input[placeholder*="Title" i], input[aria-label*="Title" i], input[aria-label*="Video title" i], input[aria-label*="Reel title" i], textarea[aria-label*="Title" i]'
             )
           );
           const inp = titleInputs.find((el) => {
             const r = el.getBoundingClientRect();
-            return r.width > 20 && r.height > 8;
+            return r.width > 20 && r.height > 8 && !el.closest('div[role="article"]');
           });
           if (inp) {
             inp.focus();
-            const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+            const proto = inp.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+            const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
             if (setter) setter.call(inp, tVal);
             else inp.value = tVal;
             inp.dispatchEvent(new Event("input", { bubbles: true }));
@@ -793,156 +822,148 @@ async function populateComposerCaption(tabId, captionText, titleText = "") {
     } catch (_) {}
   }
 
-  if (!cleanCaption) return { ok: true, skipped: true };
+  if (!cleanCaption) return { ok: true, skipped: true, formatting_preserved: true };
 
-  const attemptDomInsert = async () => {
+  const runPageInsert = async (mode, reuseLocked = true) => {
     const [res] = await chrome.scripting.executeScript({
       world: "MAIN",
       target: { tabId },
-      args: [cleanCaption],
-      func: (textToInsert) => {
+      args: [cleanCaption, mode, editorHint, reuseLocked],
+      func: async (textToInsert, insertMode, hint, canReuseLocked) => {
         const isNotHidden = (el) => {
           if (!el) return false;
           const st = window.getComputedStyle(el);
           if (st.display === "none" || st.visibility === "hidden" || Number(st.opacity || 1) < 0.01) return false;
-          const r = el.getBoundingClientRect();
-          return r.width > 4;
+          return el.getBoundingClientRect().width > 4;
         };
-
         const isCommentOrSearch = (el) => {
           if (!el) return true;
           if (
             el.closest(
-              'div[role="article"], div[data-pagelet*="FeedUnit"], form[action*="comment"], div[aria-label*="comment" i], div[aria-label*="टिप्पणी" i], div[role="search"]'
+              'div[role="article"], div[data-pagelet*="FeedUnit"], form[action*="comment"], div[aria-label*="comment" i], div[aria-label*="टिप्पणी" i], div[role="search"], [role="banner"]'
             )
-          ) {
+          )
             return true;
-          }
           const meta = `${el.getAttribute("aria-label") || ""} ${el.getAttribute("placeholder") || ""} ${
             el.getAttribute("aria-placeholder") || ""
-          } ${el.getAttribute("type") || ""}`.toLowerCase();
-          return (
-            meta.includes("comment") ||
-            meta.includes("reply") ||
-            meta.includes("search") ||
-            meta.includes("टिप्पणी") ||
-            meta.includes("खोज")
-          );
+          }`.toLowerCase();
+          return /comment|reply|search|टिप्पणी|खोज|title/.test(meta) && !/describe|description|mind|caption/.test(meta);
         };
 
-        // Score all open dialogs to find the true Create Post / Reel / Story composer dialog
-        const findBestComposerDialog = () => {
+        if (!canReuseLocked) {
+          document.querySelectorAll('[data-ag-caption-target="1"]').forEach((e) => e.removeAttribute("data-ag-caption-target"));
+        }
+        // Re-use editor locked on a previous attempt within this publish pass
+        let editor = canReuseLocked ? document.querySelector('[data-ag-caption-target="1"]') : null;
+        if (editor && (!document.contains(editor) || !isNotHidden(editor))) editor = null;
+
+        if (!editor) {
           const dialogs = Array.from(document.querySelectorAll('div[role="dialog"], div[aria-modal="true"]')).filter(
-            (d) => {
-              const r = d.getBoundingClientRect();
-              return r.width > 80 && r.height > 80 && isNotHidden(d);
-            }
+            (d) => isNotHidden(d) && d.getBoundingClientRect().height > 80
           );
-          let best = null;
-          let bestScore = -999;
+          let bestDialog = null;
+          let bestScore = 0;
           for (const d of dialogs) {
-            if (d.querySelector('div[role="article"], div[data-pagelet*="FeedUnit"]')) continue;
+            if (d.querySelector('div[role="article"]')) continue;
             const aria = (d.getAttribute("aria-label") || "").toLowerCase();
-            if (/notifications|messenger|chats|account controls|menu/i.test(aria)) continue;
-            const txt = (d.innerText || d.textContent || "").slice(0, 1200).toLowerCase();
+            if (/notifications|messenger|chats|account controls|menu/.test(aria)) continue;
+            const txt = (d.innerText || "").slice(0, 1200).toLowerCase();
             let s = 0;
-            if (/create post|create a post|make a post|edit post|पोस्ट बनाउनुहोस्|पोस्ट करें/i.test(txt) || /create post/i.test(aria))
-              s += 100;
-            if (/add to your post|what['’]?s on your mind|describe your reel|share to story/i.test(txt)) s += 80;
-            if (d.querySelector('div[role="textbox"][contenteditable="true"], div[data-lexical-editor="true"], textarea'))
-              s += 70;
-            if (d.querySelector('div[aria-label="Post"], div[aria-label="Publish"]')) s += 50;
+            if (/create post|edit post|create reel|create story|पोस्ट बनाउनुहोस्/.test(txt)) s += 100;
+            if (/add to your post|what['’]?s on your mind|describe your reel|start typing/.test(txt)) s += 80;
+            if (d.querySelector('[contenteditable="true"], textarea')) s += 60;
             if (s > bestScore) {
               bestScore = s;
-              best = d;
+              bestDialog = d;
             }
           }
-          return bestScore > 0 ? best : null;
-        };
-
-        const bestDialog = findBestComposerDialog();
-        const searchRoots = bestDialog ? [bestDialog, document] : [document];
-
-        const editorSelectors = [
-          'div[role="textbox"][contenteditable="true"]',
-          'div[data-lexical-editor="true"][contenteditable="true"]',
-          'div[data-lexical-editor="true"]',
-          'div[aria-placeholder*="on your mind" i]',
-          'div[aria-label*="on your mind" i]',
-          'div[aria-label*="Describe your reel" i]',
-          'div[aria-placeholder*="Describe your reel" i]',
-          'div[aria-label*="Write a description" i]',
-          'div[aria-label*="Write something" i]',
-          'div[aria-label*="Say something" i]',
-          'div[contenteditable="true"]',
-          'div[contenteditable="plaintext-only"]',
-          '#composer-main-view-id textarea',
-          'textarea.composerInput',
-          'textarea[name="xc_message"]',
-          'textarea'
-        ].join(", ");
-
-        let editor = null;
-        for (const root of searchRoots) {
-          const found = Array.from(root.querySelectorAll(editorSelectors)).filter(
-            (el) => isNotHidden(el) && !isCommentOrSearch(el)
-          );
-          if (found.length > 0) {
-            // Prefer an element inside a dialog or with 'on your mind' / 'lexical'
-            found.sort((a, b) => {
+          const roots = bestDialog ? [bestDialog, document] : [document];
+          const sel = [
+            'div[role="textbox"][contenteditable="true"]',
+            'div[data-lexical-editor="true"]',
+            'div[contenteditable="true"]',
+            'div[contenteditable="plaintext-only"]',
+            "#composer-main-view-id textarea",
+            "textarea.composerInput",
+            'textarea[name="xc_message"]',
+            "textarea"
+          ].join(", ");
+          const hintRe =
+            hint === "reel"
+              ? /describe your reel|description|caption|write/i
+              : hint === "story"
+              ? /start typing|text|type/i
+              : /on your mind|write something|say something|post|caption/i;
+          for (const root of roots) {
+            const found = Array.from(root.querySelectorAll(sel)).filter((el) => isNotHidden(el) && !isCommentOrSearch(el));
+            if (found.length) {
               const score = (node) => {
                 let sc = 0;
-                if (bestDialog && bestDialog.contains(node)) sc += 50;
-                if (node.getAttribute("data-lexical-editor") === "true") sc += 30;
-                const lbl = `${node.getAttribute("aria-label") || ""} ${
-                  node.getAttribute("aria-placeholder") || ""
-                } ${node.getAttribute("placeholder") || ""}`.toLowerCase();
-                if (/on your mind|describe your reel|write something|say something|post/i.test(lbl)) sc += 40;
+                if (bestDialog && bestDialog.contains(node)) sc += 40;
+                if (node.getAttribute("data-lexical-editor") === "true") sc += 20;
+                const lbl = `${node.getAttribute("aria-label") || ""} ${node.getAttribute("aria-placeholder") || ""} ${
+                  node.getAttribute("placeholder") || ""
+                } ${(node.parentElement && node.parentElement.innerText) || ""}`.slice(0, 300);
+                if (hintRe.test(lbl)) sc += 60;
                 return sc;
               };
-              return score(b) - score(a);
-            });
-            editor = found[0];
-            break;
-          }
-        }
-
-        // Tier 2: If no editor matched directly, click the visible "What's on your mind..." placeholder text node!
-        if (!editor) {
-          for (const root of searchRoots) {
-            const placeholderEl = Array.from(root.querySelectorAll("div, span, p, label")).find((el) => {
-              if (!isNotHidden(el) || isCommentOrSearch(el)) return false;
-              const t = (el.innerText || el.textContent || "").trim();
-              return (
-                t.length > 4 &&
-                t.length < 80 &&
-                /^(what['’]?s on your mind|write something|say something|add a caption|describe your reel|start typing|के सोचिरहनुभएको|कुछ लिखें)/i.test(
-                  t
-                )
-              );
-            });
-            if (placeholderEl) {
-              try {
-                placeholderEl.scrollIntoView({ block: "center", behavior: "instant" });
-                placeholderEl.click();
-              } catch (_) {}
-              const parent = placeholderEl.parentElement || root;
-              editor =
-                parent.querySelector('[contenteditable="true"], textarea, div[role="textbox"]') ||
-                (document.activeElement &&
-                (document.activeElement.isContentEditable ||
-                  document.activeElement.tagName === "TEXTAREA" ||
-                  document.activeElement.getAttribute("role") === "textbox")
-                  ? document.activeElement
-                  : null);
-              if (editor) break;
+              found.sort((x, y) => score(y) - score(x));
+              editor = found[0];
+              break;
             }
           }
+          // Wake collapsed editor by tapping its visible placeholder text
+          if (!editor) {
+            for (const root of roots) {
+              const ph = Array.from(root.querySelectorAll("div, span, p, label")).find((el) => {
+                if (!isNotHidden(el) || isCommentOrSearch(el)) return false;
+                const t = (el.innerText || "").trim();
+                return (
+                  t.length > 4 &&
+                  t.length < 80 &&
+                  /^(what['’]?s on your mind|write something|say something|add a caption|describe your reel|add a description|start typing|के सोचिरहनुभएको|कुछ लिखें)/i.test(
+                    t
+                  )
+                );
+              });
+              if (ph) {
+                try {
+                  ph.click();
+                } catch (_) {}
+                await new Promise((r) => setTimeout(r, 200));
+                const ae = document.activeElement;
+                editor =
+                  (ph.parentElement && ph.parentElement.querySelector('[contenteditable="true"], textarea')) ||
+                  (ae && (ae.isContentEditable || ae.tagName === "TEXTAREA") ? ae : null);
+                if (editor) break;
+              }
+            }
+          }
+          if (editor) {
+            document.querySelectorAll('[data-ag-caption-target="1"]').forEach((e) => e.removeAttribute("data-ag-caption-target"));
+            editor.setAttribute("data-ag-caption-target", "1");
+          }
         }
 
-        if (!editor) {
-          return { ok: false, foundEditor: false };
-        }
+        if (!editor) return { foundEditor: false };
+
+        const readText = () =>
+          editor.tagName === "TEXTAREA" || editor.tagName === "INPUT"
+            ? editor.value || ""
+            : editor.innerText || editor.textContent || "";
+
+        const r = editor.getBoundingClientRect();
+        const v = window.visualViewport;
+        const vw = (v && v.width) || window.innerWidth || 1;
+        const vh = (v && v.height) || window.innerHeight || 1;
+        const ox = (v && v.offsetLeft) || 0;
+        const oy = (v && v.offsetTop) || 0;
+        const tapCoords = {
+          fx: Math.max(0.008, Math.min(0.992, (r.left + Math.min(40, r.width * 0.3) - ox) / vw)),
+          fy: Math.max(0.008, Math.min(0.992, (r.top + Math.min(16, Math.max(6, r.height * 0.5)) - oy) / vh))
+        };
+
+        if (insertMode === "verify") return { foundEditor: true, text: readText(), tapCoords };
 
         try {
           editor.scrollIntoView({ block: "center", behavior: "instant" });
@@ -952,17 +973,6 @@ async function populateComposerCaption(tabId, captionText, titleText = "") {
         } catch (_) {}
         editor.focus();
 
-        const r = editor.getBoundingClientRect();
-        const v = window.visualViewport;
-        const vw = (v && v.width) || window.innerWidth || 1;
-        const vh = (v && v.height) || window.innerHeight || 1;
-        const ox = (v && v.offsetLeft) || 0;
-        const oy = (v && v.offsetTop) || 0;
-        const tapCoords = {
-          fx: Math.max(0.008, Math.min(0.992, (r.left + Math.max(12, r.width * 0.4) - ox) / vw)),
-          fy: Math.max(0.008, Math.min(0.992, (r.top + Math.max(8, r.height * 0.5) - oy) / vh))
-        };
-
         if (editor.tagName === "TEXTAREA" || editor.tagName === "INPUT") {
           const proto = editor.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
           const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
@@ -970,112 +980,407 @@ async function populateComposerCaption(tabId, captionText, titleText = "") {
           else editor.value = textToInsert;
           editor.dispatchEvent(new Event("input", { bubbles: true }));
           editor.dispatchEvent(new Event("change", { bubbles: true }));
-          return {
-            ok: (editor.value || "").trim().length >= 3,
-            foundEditor: true,
-            isTextarea: true,
-            tapCoords,
-            length: (editor.value || "").trim().length
-          };
+          return { foundEditor: true, text: readText(), tapCoords, isTextarea: true };
         }
 
-        // ContentEditable (Lexical / Draft.js / Bloks)
-        try {
-          const sel = window.getSelection();
-          const range = document.createRange();
-          range.selectNodeContents(editor);
-          sel.removeAllRanges();
-          sel.addRange(range);
-          document.execCommand("selectAll", false, null);
-          document.execCommand("delete", false, null);
-        } catch (_) {}
+        const clearEditor = () => {
+          try {
+            const s = window.getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(editor);
+            s.removeAllRanges();
+            s.addRange(range);
+            document.execCommand("selectAll", false, null);
+            document.execCommand("delete", false, null);
+          } catch (_) {}
+        };
 
-        let inserted = false;
-        try {
-          inserted = document.execCommand("insertText", false, textToInsert);
-        } catch (_) {}
+        if (insertMode === "clear") {
+          clearEditor();
+          return { foundEditor: true, text: readText(), tapCoords };
+        }
 
-        const readEditorText = () => (editor.innerText || editor.textContent || "").trim();
-        let cur = readEditorText();
+        clearEditor();
+        await new Promise((res) => setTimeout(res, 60));
 
-        if (!inserted || cur.length < 4 || /^what['’]?s on your mind/i.test(cur)) {
+        if (insertMode === "paste") {
           try {
             const dt = new DataTransfer();
             dt.setData("text/plain", textToInsert);
-            editor.dispatchEvent(
-              new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true })
-            );
+            editor.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));
           } catch (_) {}
-          cur = readEditorText();
+        } else if (insertMode === "lines") {
+          const lines = textToInsert.split("\n");
+          for (let i = 0; i < lines.length; i++) {
+            if (lines[i]) document.execCommand("insertText", false, lines[i]);
+            if (i < lines.length - 1) {
+              const okPara = document.execCommand("insertParagraph", false, null);
+              if (!okPara) document.execCommand("insertLineBreak", false, null);
+            }
+          }
         }
+        await new Promise((res) => setTimeout(res, 180));
+        return { foundEditor: true, text: readText(), tapCoords };
+      }
+    });
+    return (res && res.result) || { foundEditor: false };
+  };
 
-        editor.dispatchEvent(
-          new InputEvent("input", { bubbles: true, cancelable: true, inputType: "insertText", data: textToInsert })
-        );
-        editor.dispatchEvent(new Event("change", { bubbles: true }));
+  const expectsMultiline = cleanCaption.includes("\n");
 
-        cur = readEditorText();
-        const verified = cur.length >= 4 && !/^what['’]?s on your mind/i.test(cur);
-        return {
-          ok: verified,
-          foundEditor: true,
-          isTextarea: false,
-          tapCoords,
-          length: cur.length
+  if (verifyOnly) {
+    const st = await runPageInsert("verify", true);
+    const v = verifyCaptionText(st.text, cleanCaption);
+    return {
+      ok: Boolean(st.foundEditor && v.ok),
+      foundEditor: Boolean(st.foundEditor),
+      duplicated: v.duplicated,
+      formatting_preserved: !expectsMultiline || /\n/.test(st.text || "")
+    };
+  }
+
+  let lastState = null;
+  let attemptIdx = 0;
+  for (const mode of ["paste", "lines"]) {
+    lastState = await runPageInsert(mode, attemptIdx > 0);
+    attemptIdx++;
+    if (!lastState.foundEditor) break;
+    const v = verifyCaptionText(lastState.text, cleanCaption);
+    if (v.ok) {
+      return {
+        ok: true,
+        method: lastState.isTextarea ? "textarea" : mode,
+        formatting_preserved: !expectsMultiline || /\n/.test(lastState.text || "")
+      };
+    }
+    if (lastState.isTextarea) break;
+  }
+
+  // Tier 3: native tap + CDP Input.insertText line by line (Shift+Enter between lines)
+  if (lastState && lastState.tapCoords) {
+    await trustedTap(tabId, lastState.tapCoords);
+    await sleep(200);
+  }
+  const dbgReady = await ensureDebuggerAttached(tabId);
+  if (dbgReady && (!lastState || lastState.foundEditor)) {
+    try {
+      await runPageInsert("clear", true);
+      const lines = cleanCaption.split("\n");
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i]) await chrome.debugger.sendCommand({ tabId }, "Input.insertText", { text: lines[i] });
+        if (i < lines.length - 1) {
+          const keyBase = { key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, modifiers: 8 };
+          await chrome.debugger.sendCommand({ tabId }, "Input.dispatchKeyEvent", { type: "rawKeyDown", ...keyBase });
+          await chrome.debugger.sendCommand({ tabId }, "Input.dispatchKeyEvent", { type: "keyUp", ...keyBase });
+        }
+      }
+      await sleep(250);
+      const st = await runPageInsert("verify", true);
+      const v = verifyCaptionText(st.text, cleanCaption);
+      if (v.ok) {
+        return { ok: true, method: "cdp_lines", formatting_preserved: !expectsMultiline || /\n/.test(st.text || "") };
+      }
+    } catch (_) {}
+  }
+
+  return {
+    ok: false,
+    foundEditor: Boolean(lastState && lastState.foundEditor),
+    error: lastState && lastState.foundEditor ? "Caption could not be verified in the editor." : "Could not locate caption/description editor."
+  };
+}
+
+/**
+ * Real Thumbnail / Cover Uploader (v1.5.0)
+ * Uses the user's own thumbnail image on Feed Videos and Reels:
+ *  - Opens the Thumbnail / Cover panel (Edit video -> Thumbnail -> Upload image, or Reel Edit step -> Cover -> Upload).
+ *  - Binds the image ONLY to an image-accepting / newly mounted file input (never overwrites the video input).
+ *  - Confirms with Save / Done / Apply inside the thumbnail panel (never clicks Post/Publish).
+ *  - Returns { applied } honestly so the agent never claims a thumbnail that was not used.
+ */
+async function uploadThumbnailImage(tabId, thumbnailPath, options = {}) {
+  const { surface = "video" } = options;
+  if (!thumbnailPath || !String(thumbnailPath).trim()) return { attempted: false, applied: false };
+
+  let thumbFile;
+  try {
+    thumbFile = await resolveLocalFile(thumbnailPath, false);
+  } catch (e) {
+    return { attempted: true, applied: false, reason: e.message };
+  }
+  if (!isImagePath(thumbFile.path)) {
+    return { attempted: true, applied: false, reason: "Thumbnail must be a JPG / PNG / WebP image file." };
+  }
+
+  const dbgReady = await ensureDebuggerAttached(tabId);
+  let chooserParams = null;
+  const onEvt = (source, method, params) => {
+    if (source && source.tabId === tabId && method === "Page.fileChooserOpened") chooserParams = params;
+  };
+  if (dbgReady && chrome.debugger.onEvent) {
+    chrome.debugger.onEvent.addListener(onEvt);
+    try {
+      await chrome.debugger.sendCommand({ tabId }, "Page.enable", {});
+      await chrome.debugger.sendCommand({ tabId }, "Page.setInterceptFileChooserDialog", { enabled: true });
+    } catch (_) {}
+  }
+
+  try {
+    // Mark existing inputs (the video input) as known and hook detached image inputs
+    await chrome.scripting.executeScript({
+      world: "MAIN",
+      target: { tabId },
+      func: () => {
+        document.querySelectorAll('input[type="file"]').forEach((i) => i.setAttribute("data-ag-known", "1"));
+        document.querySelectorAll("[data-ag-thumb-target]").forEach((i) => i.removeAttribute("data-ag-thumb-target"));
+        document.querySelectorAll("[data-ag-thumb-btn]").forEach((i) => i.removeAttribute("data-ag-thumb-btn"));
+        window.__agThumbInput = null;
+        if (!window.__agThumbOrigClick) window.__agThumbOrigClick = HTMLInputElement.prototype.click;
+        const orig = window.__agThumbOrigClick;
+        HTMLInputElement.prototype.click = function (...a) {
+          if (this && this.type === "file") {
+            const acc = (this.getAttribute("accept") || "").toLowerCase();
+            if (!acc || acc.includes("image")) {
+              window.__agThumbInput = this;
+              try {
+                this.setAttribute("data-ag-thumb-target", "1");
+              } catch (_) {}
+              return;
+            }
+          }
+          return orig.apply(this, a);
         };
       }
     });
-    return (res && res.result) || { ok: false, foundEditor: false };
-  };
 
-  let status = await attemptDomInsert();
+    const clickedLabels = [];
+    let found = false;
+    for (let round = 0; round < 6 && !found; round++) {
+      const [probe] = await chrome.scripting.executeScript({
+        world: "MAIN",
+        target: { tabId },
+        args: [clickedLabels, surface],
+        func: (already, surf) => {
+          document.querySelectorAll("[data-ag-thumb-btn]").forEach((i) => i.removeAttribute("data-ag-thumb-btn"));
+          const vis = (el) => {
+            if (!el) return false;
+            const r = el.getBoundingClientRect();
+            if (r.width < 4 || r.height < 4) return false;
+            const st = getComputedStyle(el);
+            return st.display !== "none" && st.visibility !== "hidden";
+          };
+          const label = (el) => `${el.getAttribute("aria-label") || ""} ${el.innerText || el.textContent || ""}`.replace(/\s+/g, " ").trim();
+          const ctxText = (el) => {
+            let n = el;
+            for (let i = 0; i < 6 && n; i++) n = n.parentElement;
+            return ((n && n.innerText) || "").slice(0, 600).toLowerCase();
+          };
 
-  // Tier 3 & 4: If editor was found (or needs native tap + CDP Input.insertText for Lexical), tap & inject via CDP!
-  if (!status.ok) {
-    if (status.tapCoords) {
-      await trustedTap(tabId, status.tapCoords);
-      await sleep(220);
-    }
+          // 1. Is a usable thumbnail input already available?
+          if (window.__agThumbInput && document.contains(window.__agThumbInput)) return { found: true };
+          const inputs = Array.from(document.querySelectorAll('input[type="file"]'));
+          const candidate = inputs.find((i) => {
+            const acc = (i.getAttribute("accept") || "").toLowerCase();
+            const imageOnly = acc.includes("image") && !acc.includes("video");
+            const fresh = !i.hasAttribute("data-ag-known");
+            return (imageOnly && (fresh || /thumbnail|cover/.test(ctxText(i)))) || (fresh && !acc.includes("video") && /thumbnail|cover/.test(ctxText(i)));
+          });
+          if (candidate) {
+            window.__agThumbInput = candidate;
+            candidate.setAttribute("data-ag-thumb-target", "1");
+            return { found: true };
+          }
 
-    const dbgReady = await ensureDebuggerAttached(tabId);
-    if (dbgReady) {
-      try {
-        // Focus the editor cleanly and clear any existing selection before CDP Input.insertText
+          // 2. Locate the next control in the Thumbnail / Cover path (single click fired outside after tap fallback)
+          const clickables = Array.from(
+            document.querySelectorAll('div[role="button"], button, span[role="button"], a[role="button"], div[role="tab"], div[role="radio"], [role="option"], label, [role="menuitem"]')
+          ).filter((el) => vis(el) && !el.closest('div[role="article"], [role="banner"], [role="navigation"]'));
+          const pageHasThumbCtx = /thumbnail|cover/i.test((document.body.innerText || "").slice(0, 20000));
+          const tiers = [
+            pageHasThumbCtx
+              ? /^(upload image|upload thumbnail|upload custom thumbnail|upload cover|upload a thumbnail|upload a cover|upload photo|choose image|choose file|add image|upload)$/i
+              : null,
+            /^(thumbnail|thumbnails|custom thumbnail|change thumbnail|edit thumbnail|select thumbnail|cover|cover photo|cover image|choose cover|select cover|change cover|edit cover|add cover)$/i,
+            surf === "video" ? /^(edit|edit video|video options|edit all)$/i : null
+          ].filter(Boolean);
+          for (const re of tiers) {
+            const el = clickables.find((c) => {
+              const l = label(c);
+              return l.length < 48 && re.test(l) && !already.includes(l.toLowerCase());
+            });
+            if (el) {
+              const l = label(el);
+              try {
+                el.scrollIntoView({ block: "center", behavior: "instant" });
+              } catch (_) {}
+              el.setAttribute("data-ag-thumb-btn", "1");
+              const r = el.getBoundingClientRect();
+              const vv = window.visualViewport;
+              const vw = (vv && vv.width) || innerWidth;
+              const vh = (vv && vv.height) || innerHeight;
+              return {
+                found: false,
+                clicked: l.toLowerCase(),
+                coords: {
+                  fx: Math.max(0.008, Math.min(0.992, (r.left + r.width / 2 - ((vv && vv.offsetLeft) || 0)) / vw)),
+                  fy: Math.max(0.008, Math.min(0.992, (r.top + r.height / 2 - ((vv && vv.offsetTop) || 0)) / vh))
+                }
+              };
+            }
+          }
+          return { found: false, clicked: null };
+        }
+      });
+      const p = (probe && probe.result) || {};
+      if (p.found) {
+        found = true;
+        break;
+      }
+      if (chooserParams && chooserParams.backendNodeId) {
+        found = true;
+        break;
+      }
+      if (!p.clicked) break;
+      const tapped = p.coords ? await trustedTap(tabId, p.coords) : false;
+      if (!tapped) {
         await chrome.scripting.executeScript({
           world: "MAIN",
           target: { tabId },
           func: () => {
-            const ed =
-              document.querySelector('div[role="dialog"] div[role="textbox"][contenteditable="true"]') ||
-              document.querySelector('div[role="dialog"] div[data-lexical-editor="true"]') ||
-              document.querySelector('div[role="textbox"][contenteditable="true"]') ||
-              document.querySelector('div[data-lexical-editor="true"]') ||
-              document.querySelector('textarea.composerInput, textarea[name="xc_message"], textarea');
-            if (ed) {
-              ed.focus();
+            const btn = document.querySelector('[data-ag-thumb-btn="1"]');
+            if (btn) {
               try {
-                const sel = window.getSelection();
-                const range = document.createRange();
-                range.selectNodeContents(ed);
-                sel.removeAllRanges();
-                sel.addRange(range);
-                document.execCommand("selectAll", false, null);
-                document.execCommand("delete", false, null);
+                btn.click();
               } catch (_) {}
+              btn.removeAttribute("data-ag-thumb-btn");
             }
           }
         });
-        await chrome.debugger.sendCommand({ tabId }, "Input.insertText", { text: cleanCaption });
-        await sleep(250);
-        return { ok: true, viaCdp: true };
+      }
+      clickedLabels.push(p.clicked);
+      await sleep(750);
+      if (chooserParams && chooserParams.backendNodeId) {
+        found = true;
+        break;
+      }
+    }
+
+    if (!found) {
+      return { attempted: true, applied: false, reason: "Thumbnail / Cover upload option not offered on this Facebook screen." };
+    }
+
+    // Bind the image to the thumbnail input
+    let bound = false;
+    if (dbgReady) {
+      try {
+        const evalObj = await chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
+          expression: "window.__agThumbInput || document.querySelector('input[data-ag-thumb-target=\"1\"]')",
+          returnByValue: false
+        });
+        if (evalObj && evalObj.result && evalObj.result.objectId) {
+          await chrome.debugger.sendCommand({ tabId }, "DOM.setFileInputFiles", {
+            objectId: evalObj.result.objectId,
+            files: [thumbFile.path]
+          });
+          bound = true;
+        }
+      } catch (_) {}
+      if (!bound && chooserParams && chooserParams.backendNodeId) {
+        try {
+          await chrome.debugger.sendCommand({ tabId }, "DOM.setFileInputFiles", {
+            backendNodeId: chooserParams.backendNodeId,
+            files: [thumbFile.path]
+          });
+          bound = true;
+        } catch (_) {}
+      }
+    }
+    if (!bound && chrome.antigem && typeof chrome.antigem.readFile === "function") {
+      try {
+        const readRes = await chrome.antigem.readFile({ path: thumbFile.path, encoding: "base64" });
+        const b64 = typeof readRes === "string" ? readRes : readRes && readRes.data;
+        if (b64) {
+          const [dtRes] = await chrome.scripting.executeScript({
+            world: "MAIN",
+            target: { tabId },
+            args: [b64, thumbFile.filename, thumbFile.mimeType],
+            func: (data, name, mime) => {
+              const inp = window.__agThumbInput || document.querySelector('input[data-ag-thumb-target="1"]');
+              if (!inp) return false;
+              const bin = atob(data);
+              const bytes = new Uint8Array(bin.length);
+              for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+              const dt = new DataTransfer();
+              dt.items.add(new File([bytes], name, { type: mime, lastModified: Date.now() }));
+              inp.files = dt.files;
+              inp.dispatchEvent(new Event("input", { bubbles: true }));
+              inp.dispatchEvent(new Event("change", { bubbles: true }));
+              return inp.files.length > 0;
+            }
+          });
+          bound = Boolean(dtRes && dtRes.result);
+        }
       } catch (_) {}
     }
 
-    // Retry DOM insert once more after tap
-    status = await attemptDomInsert();
-  }
+    if (!bound) return { attempted: true, applied: false, reason: "Could not attach thumbnail image file." };
 
-  return status;
+    await sleep(1500);
+
+    // Confirm inside the thumbnail panel only (Save / Done / Apply) — never Post / Publish / Share
+    let confirmed = false;
+    for (let i = 0; i < 6; i++) {
+      const [conf] = await chrome.scripting.executeScript({
+        world: "MAIN",
+        target: { tabId },
+        func: () => {
+          const panels = Array.from(document.querySelectorAll('div[role="dialog"], div[aria-modal="true"]')).filter((d) =>
+            /thumbnail|cover/i.test((d.innerText || "").slice(0, 2000))
+          );
+          const scope = panels[panels.length - 1];
+          if (!scope) return { noPanel: true };
+          const btn = Array.from(scope.querySelectorAll('div[role="button"], button')).find((b) => {
+            const t = `${b.getAttribute("aria-label") || ""} ${b.innerText || ""}`.replace(/\s+/g, " ").trim();
+            return /^(save|done|apply|set thumbnail|use as thumbnail|use as cover|set cover)$/i.test(t) && b.getAttribute("aria-disabled") !== "true";
+          });
+          if (!btn) return { waiting: true };
+          btn.click();
+          return { clicked: true };
+        }
+      });
+      const c = (conf && conf.result) || {};
+      if (c.clicked || c.noPanel) {
+        confirmed = true;
+        break;
+      }
+      await sleep(600);
+    }
+
+    return {
+      attempted: true,
+      applied: true,
+      confirmed,
+      file: thumbFile.path,
+      path_through: clickedLabels
+    };
+  } finally {
+    if (dbgReady && chrome.debugger.onEvent) {
+      chrome.debugger.onEvent.removeListener(onEvt);
+      try {
+        await chrome.debugger.sendCommand({ tabId }, "Page.setInterceptFileChooserDialog", { enabled: false });
+      } catch (_) {}
+    }
+    try {
+      await chrome.scripting.executeScript({
+        world: "MAIN",
+        target: { tabId },
+        func: () => {
+          document.querySelectorAll("[data-ag-thumb-btn]").forEach((i) => i.removeAttribute("data-ag-thumb-btn"));
+          if (window.__agThumbOrigClick) HTMLInputElement.prototype.click = window.__agThumbOrigClick;
+        }
+      });
+    } catch (_) {}
+  }
 }
 
 /**
@@ -1833,13 +2138,23 @@ async function executeFeedPostInBrowser(tabId, payload) {
 
   await sleep(300);
 
-  // 3. Populate Caption FIRST while the composer textbox is wide open, AND re-verify after media attachment!
+  // 3. Populate Caption FIRST while the composer textbox is wide open, AND re-verify after media/thumbnail panels!
+  let captionResult = { ok: true, skipped: true, formatting_preserved: true };
   if (caption && String(caption).trim().length > 0) {
-    await populateComposerCaption(tabId, caption, title);
+    captionResult = await populateComposerCaption(tabId, caption, title, { editorHint: "post" });
     await sleep(250);
   }
 
   // 4. Attach Media Files (Photos / Carousel / Video) & Verify Single Clean Preview in Composer
+  let thumbResult = {
+    attempted: false,
+    applied: false,
+    reason: thumbnail_path
+      ? wantVideo
+        ? ""
+        : "Feed photo/text posts do not have a separate thumbnail slot."
+      : "No thumbnail_path provided."
+  };
   if (resolvedMediaList.length > 0) {
     await attachMediaToFacebookComposer(
       tabId,
@@ -1848,44 +2163,31 @@ async function executeFeedPostInBrowser(tabId, payload) {
     );
     await sleep(wantVideo ? 1800 : 750);
 
-    // 4b. Attach Custom AI Thumbnail Image if provided for Video upload
+    // 4b. Apply Custom AI/User Thumbnail Image through Facebook's Edit Video -> Thumbnail -> Upload panel (never attach as second feed photo!)
     if (wantVideo && thumbnail_path && String(thumbnail_path).trim()) {
-      try {
-        await attachMediaToFacebookComposer(tabId, [thumbnail_path], {
-          preferVideo: false,
-          requirePreview: false,
-          purgeExistingDrafts: false
-        });
-        await sleep(700);
-      } catch (_) {}
+      thumbResult = await uploadThumbnailImage(tabId, thumbnail_path, { surface: "video" });
+      await sleep(700);
     }
 
-    // 4c. Verify caption is still present after media attachment (if Facebook reset the textbox when mounting photo preview, re-insert cleanly!)
+    // 4c. Verify caption is still present (un-duplicated & formatted) after media attachment; re-insert only if needed
     if (caption && String(caption).trim().length > 0) {
-      const [capCheck] = await chrome.scripting.executeScript({
-        world: "MAIN",
-        target: { tabId },
-        func: () => {
-          const eds = Array.from(
-            document.querySelectorAll(
-              'div[role="dialog"] div[role="textbox"][contenteditable="true"], div[role="dialog"] div[data-lexical-editor="true"], div[role="dialog"] div[contenteditable="true"], div[role="textbox"][contenteditable="true"], textarea.composerInput, textarea[name="xc_message"]'
-            )
-          ).filter((el) => !el.closest('div[role="article"], div[data-pagelet*="FeedUnit"]'));
-          for (const ed of eds) {
-            const val = (ed.value || ed.innerText || ed.textContent || "").trim();
-            if (val.length >= 6 && !/^what['’]?s on your mind/i.test(val)) {
-              return { hasText: true, length: val.length };
-            }
-          }
-          return { hasText: false };
-        }
+      const checkAfter = await populateComposerCaption(tabId, caption, title, {
+        editorHint: "post",
+        verifyOnly: true
       });
-
-      if (!capCheck || !capCheck.result || !capCheck.result.hasText) {
-        await populateComposerCaption(tabId, caption, title);
+      if (!checkAfter.ok) {
+        captionResult = await populateComposerCaption(tabId, caption, title, { editorHint: "post" });
         await sleep(300);
+      } else {
+        captionResult = checkAfter;
       }
     }
+  }
+
+  if (caption && String(caption).trim().length > 0 && (!captionResult || !captionResult.ok)) {
+    throw new Error(
+      `Composer caption could not be verified (${(captionResult && captionResult.error) || "editor not found"}). Nothing was published.`
+    );
   }
 
   // 5. Collapse Soft Keyboard & Precision Touch on "Post" / "Publish" (or Mobile "Next" -> "Post")
@@ -2048,348 +2350,416 @@ async function executeFeedPostInBrowser(tabId, payload) {
     hashtags,
     media_attached: resolvedMediaList.map((f) => f.path),
     thumbnail_path: thumbnail_path || null,
+    thumbnail_applied: Boolean(thumbResult.applied),
+    thumbnail_note: thumbResult.applied
+      ? "User thumbnail applied in Video options."
+      : thumbResult.reason || (thumbnail_path ? "Thumbnail was not applied." : "No thumbnail_path provided."),
+    caption_verified: Boolean(captionResult && captionResult.ok),
+    formatting_preserved: Boolean(captionResult && captionResult.formatting_preserved),
     fb_post_id: `fb_dom_${Date.now()}`,
     post_url: finalTab.url || desiredUrl,
     first_comment_result: firstCommentResult,
-    message: `Facebook ${effectivePostType} post published successfully in AntiGem browser with "${title}" and ${hashtags.length} hashtags.`
+    message: `Facebook ${effectivePostType} post published successfully in AntiGem browser with "${title}" and ${hashtags.length} hashtags.${
+      wantVideo && thumbnail_path ? ` Thumbnail: ${thumbResult.applied ? "applied" : "NOT applied (" + (thumbResult.reason || "n/a") + ")"}.` : ""
+    }`
   };
 }
 
 /**
- * Pipeline B: Facebook Reels Upload (https://www.facebook.com/reels/create + Automatic Mobile Fallback)
+ * Shared helper: find & tap a wizard button once by exact label, scoped away from nav bars, feed posts and comments.
+ * Prefers single native trustedTap(coords), falling back to DOM .click() only if trustedTap is unavailable.
+ */
+async function tapWizardButton(tabId, labelRegexSource, options = {}) {
+  const { clickIt = true } = options;
+  const [res] = await chrome.scripting.executeScript({
+    world: "MAIN",
+    target: { tabId },
+    args: [labelRegexSource],
+    func: (reSrc) => {
+      document.querySelectorAll('[data-ag-wizard-btn="1"]').forEach((e) => e.removeAttribute("data-ag-wizard-btn"));
+      const re = new RegExp(reSrc, "i");
+      const btns = Array.from(document.querySelectorAll('div[role="button"], button, span[role="button"], a[role="button"]')).filter((el) => {
+        const r = el.getBoundingClientRect();
+        if (r.width < 12 || r.height < 12) return false;
+        const st = getComputedStyle(el);
+        if (st.display === "none" || st.visibility === "hidden") return false;
+        return !el.closest('[role="banner"], [role="navigation"], div[role="article"], div[data-pagelet*="FeedUnit"]');
+      });
+      btns.sort((a, b) => (b.closest('div[role="dialog"], form, [role="main"]') ? 1 : 0) - (a.closest('div[role="dialog"], form, [role="main"]') ? 1 : 0));
+      const btn = btns.find((el) => {
+        const t = (el.innerText || el.textContent || "").replace(/\s+/g, " ").trim();
+        const a = (el.getAttribute("aria-label") || "").trim();
+        return re.test(t) || re.test(a);
+      });
+      if (!btn) return { found: false };
+      const disabled = btn.disabled || btn.getAttribute("aria-disabled") === "true";
+      if (disabled) return { found: true, disabled: true };
+      btn.setAttribute("data-ag-wizard-btn", "1");
+      const r = btn.getBoundingClientRect();
+      const v = window.visualViewport;
+      const vw = (v && v.width) || innerWidth;
+      const vh = (v && v.height) || innerHeight;
+      const coords = {
+        fx: Math.max(0.008, Math.min(0.992, (r.left + r.width / 2 - ((v && v.offsetLeft) || 0)) / vw)),
+        fy: Math.max(0.008, Math.min(0.992, (r.top + r.height / 2 - ((v && v.offsetTop) || 0)) / vh))
+      };
+      return { found: true, disabled: false, coords };
+    }
+  });
+  const out = (res && res.result) || { found: false };
+  if (out.found && !out.disabled && clickIt) {
+    const tapped = out.coords ? await trustedTap(tabId, out.coords) : false;
+    if (!tapped) {
+      await chrome.scripting.executeScript({
+        world: "MAIN",
+        target: { tabId },
+        func: () => {
+          const b = document.querySelector('[data-ag-wizard-btn="1"]');
+          if (b) {
+            try {
+              b.click();
+            } catch (_) {}
+          }
+        }
+      });
+    }
+    await chrome.scripting.executeScript({
+      world: "MAIN",
+      target: { tabId },
+      func: () => {
+        document.querySelectorAll('[data-ag-wizard-btn="1"]').forEach((e) => e.removeAttribute("data-ag-wizard-btn"));
+      }
+    }).catch(() => {});
+  }
+  return out;
+}
+
+/**
+ * Pipeline B: Facebook Reels (https://www.facebook.com/reels/create)
+ * Upload video -> wait for processing -> Next (Edit step: apply user's Cover/Thumbnail) -> Next
+ * -> Describe step: Title + Description + Hashtags (formatted, verified) -> Publish -> confirm.
+ * If the Reels creator is not available (pure m.facebook.com), falls back to Feed Video composer
+ * (Facebook turns vertical videos into Reels) and reports fallback_used.
  */
 async function executeReelUploadInBrowser(tabId, payload) {
   const rawVideoPath =
     payload.video_path || (Array.isArray(payload.media_paths) && payload.media_paths[0]) || "latest";
   const resolvedVideo = await resolveLocalFile(rawVideoPath, true);
+  if (!isVideoPath(resolvedVideo.path)) {
+    throw new Error(`Reel needs a video file (.mp4/.mov). Got: ${resolvedVideo.filename}`);
+  }
   const videoPath = resolvedVideo.path;
-  const thumbnailPath = payload.thumbnail_path || null;
+  const thumbnailPath = payload.thumbnail_path ? String(payload.thumbnail_path).trim() : null;
 
-  const enriched = ensureTitleAndHashtags({
-    ...payload,
-    post_type: "reel",
-    media_hint: resolvedVideo.filename
-  });
-  const title = enriched.title;
-  const caption = enriched.caption;
-  const hashtags = enriched.hashtags;
+  const enriched = ensureTitleAndHashtags({ ...payload, post_type: "reel", media_hint: resolvedVideo.filename });
+  const { title, caption, hashtags } = enriched;
 
   await chrome.tabs.update(tabId, { url: FB_REELS_CREATE_URL, active: true });
   await waitForTabComplete(tabId, 20000);
   await sleep(1200);
 
-  // Verify whether /reels/create actually rendered a Reel upload input/wizard (on m.facebook.com it may redirect to reels viewer)
-  const [reelSurfaceProbe] = await chrome.scripting.executeScript({
-    world: "MAIN",
-    target: { tabId },
-    func: () => {
-      const hasFileInput = Boolean(document.querySelector('input[type="file"]'));
-      const txt = (document.body ? document.body.innerText || "" : "").slice(0, 1500).toLowerCase();
-      const hasReelCreatorText = /create a reel|upload video|add video|choose a video/i.test(txt);
-      return { isReelCreator: hasFileInput || hasReelCreatorText, href: location.href };
-    }
-  });
-
-  if (!reelSurfaceProbe || !reelSurfaceProbe.result || !reelSurfaceProbe.result.isReelCreator) {
-    // Fallback to Feed Video/Reel Composer on mobile views where /reels/create is not supported
-    await chrome.tabs.update(tabId, { url: FB_HOME_URL, active: true });
-    await waitForTabComplete(tabId, 20000);
-    await sleep(800);
-    return await executeFeedPostInBrowser(tabId, {
-      ...payload,
-      title,
-      caption,
-      hashtags,
-      thumbnail_path: thumbnailPath,
-      media_paths: [videoPath],
-      post_type: "video"
-    });
-  }
-
-  try {
-    await attachMediaToFacebookComposer(tabId, [videoPath], {
-      preferVideo: true,
-      requirePreview: false,
-      purgeExistingDrafts: false
-    });
-  } catch (_) {
-    await chrome.tabs.update(tabId, { url: FB_HOME_URL, active: true });
-    await waitForTabComplete(tabId, 20000);
-    return await executeFeedPostInBrowser(tabId, {
-      ...payload,
-      title,
-      caption,
-      hashtags,
-      thumbnail_path: thumbnailPath,
-      media_paths: [videoPath],
-      post_type: "video"
-    });
-  }
-
-  await sleep(2500);
-
-  // Advance through "Next" steps using Precision Touch (Step 1: Upload -> Step 2: Edit -> Step 3: Describe & Publish)
-  for (let step = 0; step < 3; step++) {
-    await blurKeyboardAndSettle(tabId);
-    const [stepProbe] = await chrome.scripting.executeScript({
+  let isReelCreator = false;
+  for (let p = 0; p < 4; p++) {
+    const [surfaceProbe] = await chrome.scripting.executeScript({
       world: "MAIN",
       target: { tabId },
       func: () => {
-        const v = window.visualViewport;
-        const vw = (v && v.width) || window.innerWidth || 1;
-        const vh = (v && v.height) || window.innerHeight || 1;
-        const ox = (v && v.offsetLeft) || 0;
-        const oy = (v && v.offsetTop) || 0;
-        const toCoords = (el) => {
-          const r = el.getBoundingClientRect();
-          return {
-            fx: Math.max(0.008, Math.min(0.992, (r.left + r.width / 2 - ox) / vw)),
-            fy: Math.max(0.008, Math.min(0.992, (r.top + r.height / 2 - oy) / vh))
-          };
-        };
-
-        const allBtns = Array.from(document.querySelectorAll('div[role="button"], button, span[role="button"]')).filter(
-          (el) => {
-            const r = el.getBoundingClientRect();
-            return r.width > 12 && r.height > 12;
-          }
+        const txt = (document.body ? document.body.innerText || "" : "").slice(0, 3000).toLowerCase();
+        const hasVideoInput = Array.from(document.querySelectorAll('input[type="file"]')).some((i) =>
+          /video/.test((i.getAttribute("accept") || "").toLowerCase())
         );
-        const pubBtn = allBtns.find((el) => {
-          const t = (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim().toLowerCase();
-          return t === "publish" || t === "share" || t === "share now" || t === "post";
-        });
-        if (pubBtn) return { atPublishStep: true };
-
-        const nextBtn = allBtns.find((el) => {
-          const t = (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim().toLowerCase();
-          return t === "next" || t === "अर्को" || t === "अगला";
-        });
-        if (nextBtn && nextBtn.getAttribute("aria-disabled") !== "true" && !nextBtn.disabled) {
-          const coords = toCoords(nextBtn);
-          try {
-            nextBtn.click();
-          } catch (_) {}
-          return { clickedNext: true, coords };
-        }
-        return { waiting: true };
+        return { isReelCreator: hasVideoInput || /create reel|add video|upload video|drag and drop/.test(txt), href: location.href };
       }
     });
-
-    if (stepProbe && stepProbe.result && stepProbe.result.atPublishStep) break;
-    if (stepProbe && stepProbe.result && stepProbe.result.coords) {
-      await sleep(160);
-      await trustedTap(tabId, stepProbe.result.coords);
-    }
-    await sleep(1400);
-  }
-
-  // Attach Custom AI Thumbnail / Cover Image if thumbnail_path is provided
-  if (thumbnailPath && String(thumbnailPath).trim()) {
-    try {
-      await attachMediaToFacebookComposer(tabId, [thumbnailPath], {
-        preferVideo: false,
-        requirePreview: false,
-        purgeExistingDrafts: false
-      });
-      await sleep(900);
-    } catch (_) {}
-  }
-
-  // Insert Reel Title + Caption + Hashtags via 5-Tier Caption Injector
-  if (caption && String(caption).trim().length > 0) {
-    await populateComposerCaption(tabId, caption, title);
-    await sleep(500);
-  }
-
-  // Blur keyboard & tap "Publish" / "Share" button
-  await blurKeyboardAndSettle(tabId);
-  let published = false;
-  for (let i = 0; i < 30; i++) {
-    const [pubProbe] = await chrome.scripting.executeScript({
-      world: "MAIN",
-      target: { tabId },
-      func: () => {
-        const v = window.visualViewport;
-        const vw = (v && v.width) || window.innerWidth || 1;
-        const vh = (v && v.height) || window.innerHeight || 1;
-        const ox = (v && v.offsetLeft) || 0;
-        const oy = (v && v.offsetTop) || 0;
-        const btns = Array.from(document.querySelectorAll('div[role="button"], button, span[role="button"]')).filter(
-          (el) => {
-            const r = el.getBoundingClientRect();
-            return r.width > 12 && r.height > 12;
-          }
-        );
-        const pubBtn = btns.find((el) => {
-          const t = (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim().toLowerCase();
-          return t === "publish" || t === "share" || t === "share now" || t === "post";
-        });
-        if (!pubBtn) return { found: false };
-        if (pubBtn.getAttribute("aria-disabled") === "true" || pubBtn.disabled) {
-          return { found: true, disabled: true };
-        }
-        const r = pubBtn.getBoundingClientRect();
-        try {
-          pubBtn.click();
-        } catch (_) {}
-        return {
-          found: true,
-          disabled: false,
-          coords: {
-            fx: Math.max(0.008, Math.min(0.992, (r.left + r.width / 2 - ox) / vw)),
-            fy: Math.max(0.008, Math.min(0.992, (r.top + r.height / 2 - oy) / vh))
-          }
-        };
-      }
-    });
-
-    if (pubProbe && pubProbe.result && pubProbe.result.found && !pubProbe.result.disabled) {
-      if (pubProbe.result.coords) {
-        await sleep(200);
-        await trustedTap(tabId, pubProbe.result.coords);
-      }
-      published = true;
+    if (surfaceProbe && surfaceProbe.result && surfaceProbe.result.isReelCreator) {
+      isReelCreator = true;
       break;
     }
     await sleep(900);
   }
 
-  if (!published) {
-    throw new Error("Could not click 'Publish' / 'Share' on Facebook Reels wizard.");
+  if (!isReelCreator) {
+    await chrome.tabs.update(tabId, { url: FB_HOME_URL, active: true });
+    await waitForTabComplete(tabId, 20000);
+    await sleep(800);
+    const fb = await executeFeedPostInBrowser(tabId, {
+      ...payload,
+      title,
+      caption,
+      hashtags,
+      thumbnail_path: thumbnailPath,
+      media_paths: [videoPath],
+      post_type: "video"
+    });
+    return {
+      ...fb,
+      post_type: "reel",
+      surface: "feed_video_fallback",
+      fallback_used: true,
+      message: `Reels creator is not available on this Facebook view, so the vertical video was published through the Feed video composer (Facebook shows it as a Reel). ${fb.message || ""}`
+    };
   }
 
-  await sleep(2800);
+  await attachMediaToFacebookComposer(tabId, [videoPath], {
+    preferVideo: true,
+    requirePreview: false,
+    purgeExistingDrafts: false
+  });
+  await sleep(2500);
+
+  // Walk the wizard: wait for upload processing, apply thumbnail on Edit/Describe step, stop at Describe step
+  let thumbResult = thumbnailPath ? { attempted: false, applied: false } : { attempted: false, applied: false, reason: "No thumbnail_path provided." };
+  let coverTried = false;
+  let nextClicks = 0;
+  const wizardDeadline = Date.now() + 150000;
+  while (Date.now() < wizardDeadline && nextClicks < 6) {
+    const [st] = await chrome.scripting.executeScript({
+      world: "MAIN",
+      target: { tabId },
+      func: () => {
+        const vis = (el) => {
+          const r = el.getBoundingClientRect();
+          const s = getComputedStyle(el);
+          return r.width > 4 && r.height > 4 && s.display !== "none" && s.visibility !== "hidden";
+        };
+        const zone = (el) => !el.closest('[role="banner"], [role="navigation"], div[role="article"]');
+        const editors = Array.from(document.querySelectorAll('[contenteditable="true"], textarea')).filter((e) => vis(e) && zone(e));
+        const hasDescribe = editors.some((e) =>
+          /describe|description|caption|write|reel/i.test(
+            `${e.getAttribute("aria-label") || ""} ${e.getAttribute("aria-placeholder") || ""} ${e.getAttribute("placeholder") || ""} ${(e.parentElement && e.parentElement.innerText) || ""}`.slice(0, 300)
+          )
+        );
+        const btns = Array.from(document.querySelectorAll('div[role="button"], button')).filter((b) => vis(b) && zone(b));
+        const lab = (b) => `${(b.innerText || "").trim()}|${(b.getAttribute("aria-label") || "").trim()}`;
+        const publish = btns.find((b) => /(^|\|)(publish|share|share now|share reel|post)(\||$)/i.test(lab(b)));
+        const next = btns.find((b) => /(^|\|)(next|अर्को|अगला)(\||$)/i.test(lab(b)));
+        const coverCtl = Array.from(document.querySelectorAll('div[role="button"], button, div[role="tab"], span, label')).some((e) => {
+          const t = `${e.getAttribute("aria-label") || ""} ${e.innerText || ""}`.trim();
+          return vis(e) && zone(e) && t.length < 44 && /thumbnail|cover/i.test(t);
+        });
+        const uploading = /uploading|processing|\d{1,3}\s?%/i.test((document.body.innerText || "").slice(0, 4000));
+        return {
+          hasDescribe,
+          publishFound: Boolean(publish),
+          nextFound: Boolean(next),
+          nextEnabled: Boolean(next && !next.disabled && next.getAttribute("aria-disabled") !== "true"),
+          coverCtl,
+          uploading
+        };
+      }
+    });
+    const s = (st && st.result) || {};
+
+    if (thumbnailPath && !thumbResult.applied && s.coverCtl && !coverTried) {
+      coverTried = true;
+      thumbResult = await uploadThumbnailImage(tabId, thumbnailPath, { surface: "reel" });
+      await sleep(800);
+      continue;
+    }
+    if (s.hasDescribe || (s.publishFound && !s.nextFound)) break;
+    if (s.nextEnabled) {
+      await tapWizardButton(tabId, "^(next|अर्को|अगला)$");
+      nextClicks++;
+      await sleep(1600);
+      continue;
+    }
+    await sleep(1200);
+  }
+
+  // Last chance for thumbnail on the Describe/Publish step
+  if (thumbnailPath && !thumbResult.applied) {
+    const retry = await uploadThumbnailImage(tabId, thumbnailPath, { surface: "reel" });
+    if (retry.applied || !thumbResult.attempted) thumbResult = retry;
+  }
+
+  // Title + Description + Hashtags (formatted & verified). Never publish a blank Reel.
+  const captionResult = await populateComposerCaption(tabId, caption, title, { editorHint: "reel" });
+  if (!captionResult.ok) {
+    throw new Error(
+      `Reel description box could not be filled and verified (${captionResult.error || "unknown"}). Stopped before Publish so the Reel is not posted without its title/description/hashtags.`
+    );
+  }
+  await sleep(500);
+  await blurKeyboardAndSettle(tabId);
+
+  let published = false;
+  for (let i = 0; i < 90; i++) {
+    const r = await tapWizardButton(tabId, "^(publish|share reel|share now|share|post)$");
+    if (r.found && !r.disabled) {
+      published = true;
+      break;
+    }
+    await sleep(1000);
+  }
+  if (!published) {
+    throw new Error("Reel 'Publish' button never became active (video may still be processing). Nothing was posted.");
+  }
+
+  let confirmed = false;
+  for (let i = 0; i < 25; i++) {
+    await sleep(1000);
+    const [c] = await chrome.scripting.executeScript({
+      world: "MAIN",
+      target: { tabId },
+      func: () => {
+        const txt = (document.body.innerText || "").slice(0, 4000);
+        const leftWizard = !/\/reels\/create/.test(location.pathname);
+        const okMsg = /reel (is being|has been|was) (shared|published|processed|posted)|your reel is|reel published|shared to reels/i.test(txt);
+        return leftWizard || okMsg;
+      }
+    });
+    if (c && c.result) {
+      confirmed = true;
+      break;
+    }
+  }
+
   return {
     success: true,
-    status: "published",
+    status: confirmed ? "published" : "publish_clicked_unconfirmed",
     post_type: "reel",
+    surface: "reels_create",
     title,
     caption,
     hashtags,
     media_attached: [videoPath],
-    thumbnail_path: thumbnailPath || null,
+    thumbnail_path: thumbnailPath,
+    thumbnail_applied: Boolean(thumbResult.applied),
+    thumbnail_note: thumbResult.applied ? "User thumbnail set as Reel cover." : thumbResult.reason || "Thumbnail not applied.",
+    caption_verified: true,
+    formatting_preserved: captionResult.formatting_preserved,
     fb_post_id: `fb_reel_${Date.now()}`,
     post_url: FB_REELS_CREATE_URL,
-    message: `Facebook Reel uploaded and published successfully with "${title}" and ${hashtags.length} hashtags.`
+    message: `Facebook Reel ${confirmed ? "published" : "submitted"} with title "${title}", description and ${hashtags.length} hashtags. Thumbnail: ${
+      thumbResult.applied ? "applied" : "NOT applied (" + (thumbResult.reason || "n/a") + ")"
+    }.`
   };
 }
 
 /**
- * Pipeline C: Facebook Story Upload (https://www.facebook.com/stories/create & Feed "Create story" Card)
+ * Pipeline C: Facebook Story (https://www.facebook.com/stories/create)
+ * Photo / Video story: "Create a photo story" -> attach -> optional "Add text" overlay -> Share to story.
+ * Text story: "Create a text story" -> type text -> Share to story.
+ * Stories have no caption field: the overlay text uses story_text, else title, else the first line of caption.
  */
 async function executeStoryUploadInBrowser(tabId, payload) {
-  let mediaPath =
-    payload.media_path || (Array.isArray(payload.media_paths) && payload.media_paths[0]) || null;
-  const caption = payload.caption || "";
+  let mediaPath = payload.media_path || (Array.isArray(payload.media_paths) && payload.media_paths[0]) || null;
+  const rawCaption = String(payload.caption || "").trim();
+  const firstCaptionLine = (rawCaption.split("\n").map((l) => l.trim()).filter(Boolean)[0] || "")
+    .replace(/#[\w\u0900-\u097F]+/g, "")
+    .trim();
+  let storyText = String(payload.story_text || payload.title || firstCaptionLine || "").trim().slice(0, 120);
 
-  if (mediaPath && /^(latest|newest|auto|last|recent)$/i.test(String(mediaPath).trim())) {
-    const autoStoryMedia = await autoDiscoverLatestMedia(false);
-    if (autoStoryMedia) mediaPath = autoStoryMedia.path;
+  if (mediaPath) {
+    const resolved = await resolveLocalFile(mediaPath, /^(latest|newest|auto|last|recent)$/i.test(String(mediaPath)) ? false : isVideoPath(mediaPath));
+    mediaPath = resolved.path;
+  } else if (!storyText && !rawCaption) {
+    const autoPhoto = await autoDiscoverLatestMedia(false);
+    if (autoPhoto) mediaPath = autoPhoto.path;
   }
+  const isTextStory = !mediaPath;
+  if (isTextStory && !storyText) storyText = rawCaption.slice(0, 250);
+  if (isTextStory && !storyText) throw new Error("Story needs a photo/video or text.");
 
   await chrome.tabs.update(tabId, { url: FB_STORIES_CREATE_URL, active: true });
   await waitForTabComplete(tabId, 20000);
-  await sleep(1200);
+  await sleep(1500);
 
-  if (mediaPath) {
+  const probeCreator = async () => {
+    const [p] = await chrome.scripting.executeScript({
+      world: "MAIN",
+      target: { tabId },
+      func: () => {
+        const txt = (document.body ? document.body.innerText || "" : "").slice(0, 3000).toLowerCase();
+        return /create a photo story|create a text story|photo story|text story/.test(txt) || Boolean(document.querySelector('input[type="file"]'));
+      }
+    });
+    return Boolean(p && p.result);
+  };
+
+  if (!(await probeCreator())) {
+    // Fallback: Home feed "Create story" card
+    await chrome.tabs.update(tabId, { url: FB_HOME_URL, active: true });
+    await waitForTabComplete(tabId, 20000);
+    await sleep(900);
+    await tapWizardButton(tabId, "^(create story|create a story|add to story|स्टोरी बनाउनुहोस्)$");
+    await sleep(1500);
+    if (!(await probeCreator())) {
+      throw new Error("Facebook Story creator did not open on this view. Turn on 'Desktop site' in the browser menu and retry.");
+    }
+  }
+
+  let storyTextApplied = false;
+
+  if (!isTextStory) {
     await attachMediaToFacebookComposer(tabId, [mediaPath], {
       preferVideo: isVideoPath(mediaPath),
       requirePreview: false,
       purgeExistingDrafts: false
     });
-    await sleep(1800);
-  } else if (caption) {
-    await chrome.scripting.executeScript({
-      world: "MAIN",
-      target: { tabId },
-      func: () => {
-        const textStoryBtn = Array.from(document.querySelectorAll('div[role="button"], span, a')).find((el) =>
-          /create a text story|text story|^text$/i.test((el.innerText || el.textContent || "").trim())
-        );
-        if (textStoryBtn) {
-          try {
-            textStoryBtn.click();
-          } catch (_) {}
-        }
-      }
-    });
-    await sleep(900);
-    await populateComposerCaption(tabId, caption, "");
-    await sleep(700);
-  } else {
-    // If neither mediaPath nor caption was specified, auto-discover the latest photo for the Story
-    const autoPhoto = await autoDiscoverLatestMedia(false);
-    if (autoPhoto) {
-      mediaPath = autoPhoto.path;
-      await attachMediaToFacebookComposer(tabId, [mediaPath], {
-        preferVideo: false,
-        requirePreview: false,
-        purgeExistingDrafts: false
-      });
-      await sleep(1800);
+
+    // Wait for the story editor (preview + Share button) to appear
+    for (let i = 0; i < 20; i++) {
+      const s = await tapWizardButton(tabId, "^(share to story|share to your story|share now|share)$", { clickIt: false });
+      if (s.found) break;
+      await sleep(700);
     }
+
+    if (storyText) {
+      const addText = await tapWizardButton(tabId, "^(add text|text|aa)$");
+      if (addText.found && !addText.disabled) {
+        await sleep(700);
+        const res = await populateComposerCaption(tabId, storyText, "", { editorHint: "story" });
+        storyTextApplied = Boolean(res.ok);
+        await sleep(300);
+        await tapWizardButton(tabId, "^(done)$");
+      }
+    }
+  } else {
+    await tapWizardButton(tabId, "^(create a text story|text story|text)$");
+    await sleep(1000);
+    const res = await populateComposerCaption(tabId, storyText, "", { editorHint: "story" });
+    if (!res.ok) throw new Error("Could not type text into the Facebook text story. Nothing was shared.");
+    storyTextApplied = true;
   }
 
   await blurKeyboardAndSettle(tabId);
   let shared = false;
-  for (let attempt = 0; attempt < 15; attempt++) {
-    const [shareRes] = await chrome.scripting.executeScript({
-      world: "MAIN",
-      target: { tabId },
-      func: () => {
-        const v = window.visualViewport;
-        const vw = (v && v.width) || window.innerWidth || 1;
-        const vh = (v && v.height) || window.innerHeight || 1;
-        const ox = (v && v.offsetLeft) || 0;
-        const oy = (v && v.offsetTop) || 0;
-        const btn = Array.from(document.querySelectorAll('div[role="button"], button, span[role="button"]')).find(
-          (el) => {
-            const r = el.getBoundingClientRect();
-            if (r.width < 12 || r.height < 12) return false;
-            const t = (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim();
-            return /^(share to story|share now|share|post|स्टोरीमा साझा गर्नुहोस्|स्टोरी शेयर करें)$/i.test(t);
-          }
-        );
-        if (!btn) return { ok: false };
-        if (btn.getAttribute("aria-disabled") === "true" || btn.disabled) return { ok: false, disabled: true };
-        const r = btn.getBoundingClientRect();
-        try {
-          btn.click();
-        } catch (_) {}
-        return {
-          ok: true,
-          coords: {
-            fx: Math.max(0.008, Math.min(0.992, (r.left + r.width / 2 - ox) / vw)),
-            fy: Math.max(0.008, Math.min(0.992, (r.top + r.height / 2 - oy) / vh))
-          }
-        };
-      }
-    });
-
-    if (shareRes && shareRes.result && shareRes.result.ok) {
-      if (shareRes.result.coords) {
-        await sleep(160);
-        await trustedTap(tabId, shareRes.result.coords);
-      }
+  for (let i = 0; i < 40; i++) {
+    const r = await tapWizardButton(tabId, "^(share to story|share to your story|share now|share|स्टोरीमा साझा गर्नुहोस्|स्टोरी शेयर करें)$");
+    if (r.found && !r.disabled) {
       shared = true;
       break;
     }
-    await sleep(600);
+    await sleep(900);
+  }
+  if (!shared) throw new Error("'Share to story' button never became active. Nothing was shared.");
+
+  let confirmed = false;
+  for (let i = 0; i < 15; i++) {
+    await sleep(1000);
+    const [c] = await chrome.scripting.executeScript({
+      world: "MAIN",
+      target: { tabId },
+      func: () => !/\/stories\/create/.test(location.pathname) || /story (shared|posted|added)|your story/i.test((document.body.innerText || "").slice(0, 3000))
+    });
+    if (c && c.result) {
+      confirmed = true;
+      break;
+    }
   }
 
-  if (!shared) {
-    throw new Error("Could not find 'Share to story' button on Facebook Story creator.");
-  }
-
-  await sleep(2200);
   return {
     success: true,
-    status: "published",
+    status: confirmed ? "published" : "share_clicked_unconfirmed",
     post_type: "story",
+    story_kind: isTextStory ? "text" : isVideoPath(mediaPath) ? "video" : "photo",
+    story_text: storyText || null,
+    story_text_applied: storyTextApplied,
     media_attached: mediaPath ? [mediaPath] : [],
     fb_post_id: `fb_story_${Date.now()}`,
     post_url: FB_STORIES_CREATE_URL,
-    message: "Facebook Story published successfully in AntiGem browser."
+    message: `Facebook ${isTextStory ? "text" : "photo/video"} Story ${confirmed ? "shared" : "submitted"}${storyText ? ` with text "${storyText}" (${storyTextApplied ? "applied" : "not applied"})` : ""}. Note: Stories have no caption/hashtag field.`
   };
 }
 
@@ -2915,8 +3285,24 @@ function extractTopicFromMediaHint(mediaHint = "") {
 }
 
 function ensureTitleAndHashtags(payload = {}) {
-  let rawCaption = String(payload.caption || "").trim();
+  const postType = String(payload.post_type || "").toLowerCase();
+  let rawCaption = String(payload.caption || "").replace(/\r\n/g, "\n").trim();
   let rawTitle = String(payload.title || "").trim();
+
+  // Stories do NOT have feed captions or hashtags — keep only clean overlay text if requested.
+  if (postType === "story") {
+    const firstLine = (rawCaption.split("\n").map((l) => l.trim()).filter(Boolean)[0] || "")
+      .replace(/#[\w\u0900-\u097F]+/g, "")
+      .trim();
+    const storyText = String(payload.story_text || rawTitle || firstLine || "").trim().slice(0, 120);
+    return {
+      title: rawTitle || storyText,
+      caption: rawCaption,
+      hashtags: [],
+      story_text: storyText
+    };
+  }
+
   const mediaHint = extractTopicFromMediaHint(payload.media_hint || "");
 
   const isInstructionOnly =
@@ -2942,7 +3328,7 @@ function ensureTitleAndHashtags(payload = {}) {
       "👇 What’s one lesson this reminds you of today? Share your thoughts below!"
     ].join("\n");
   } else if (rawCaption.split(/\s+/).length <= 8 && !rawCaption.includes("\n")) {
-    const shortIdea = rawCaption.replace(/#\w+/g, "").trim();
+    const shortIdea = rawCaption.replace(/#[\w\u0900-\u097F]+/g, "").trim();
     if (!rawTitle) {
       rawTitle = shortIdea.length <= 65 ? shortIdea : shortIdea.slice(0, 62) + "...";
     }
@@ -2960,7 +3346,7 @@ function ensureTitleAndHashtags(payload = {}) {
 
   if (!rawTitle) {
     const firstLine = (rawCaption.split("\n").map((l) => l.trim()).filter(Boolean)[0] || "")
-      .replace(/#\w+/g, "")
+      .replace(/#[\w\u0900-\u097F]+/g, "")
       .trim();
     if (firstLine && firstLine.length <= 90) {
       rawTitle = firstLine.replace(/^[⚡🔥🚀💡✨📌]+\s*/, "").trim();
@@ -2971,12 +3357,13 @@ function ensureTitleAndHashtags(payload = {}) {
     }
   }
 
-  const existingInCaption = rawCaption.match(/#[a-zA-Z0-9_]+/g) || [];
+  const existingInCaption = rawCaption.match(/#[\w\u0900-\u097F]+/g) || [];
   const providedTags = Array.isArray(payload.hashtags)
     ? payload.hashtags
         .map((t) => String(t || "").trim())
         .filter(Boolean)
-        .map((t) => (t.startsWith("#") ? t : `#${t.replace(/[^a-zA-Z0-9_]/g, "")}`))
+        .map((t) => (t.startsWith("#") ? t : `#${t.replace(/[^\w\u0900-\u097F]/g, "")}`))
+        .filter((t) => t.length > 1)
     : [];
 
   const mergedSet = new Set([...providedTags, ...existingInCaption]);
@@ -2985,10 +3372,10 @@ function ensureTitleAndHashtags(payload = {}) {
     const stopWords = new Set([
       "the", "and", "for", "with", "that", "this", "from", "your", "have", "more",
       "about", "what", "when", "where", "into", "will", "just", "most", "some",
-      "upload", "photo", "image", "post"
+      "upload", "photo", "image", "post", "reel", "video"
     ]);
     const words = `${rawTitle} ${mediaHint} ${rawCaption}`
-      .replace(/#[a-zA-Z0-9_]+/g, "")
+      .replace(/#[\w\u0900-\u097F]+/g, "")
       .replace(/[^a-zA-Z0-9\s]/g, " ")
       .split(/\s+/)
       .map((w) => w.trim())

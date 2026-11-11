@@ -1,10 +1,11 @@
 /**
- * Content Bridge Script for Facebook DOM Automation (v1.4.0)
+ * Content Bridge Script for Facebook DOM Automation (v1.5.0)
  * Pre-Trained Phone (Desktop-on-Phone + Mobile UI) & Desktop Precision DOM Engine:
  * - Smart Composer Dialog Scorer (`findBestComposerDialog`) never confuses Notification/Messenger/Popover dialogs with the Create Post dialog.
  * - Pre-purges leftover draft attachments and deduplicates single-photo uploads (zero double-photo bugs!).
- * - Populates caption before & after media attachment with placeholder click-to-wake so Lexical editors on scaled phone screens always receive text.
- * - Full support for Feed Posts (Text, Photo, Carousel, Video), Reels (/reels/create + mobile fallback), and Stories (/stories/create + Create a photo/text story).
+ * - Formatted Multiline Caption Engine (`findAndPopulateCaptionDom` + `verifyCaptionText`): populates dedicated Title fields + preserves `\n` spacing via Clipboard paste -> line-by-line paragraph insertion, with anti-duplication verification.
+ * - Real Thumbnail/Cover Uploader (`applyThumbnailInDom`): uploads `thumbnail_file` into Facebook's Video Options Thumbnail or Reel Cover panel without double-attaching to main media.
+ * - Full support for Feed Posts (Text, Photo, Carousel, Video), Reels (/reels/create + mobile fallback), and Stories (/stories/create Photo/Video + `story_text` overlay + Text story).
  */
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -251,69 +252,40 @@ function hasMediaPreviewMounted() {
   return Boolean(hasBlobOrDataImg || hasVideo || hasRemoveOrEdit);
 }
 
-function findAndPopulateCaptionDom(text) {
-  if (!text || !String(text).trim()) return true;
-  const cleanText = String(text).trim();
-  const bestDialog = findBestComposerDialog();
-  const roots = bestDialog ? [bestDialog, document] : [document];
-
-  const selectorStr = [
-    'div[role="textbox"][contenteditable="true"]',
-    'div[data-lexical-editor="true"][contenteditable="true"]',
-    'div[data-lexical-editor="true"]',
-    'div[aria-placeholder*="on your mind" i]',
-    'div[aria-label*="on your mind" i]',
-    'div[aria-label*="Describe your reel" i]',
-    'div[aria-label*="Write a description" i]',
-    'div[contenteditable="true"]',
-    '#composer-main-view-id textarea',
-    'textarea.composerInput',
-    'textarea[name="xc_message"]',
-    'textarea'
-  ].join(", ");
-
-  let editor = null;
-  for (const root of roots) {
-    const candidates = Array.from(root.querySelectorAll(selectorStr)).filter(
-      (el) => !isCommentOrSearch(el) && el.getBoundingClientRect().width > 4
-    );
-    if (candidates.length > 0) {
-      editor = candidates[0];
-      break;
-    }
-  }
-
-  if (!editor) {
-    for (const root of roots) {
-      const placeholderEl = Array.from(root.querySelectorAll("div, span, p")).find((el) => {
-        if (isCommentOrSearch(el)) return false;
-        const t = (el.innerText || el.textContent || "").trim();
-        return (
-          t.length > 4 &&
-          t.length < 80 &&
-          /^(what['’]?s on your mind|write something|say something|describe your reel|start typing)/i.test(t)
-        );
-      });
-      if (placeholderEl) {
-        try {
-          placeholderEl.click();
-        } catch (_) {}
-        editor =
-          (placeholderEl.parentElement &&
-            placeholderEl.parentElement.querySelector('[contenteditable="true"], textarea')) ||
-          (document.activeElement && document.activeElement.isContentEditable ? document.activeElement : null);
-        if (editor) break;
-      }
-    }
-  }
-
-  if (!editor) return false;
-  insertTextFast(editor, cleanText);
-  return true;
+function normalizeForCompare(s) {
+  return String(s || "")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
-function insertTextFast(editor, text) {
-  if (!editor || !text) return;
+function verifyCaptionText(actual, expected) {
+  const a = normalizeForCompare(actual);
+  const lines = String(expected || "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (lines.length === 0) return { ok: true, duplicated: false };
+  const head = normalizeForCompare(lines[0]).slice(0, 24);
+  const tail = normalizeForCompare(lines[lines.length - 1]).slice(-18);
+  const headCount = head ? a.split(head).length - 1 : 1;
+  const ok = a.length >= 4 && (!head || headCount >= 1) && (!tail || a.includes(tail));
+  return { ok: ok && headCount === 1, duplicated: headCount > 1, headFound: headCount >= 1 };
+}
+
+function readDomEditorText(editor) {
+  if (!editor) return "";
+  return editor.tagName === "TEXTAREA" || editor.tagName === "INPUT"
+    ? editor.value || ""
+    : editor.innerText || editor.textContent || "";
+}
+
+async function insertTextFast(editor, text) {
+  if (!editor || !text) return { ok: false, formatting_preserved: false };
+  const cleanText = String(text).replace(/\r\n/g, "\n").trim();
+  const expectsMultiline = cleanText.includes("\n");
+
   try {
     editor.scrollIntoView({ block: "center", behavior: "instant" });
   } catch (_) {}
@@ -325,43 +297,318 @@ function insertTextFast(editor, text) {
   if (editor.tagName === "TEXTAREA" || editor.tagName === "INPUT") {
     const proto = editor.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
     const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
-    if (setter) setter.call(editor, text);
-    else editor.value = text;
+    if (setter) setter.call(editor, cleanText);
+    else editor.value = cleanText;
     editor.dispatchEvent(new Event("input", { bubbles: true }));
     editor.dispatchEvent(new Event("change", { bubbles: true }));
-    return;
+    const txt = readDomEditorText(editor);
+    const v = verifyCaptionText(txt, cleanText);
+    return { ok: v.ok, method: "textarea", formatting_preserved: !expectsMultiline || /\n/.test(txt) };
   }
 
-  try {
-    const sel = window.getSelection();
-    const range = document.createRange();
-    range.selectNodeContents(editor);
-    sel.removeAllRanges();
-    sel.addRange(range);
-    document.execCommand("selectAll", false, null);
-    document.execCommand("delete", false, null);
-  } catch (_) {}
-
-  const ok = document.execCommand("insertText", false, text);
-  const cur = (editor.innerText || editor.textContent || "").trim();
-  if (!ok || cur.length < 4 || /^what['’]?s on your mind/i.test(cur)) {
+  const clearEditor = () => {
     try {
-      const dt = new DataTransfer();
-      dt.setData("text/plain", text);
-      editor.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));
+      const sel = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      document.execCommand("selectAll", false, null);
+      document.execCommand("delete", false, null);
     } catch (_) {}
+  };
+
+  // Tier 1: Synthetic ClipboardEvent("paste") — preserves blank lines & paragraphs in Lexical
+  clearEditor();
+  await sleep(60);
+  try {
+    const dt = new DataTransfer();
+    dt.setData("text/plain", cleanText);
+    editor.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));
+  } catch (_) {}
+  await sleep(180);
+
+  let cur = readDomEditorText(editor);
+  let v = verifyCaptionText(cur, cleanText);
+  if (v.ok) {
+    return { ok: true, method: "paste", formatting_preserved: !expectsMultiline || /\n/.test(cur) };
   }
-  if ((editor.innerText || "").trim().length < 4) {
-    editor.innerText = text;
+
+  // Tier 2: Line-by-line execCommand("insertText") + execCommand("insertParagraph")
+  clearEditor();
+  await sleep(60);
+  const lines = cleanText.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i]) document.execCommand("insertText", false, lines[i]);
+    if (i < lines.length - 1) {
+      const okPara = document.execCommand("insertParagraph", false, null);
+      if (!okPara) document.execCommand("insertLineBreak", false, null);
+    }
   }
   editor.dispatchEvent(
-    new InputEvent("input", { bubbles: true, cancelable: true, inputType: "insertText", data: text })
+    new InputEvent("input", { bubbles: true, cancelable: true, inputType: "insertText", data: cleanText })
   );
   editor.dispatchEvent(new Event("change", { bubbles: true }));
+  await sleep(180);
+
+  cur = readDomEditorText(editor);
+  v = verifyCaptionText(cur, cleanText);
+  if (v.ok) {
+    return { ok: true, method: "lines", formatting_preserved: !expectsMultiline || /\n/.test(cur) };
+  }
+
+  // Tier 3: Raw innerText fallback if Lexical still ignored synthetic events
+  if (cur.trim().length < 4) {
+    clearEditor();
+    editor.innerText = cleanText;
+    editor.dispatchEvent(new InputEvent("input", { bubbles: true, cancelable: true, inputType: "insertText", data: cleanText }));
+    editor.dispatchEvent(new Event("change", { bubbles: true }));
+    await sleep(150);
+    cur = readDomEditorText(editor);
+    v = verifyCaptionText(cur, cleanText);
+  }
+
+  return {
+    ok: v.ok,
+    duplicated: v.duplicated,
+    method: "fallback",
+    formatting_preserved: !expectsMultiline || /\n/.test(cur)
+  };
+}
+
+async function findAndPopulateCaptionDom(text, title = "", options = {}) {
+  const { editorHint = "post", verifyOnly = false } = options;
+  const cleanText = String(text || "").replace(/\r\n/g, "\n").trim();
+  const cleanTitle = String(title || "").trim();
+
+  if (cleanTitle && !verifyOnly) {
+    const titleInputs = Array.from(
+      document.querySelectorAll(
+        'input[placeholder*="Title" i], input[aria-label*="Title" i], input[aria-label*="Video title" i], input[aria-label*="Reel title" i], textarea[aria-label*="Title" i]'
+      )
+    );
+    const inp = titleInputs.find((el) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 20 && r.height > 8 && !el.closest('div[role="article"]');
+    });
+    if (inp) {
+      inp.focus();
+      const proto = inp.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+      if (setter) setter.call(inp, cleanTitle);
+      else inp.value = cleanTitle;
+      inp.dispatchEvent(new Event("input", { bubbles: true }));
+      inp.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  }
+
+  if (!cleanText) return { ok: true, skipped: true, formatting_preserved: true };
+
+  const bestDialog = findBestComposerDialog();
+  const roots = bestDialog ? [bestDialog, document] : [document];
+  const selectorStr = [
+    'div[role="textbox"][contenteditable="true"]',
+    'div[data-lexical-editor="true"][contenteditable="true"]',
+    'div[data-lexical-editor="true"]',
+    'div[contenteditable="true"]',
+    'div[contenteditable="plaintext-only"]',
+    "#composer-main-view-id textarea",
+    "textarea.composerInput",
+    'textarea[name="xc_message"]',
+    "textarea"
+  ].join(", ");
+
+  const hintRe =
+    editorHint === "reel"
+      ? /describe your reel|description|caption|write/i
+      : editorHint === "story"
+      ? /start typing|text|type/i
+      : /on your mind|write something|say something|post|caption/i;
+
+  let editor = null;
+  for (const root of roots) {
+    const candidates = Array.from(root.querySelectorAll(selectorStr)).filter(
+      (el) => !isCommentOrSearch(el) && isVisible(el)
+    );
+    if (candidates.length > 0) {
+      const score = (node) => {
+        let sc = 0;
+        if (bestDialog && bestDialog.contains(node)) sc += 40;
+        if (node.getAttribute("data-lexical-editor") === "true") sc += 20;
+        const lbl = `${node.getAttribute("aria-label") || ""} ${node.getAttribute("aria-placeholder") || ""} ${
+          node.getAttribute("placeholder") || ""
+        } ${(node.parentElement && node.parentElement.innerText) || ""}`.slice(0, 300);
+        if (hintRe.test(lbl)) sc += 60;
+        return sc;
+      };
+      candidates.sort((a, b) => score(b) - score(a));
+      editor = candidates[0];
+      break;
+    }
+  }
+
+  if (!editor) {
+    for (const root of roots) {
+      const placeholderEl = Array.from(root.querySelectorAll("div, span, p, label")).find((el) => {
+        if (isCommentOrSearch(el) || !isVisible(el)) return false;
+        const t = (el.innerText || el.textContent || "").trim();
+        return (
+          t.length > 4 &&
+          t.length < 80 &&
+          /^(what['’]?s on your mind|write something|say something|add a caption|describe your reel|add a description|start typing|के सोचिरहनुभएको|कुछ लिखें)/i.test(
+            t
+          )
+        );
+      });
+      if (placeholderEl) {
+        try {
+          placeholderEl.click();
+        } catch (_) {}
+        await sleep(220);
+        editor =
+          (placeholderEl.parentElement &&
+            placeholderEl.parentElement.querySelector('[contenteditable="true"], textarea')) ||
+          (document.activeElement &&
+          (document.activeElement.isContentEditable || document.activeElement.tagName === "TEXTAREA")
+            ? document.activeElement
+            : null);
+        if (editor) break;
+      }
+    }
+  }
+
+  if (!editor) {
+    return { ok: false, foundEditor: false, formatting_preserved: false, error: "Could not locate caption/description editor." };
+  }
+
+  const expectsMultiline = cleanText.includes("\n");
+  if (verifyOnly) {
+    const cur = readDomEditorText(editor);
+    const v = verifyCaptionText(cur, cleanText);
+    return {
+      ok: v.ok,
+      foundEditor: true,
+      duplicated: v.duplicated,
+      formatting_preserved: !expectsMultiline || /\n/.test(cur)
+    };
+  }
+
+  const res = await insertTextFast(editor, cleanText);
+  return { ...res, foundEditor: true };
+}
+
+/**
+ * Real Thumbnail / Cover Image Uploader for Desktop / Kiwi Content Bridge (v1.5.0)
+ * Opens Edit Video -> Thumbnail -> Upload image OR Reel Cover -> Upload cover,
+ * attaches thumbnailFile to an image-accepting input only, and clicks Save/Done inside that panel.
+ */
+async function applyThumbnailInDom(thumbnailFile, surface = "video") {
+  if (!thumbnailFile || !thumbnailFile.base64) {
+    return { attempted: false, applied: false, reason: "No thumbnail_file provided." };
+  }
+
+  document.querySelectorAll('input[type="file"]').forEach((i) => i.setAttribute("data-ag-known", "1"));
+  let thumbInput = null;
+  const origClick = HTMLInputElement.prototype.click;
+  HTMLInputElement.prototype.click = function (...args) {
+    if (this && this.type === "file") {
+      const acc = (this.getAttribute("accept") || "").toLowerCase();
+      if (!acc || acc.includes("image")) {
+        thumbInput = this;
+        return;
+      }
+    }
+    return origClick.apply(this, args);
+  };
+
+  const clickedLabels = [];
+  try {
+    const labelOf = (el) => `${el.getAttribute("aria-label") || ""} ${el.innerText || el.textContent || ""}`.replace(/\s+/g, " ").trim();
+    const ctxText = (el) => {
+      let n = el;
+      for (let i = 0; i < 6 && n; i++) n = n.parentElement;
+      return ((n && n.innerText) || "").slice(0, 600).toLowerCase();
+    };
+
+    for (let round = 0; round < 6 && !thumbInput; round++) {
+      const inputs = Array.from(document.querySelectorAll('input[type="file"]'));
+      const candidate = inputs.find((i) => {
+        const acc = (i.getAttribute("accept") || "").toLowerCase();
+        const imageOnly = acc.includes("image") && !acc.includes("video");
+        const fresh = !i.hasAttribute("data-ag-known");
+        return (imageOnly && (fresh || /thumbnail|cover/.test(ctxText(i)))) || (fresh && !acc.includes("video") && /thumbnail|cover/.test(ctxText(i)));
+      });
+      if (candidate) {
+        thumbInput = candidate;
+        break;
+      }
+
+      const clickables = Array.from(
+        document.querySelectorAll('div[role="button"], button, span[role="button"], a[role="button"], div[role="tab"], div[role="radio"], [role="option"], label, [role="menuitem"]')
+      ).filter((el) => isVisible(el) && !el.closest('div[role="article"], [role="banner"], [role="navigation"]'));
+
+      const pageHasThumbCtx = /thumbnail|cover/i.test((document.body.innerText || "").slice(0, 20000));
+      const tiers = [
+        pageHasThumbCtx
+          ? /^(upload image|upload thumbnail|upload custom thumbnail|upload cover|upload a thumbnail|upload a cover|upload photo|choose image|choose file|add image|upload)$/i
+          : null,
+        /^(thumbnail|thumbnails|custom thumbnail|change thumbnail|edit thumbnail|select thumbnail|cover|cover photo|cover image|choose cover|select cover|change cover|edit cover|add cover)$/i,
+        surface === "video" ? /^(edit|edit video|video options|edit all)$/i : null
+      ].filter(Boolean);
+
+      let matched = null;
+      for (const re of tiers) {
+        matched = clickables.find((c) => {
+          const l = labelOf(c);
+          return l.length < 48 && re.test(l) && !clickedLabels.includes(l.toLowerCase());
+        });
+        if (matched) break;
+      }
+      if (!matched) break;
+
+      clickedLabels.push(labelOf(matched).toLowerCase());
+      matched.click();
+      await sleep(750);
+    }
+
+    if (!thumbInput) {
+      return { attempted: true, applied: false, reason: "Thumbnail / Cover upload option not offered on this Facebook screen." };
+    }
+
+    const ok = attachBase64MediaToInput(thumbInput, [thumbnailFile]);
+    if (!ok) return { attempted: true, applied: false, reason: "Could not attach thumbnail image file." };
+    await sleep(1500);
+
+    let confirmed = false;
+    for (let i = 0; i < 6; i++) {
+      const panels = Array.from(document.querySelectorAll('div[role="dialog"], div[aria-modal="true"]')).filter((d) =>
+        /thumbnail|cover/i.test((d.innerText || "").slice(0, 2000))
+      );
+      const scope = panels[panels.length - 1];
+      if (!scope) {
+        confirmed = true;
+        break;
+      }
+      const saveBtn = Array.from(scope.querySelectorAll('div[role="button"], button')).find((b) => {
+        const t = `${b.getAttribute("aria-label") || ""} ${b.innerText || ""}`.replace(/\s+/g, " ").trim();
+        return /^(save|done|apply|set thumbnail|use as thumbnail|use as cover|set cover)$/i.test(t) && b.getAttribute("aria-disabled") !== "true";
+      });
+      if (saveBtn) {
+        saveBtn.click();
+        confirmed = true;
+        break;
+      }
+      await sleep(600);
+    }
+
+    return { attempted: true, applied: true, confirmed, path_through: clickedLabels };
+  } finally {
+    HTMLInputElement.prototype.click = origClick;
+  }
 }
 
 async function publishReelDom(payload) {
-  const { caption = "", media_files = [] } = payload;
+  const { title = "", caption = "", hashtags = [], media_files = [], thumbnail_file = null } = payload;
   const inputs = Array.from(document.querySelectorAll('input[type="file"]'));
   const videoInput =
     inputs.find((inp) => (inp.getAttribute("accept") || "").toLowerCase().includes("video")) || inputs[0];
@@ -371,56 +618,116 @@ async function publishReelDom(payload) {
   }
 
   attachBase64MediaToInput(videoInput, media_files);
-  await sleep(3000);
+  await sleep(2500);
 
-  for (let step = 0; step < 3; step++) {
-    const allBtns = Array.from(document.querySelectorAll('div[role="button"], button, span[role="button"]'));
-    const pubBtn = allBtns.find((el) => {
-      const t = (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim().toLowerCase();
-      return t === "publish" || t === "share" || t === "share now" || t === "post";
-    });
-    if (pubBtn) break;
+  let thumbResult = thumbnail_file ? { attempted: false, applied: false } : { attempted: false, applied: false, reason: "No thumbnail_file provided." };
+  let coverTried = false;
+  let nextClicks = 0;
+  const deadline = Date.now() + 150000;
 
-    const nextBtn = allBtns.find((el) => {
-      const t = (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim().toLowerCase();
-      return t === "next" || t === "अर्को" || t === "अगला";
+  while (Date.now() < deadline && nextClicks < 6) {
+    const zone = (el) => isVisible(el) && !el.closest('[role="banner"], [role="navigation"], div[role="article"]');
+    const editors = Array.from(document.querySelectorAll('[contenteditable="true"], textarea')).filter(zone);
+    const hasDescribe = editors.some((e) =>
+      /describe|description|caption|write|reel/i.test(
+        `${e.getAttribute("aria-label") || ""} ${e.getAttribute("aria-placeholder") || ""} ${e.getAttribute("placeholder") || ""} ${(e.parentElement && e.parentElement.innerText) || ""}`.slice(0, 300)
+      )
+    );
+    const btns = Array.from(document.querySelectorAll('div[role="button"], button, span[role="button"]')).filter(zone);
+    const lab = (b) => `${(b.innerText || "").trim()}|${(b.getAttribute("aria-label") || "").trim()}`;
+    const pubBtn = btns.find((b) => /(^|\|)(publish|share|share now|share reel|post)(\||$)/i.test(lab(b)));
+    const nextBtn = btns.find((b) => /(^|\|)(next|अर्को|अगला)(\||$)/i.test(lab(b)));
+    const coverCtl = Array.from(document.querySelectorAll('div[role="button"], button, div[role="tab"], span, label')).some((e) => {
+      const t = `${e.getAttribute("aria-label") || ""} ${e.innerText || ""}`.trim();
+      return zone(e) && t.length < 44 && /thumbnail|cover/i.test(t);
     });
-    if (nextBtn && nextBtn.getAttribute("aria-disabled") !== "true") {
-      nextBtn.click();
+
+    if (thumbnail_file && !thumbResult.applied && coverCtl && !coverTried) {
+      coverTried = true;
+      thumbResult = await applyThumbnailInDom(thumbnail_file, "reel");
+      await sleep(800);
+      continue;
     }
-    await sleep(1500);
+    if (hasDescribe || (pubBtn && !nextBtn)) break;
+    if (nextBtn && nextBtn.getAttribute("aria-disabled") !== "true" && !nextBtn.disabled) {
+      nextBtn.click();
+      nextClicks++;
+      await sleep(1600);
+      continue;
+    }
+    await sleep(1200);
   }
 
-  if (caption) {
-    findAndPopulateCaptionDom(caption);
-    await sleep(600);
+  if (thumbnail_file && !thumbResult.applied) {
+    const retry = await applyThumbnailInDom(thumbnail_file, "reel");
+    if (retry.applied || !thumbResult.attempted) thumbResult = retry;
   }
 
-  for (let i = 0; i < 30; i++) {
-    const btns = Array.from(document.querySelectorAll('div[role="button"], button, span[role="button"]'));
+  const capResult = await findAndPopulateCaptionDom(caption, title, { editorHint: "reel" });
+  if (!capResult.ok) {
+    throw new Error(`Reel description box could not be filled and verified (${capResult.error || "unknown"}). Nothing was posted.`);
+  }
+  await sleep(500);
+
+  let published = false;
+  for (let i = 0; i < 90; i++) {
+    const btns = Array.from(document.querySelectorAll('div[role="button"], button, span[role="button"]')).filter((el) => isVisible(el));
     const pubBtn = btns.find((el) => {
       const t = (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim().toLowerCase();
-      return t === "publish" || t === "share" || t === "share now" || t === "post";
+      return t === "publish" || t === "share" || t === "share now" || t === "share reel" || t === "post";
     });
     if (pubBtn && pubBtn.getAttribute("aria-disabled") !== "true" && !pubBtn.disabled) {
       pubBtn.click();
-      await sleep(3000);
-      return {
-        success: true,
-        message: "Facebook Reel published successfully.",
-        fb_post_id: `fb_reel_${Date.now()}`,
-        post_url: window.location.href
-      };
+      published = true;
+      break;
     }
-    await sleep(900);
+    await sleep(1000);
+  }
+  if (!published) {
+    throw new Error("Could not click 'Publish' button on Facebook Reels wizard.");
   }
 
-  throw new Error("Could not click Publish button on Facebook Reels wizard.");
+  let confirmed = false;
+  for (let i = 0; i < 20; i++) {
+    await sleep(1000);
+    if (!/\/reels\/create/.test(location.pathname) || /reel (is being|has been|was) (shared|published|processed)|your reel is|reel published/i.test((document.body.innerText || "").slice(0, 4000))) {
+      confirmed = true;
+      break;
+    }
+  }
+
+  return {
+    success: true,
+    status: confirmed ? "published" : "publish_clicked_unconfirmed",
+    post_type: "reel",
+    surface: "reels_create",
+    title,
+    caption,
+    hashtags,
+    thumbnail_applied: Boolean(thumbResult.applied),
+    thumbnail_note: thumbResult.applied ? "User thumbnail set as Reel cover." : thumbResult.reason || "Thumbnail not applied.",
+    caption_verified: true,
+    formatting_preserved: Boolean(capResult.formatting_preserved),
+    message: `Facebook Reel ${confirmed ? "published" : "submitted"} with title, description & ${hashtags.length} hashtags. Thumbnail: ${thumbResult.applied ? "applied" : "NOT applied (" + (thumbResult.reason || "n/a") + ")"}.`,
+    fb_post_id: `fb_reel_${Date.now()}`,
+    post_url: window.location.href
+  };
 }
 
 async function publishStoryDom(payload) {
-  const { caption = "", media_files = [] } = payload;
-  if (media_files && media_files.length > 0) {
+  const { caption = "", title = "", story_text = "", media_files = [] } = payload;
+  const firstLine = (String(caption || "").split("\n").map((l) => l.trim()).filter(Boolean)[0] || "")
+    .replace(/#[\w\u0900-\u097F]+/g, "")
+    .trim();
+  let overlayText = String(story_text || title || firstLine || "").trim().slice(0, 120);
+  const isTextStory = !(Array.isArray(media_files) && media_files.length > 0);
+  if (isTextStory && !overlayText) overlayText = String(caption || "").trim().slice(0, 250);
+  if (isTextStory && !overlayText) {
+    throw new Error("Story requires either a photo/video or story_text.");
+  }
+
+  let storyTextApplied = false;
+  if (!isTextStory) {
     let fileInput = document.querySelector('input[type="file"]');
     if (!fileInput) {
       const photoStoryCard = Array.from(document.querySelectorAll('div[role="button"], a, span')).find((el) =>
@@ -428,15 +735,34 @@ async function publishStoryDom(payload) {
       );
       if (photoStoryCard) {
         photoStoryCard.click();
-        await sleep(500);
+        await sleep(600);
         fileInput = document.querySelector('input[type="file"]');
       }
     }
-    if (fileInput) {
-      attachBase64MediaToInput(fileInput, media_files);
-      await sleep(2200);
+    if (!fileInput) {
+      throw new Error("Could not locate photo/video input on Facebook Story creator.");
     }
-  } else if (caption) {
+    attachBase64MediaToInput(fileInput, media_files);
+    await sleep(2200);
+
+    if (overlayText) {
+      const addTextBtn = Array.from(document.querySelectorAll('div[role="button"], button, span[role="button"]')).find((el) =>
+        isVisible(el) && /^(add text|text|aa)$/i.test((el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim())
+      );
+      if (addTextBtn) {
+        addTextBtn.click();
+        await sleep(700);
+        const res = await findAndPopulateCaptionDom(overlayText, "", { editorHint: "story" });
+        storyTextApplied = Boolean(res && res.ok);
+        await sleep(300);
+        const doneBtn = Array.from(document.querySelectorAll('div[role="button"], button')).find((el) =>
+          isVisible(el) && /^done$/i.test((el.innerText || el.textContent || "").trim())
+        );
+        if (doneBtn) doneBtn.click();
+        await sleep(400);
+      }
+    }
+  } else {
     const textStoryBtn = Array.from(document.querySelectorAll('div[role="button"], span')).find((el) =>
       /create a text story|text story|^text$/i.test((el.innerText || el.textContent || "").trim())
     );
@@ -444,24 +770,49 @@ async function publishStoryDom(payload) {
       textStoryBtn.click();
       await sleep(900);
     }
-    findAndPopulateCaptionDom(caption);
+    const res = await findAndPopulateCaptionDom(overlayText, "", { editorHint: "story" });
+    if (!res || !res.ok) {
+      throw new Error("Could not type text into Facebook text story editor.");
+    }
+    storyTextApplied = true;
     await sleep(700);
   }
 
-  const shareBtn = Array.from(document.querySelectorAll('div[role="button"], button, span[role="button"]')).find(
-    (el) =>
-      /^(share to story|share now|share|post)$/i.test(
-        (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim()
-      )
-  );
-  if (!shareBtn) {
-    throw new Error("Could not find 'Share to story' button.");
+  let shared = false;
+  for (let i = 0; i < 30; i++) {
+    const shareBtn = Array.from(document.querySelectorAll('div[role="button"], button, span[role="button"]')).find((el) => {
+      if (!isVisible(el)) return false;
+      const t = (el.innerText || el.textContent || el.getAttribute("aria-label") || "").trim();
+      return /^(share to story|share to your story|share now|share|post)$/i.test(t);
+    });
+    if (shareBtn && shareBtn.getAttribute("aria-disabled") !== "true" && !shareBtn.disabled) {
+      shareBtn.click();
+      shared = true;
+      break;
+    }
+    await sleep(800);
   }
-  shareBtn.click();
-  await sleep(2500);
+  if (!shared) {
+    throw new Error("Could not find enabled 'Share to story' button.");
+  }
+
+  let confirmed = false;
+  for (let i = 0; i < 15; i++) {
+    await sleep(1000);
+    if (!/\/stories\/create/.test(location.pathname) || /story (shared|posted|added)|your story/i.test((document.body.innerText || "").slice(0, 3000))) {
+      confirmed = true;
+      break;
+    }
+  }
+
   return {
     success: true,
-    message: "Facebook Story published successfully.",
+    status: confirmed ? "published" : "share_clicked_unconfirmed",
+    post_type: "story",
+    story_kind: isTextStory ? "text" : "media",
+    story_text: overlayText || null,
+    story_text_applied: storyTextApplied,
+    message: `Facebook Story ${confirmed ? "published" : "submitted"}${overlayText ? ` with text "${overlayText}" (${storyTextApplied ? "applied" : "not applied"})` : ""}.`,
     fb_post_id: `fb_story_${Date.now()}`,
     post_url: window.location.href
   };
@@ -480,7 +831,14 @@ async function publishPost(payload) {
     };
   }
 
-  const { caption = "", media_files = [], post_type = "text" } = payload;
+  const {
+    title = "",
+    caption = "",
+    hashtags = [],
+    media_files = [],
+    thumbnail_file = null,
+    post_type = "text"
+  } = payload;
 
   if (post_type === "reel" && window.location.pathname.includes("/reels/create")) {
     return await publishReelDom(payload);
@@ -523,13 +881,28 @@ async function publishPost(payload) {
     dialog = dialog || document;
   }
 
-  // 2. Populate Caption FIRST while composer textbox is open
+  // 2. Populate Title + Formatted Caption FIRST while composer textbox is open
+  let captionResult = { ok: true, skipped: true, formatting_preserved: true };
   if (caption && String(caption).trim().length > 0) {
-    findAndPopulateCaptionDom(caption);
+    captionResult = await findAndPopulateCaptionDom(caption, title, { editorHint: "post" });
     await sleep(250);
   }
 
   // 3. Attach Media if provided (with stale draft cleanup + single-shot input binding + deduplication)
+  const wantVideo =
+    post_type === "video" ||
+    post_type === "reel" ||
+    (Array.isArray(media_files) && media_files.some((f) => String(f.mime_type || "").startsWith("video/")));
+  let thumbResult = {
+    attempted: false,
+    applied: false,
+    reason: thumbnail_file
+      ? wantVideo
+        ? ""
+        : "Feed photo/text posts do not have a separate thumbnail slot."
+      : "No thumbnail_file provided."
+  };
+
   if (Array.isArray(media_files) && media_files.length > 0) {
     // Purge any leftover draft photos in open dialog first
     const oldRemoves = Array.from(
@@ -587,7 +960,7 @@ async function publishPost(payload) {
 
     if (fileInput) {
       attachBase64MediaToInput(fileInput, media_files);
-      await sleep(1400);
+      await sleep(wantVideo ? 2000 : 1400);
     }
 
     if (!hasMediaPreviewMounted()) {
@@ -620,11 +993,28 @@ async function publishPost(payload) {
       throw new Error("Could not attach photo/video to Facebook composer. Aborting so text-only is not posted.");
     }
 
-    // Verify caption is still present after media attachment
-    if (caption && String(caption).trim().length > 0) {
-      findAndPopulateCaptionDom(caption);
-      await sleep(300);
+    // 3b. Apply Custom Video Thumbnail via Edit Video -> Thumbnail panel
+    if (wantVideo && thumbnail_file) {
+      thumbResult = await applyThumbnailInDom(thumbnail_file, "video");
+      await sleep(700);
     }
+
+    // 3c. Verify caption is still intact after media/thumbnail attachment; re-insert only if needed
+    if (caption && String(caption).trim().length > 0) {
+      const checkAfter = await findAndPopulateCaptionDom(caption, title, { editorHint: "post", verifyOnly: true });
+      if (!checkAfter.ok) {
+        captionResult = await findAndPopulateCaptionDom(caption, title, { editorHint: "post" });
+        await sleep(300);
+      } else {
+        captionResult = checkAfter;
+      }
+    }
+  }
+
+  if (caption && String(caption).trim().length > 0 && (!captionResult || !captionResult.ok)) {
+    throw new Error(
+      `Composer caption could not be verified (${(captionResult && captionResult.error) || "editor not found"}). Nothing was published.`
+    );
   }
 
   // 4. Locate & Click "Post" / "Publish" Button (or Mobile "Next" -> "Post")
@@ -683,9 +1073,25 @@ async function publishPost(payload) {
     }
   }
 
+  const isReelFallback = post_type === "reel";
   return {
     success: true,
-    message: "Post published successfully.",
+    status: "published",
+    post_type: isReelFallback ? "reel" : post_type,
+    surface: isReelFallback ? "feed_video_fallback" : "feed_composer",
+    fallback_used: isReelFallback,
+    title,
+    caption,
+    hashtags,
+    thumbnail_applied: Boolean(thumbResult.applied),
+    thumbnail_note: thumbResult.applied
+      ? "User thumbnail applied in Video options."
+      : thumbResult.reason || (thumbnail_file ? "Thumbnail was not applied." : "No thumbnail_file provided."),
+    caption_verified: Boolean(captionResult && captionResult.ok),
+    formatting_preserved: Boolean(captionResult && captionResult.formatting_preserved),
+    message: isReelFallback
+      ? `Reels creator was unavailable on this view; published vertical video via Feed composer. Thumbnail: ${thumbResult.applied ? "applied" : "not applied"}.`
+      : "Post published successfully.",
     fb_post_id: `fb_dom_${Date.now()}`,
     post_url: window.location.href
   };
@@ -724,7 +1130,7 @@ async function editPost(payload) {
   editMenuItem.click();
   await sleep(1200);
 
-  findAndPopulateCaptionDom(new_caption);
+  await findAndPopulateCaptionDom(new_caption);
   await sleep(600);
 
   const saveBtn = Array.from(
