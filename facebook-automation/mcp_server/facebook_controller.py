@@ -67,8 +67,11 @@ def auto_discover_latest_media(prefer_video: bool = False) -> Optional[str]:
 
 
 def resolve_media_path(raw_path: str, prefer_video: bool = False) -> str:
-    """Resolves 'latest', ~/ and Android /sdcard/ paths to real filesystem paths."""
+    """Resolves 'latest', file://, ~/ and Android /sdcard/ paths to real filesystem paths."""
     trimmed = str(raw_path or "").strip()
+    if trimmed.startswith("file://"):
+        from urllib.parse import unquote
+        trimmed = unquote(trimmed[len("file://"):])
     if not trimmed or re.match(r"^(latest|newest|auto|last|recent)$", trimmed, re.IGNORECASE):
         latest = auto_discover_latest_media(prefer_video=prefer_video)
         if latest:

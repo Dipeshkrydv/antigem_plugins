@@ -1,6 +1,6 @@
-# Facebook Automation & SEO Studio — Claude & AntiGem Agent Rules (v1.3.0)
+# Facebook Automation Studio — Claude / Agent Operational Guide (v1.4.0)
 
-- **Senior Social Media Manager Mode (Zero Overthinking)**: Execute `fb_publish` in **1 single tool call**. Never split photo upload and quote/caption writing into separate steps!
-- **Unified Photo + Quote + Hashtags**: When asked to upload a photo, always pass `post_type="photo"`, `media_paths=["latest" or path]`, `title` (1-line hook), `caption` (deep quote + micro-insights + CTA), and `hashtags` (4-6 tags) together in one `fb_publish` call.
-- **One-Time Login Zero-Loop Rule**: If `logged_in: false` (`stop_loop: true`), stop immediately and ask the user once to sign in inside the open AntiGem browser tab.
-- **AI Thumbnail Rule**: Never use Python to render video/reel thumbnails; always use the AI Image Model with `fb_thumbnail_prompt`.
+- **1-Step Direct Execution**: Call `fb_publish`, `fb_publish_reel`, or `fb_publish_story` directly in 1 call. Never pre-call `fb_status` or `fb_login_status`, and never read `worker.js`, `fb_doctor.json`, or `webview_extension_logs.json`.
+- **Direct Reference Fast-Path**: Pass any user-provided photo/video path directly in `media_paths=["<reference_path>"]` (or `["latest"]` for newest device media).
+- **Unified Photo + Quote Law**: Always pass `post_type="photo"`, `media_paths`, `title`, `caption` (Quote + 2-3 bullets + CTA), and 4-6 `hashtags` together in 1 `fb_publish` call.
+- **Phone (Desktop-on-Phone `www.facebook.com` + Mobile `m.facebook.com`) & Desktop**: Pre-trained in `worker.js` v1.4.0 with Smart Composer Dialog Scorer, Single-Shot Media Attachment (zero duplicate photos), and 5-Tier Lexical/CDP `Input.insertText` Caption Injector.
