@@ -1,0 +1,27 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Stick Story</title>
+<style>
+@font-face { font-family: 'Inter'; font-weight: 900; src: url('fonts/Inter-Black.otf'); }
+@font-face { font-family: 'Inter'; font-weight: 800; src: url('fonts/Inter-ExtraBold.otf'); }
+@font-face { font-family: 'Baloo 2'; font-weight: 800; src: url('fonts/Baloo2-ExtraBold.ttf'), url('fonts/hindi/Baloo2-ExtraBold.ttf'); }
+@font-face { font-family: 'Baloo 2'; font-weight: 700; src: url('fonts/Baloo2-Bold.ttf'), url('fonts/hindi/Baloo2-Bold.ttf'); }
+@font-face { font-family: 'Khand'; font-weight: 700; src: url('fonts/Khand-Bold.ttf'), url('fonts/hindi/Khand-Bold.ttf'); }
+@font-face { font-family: 'Kalam'; font-weight: 700; src: url('fonts/Kalam-Bold.ttf'); }
+@font-face { font-family: 'Noto Sans Devanagari'; font-weight: 700; src: url('fonts/NotoSansDevanagari-VF.ttf'), url('fonts/hindi/NotoSansDevanagari-VF.ttf'); }
+@font-face { font-family: 'Noto Serif Devanagari'; font-weight: 700; src: url('fonts/NotoSerifDevanagari-VF.ttf'), url('fonts/hindi/NotoSerifDevanagari-VF.ttf'); }
+@font-face { font-family: 'Yatra One'; font-weight: 400; src: url('fonts/YatraOne-Regular.ttf'), url('fonts/hindi/YatraOne-Regular.ttf'); }
+@font-face { font-family: 'Anton'; font-weight: 400; src: url('fonts/Anton-Regular.ttf'), url('fonts/english/Anton-Regular.ttf'); }
+@font-face { font-family: 'Montserrat'; font-weight: 700; src: url('fonts/Montserrat-Bold.ttf'), url('fonts/english/Montserrat-Bold.ttf'); }
+@font-face { font-family: 'Playfair Display'; font-weight: 700; src: url('fonts/PlayfairDisplay-Bold.ttf'), url('fonts/english/PlayfairDisplay-Bold.ttf'); }
+@font-face { font-family: 'Space Mono'; font-weight: 700; src: url('fonts/SpaceMono-Bold.ttf'), url('fonts/english/SpaceMono-Bold.ttf'); }
+@font-face { font-family: 'Lora'; font-weight: 700; src: url('fonts/Lora-Bold.ttf'), url('fonts/english/Lora-Bold.ttf'); }
+@font-face { font-family: 'Aquawax'; font-weight: 900; src: url('fonts/Aquawax-Black.ttf'), url('fonts/english/Aquawax-Black.ttf'); }
+@font-face { font-family: 'Caladea'; font-weight: 700; src: url('fonts/Caladea-Bold.ttf'); }
+@font-face { font-family: 'FreeMono'; font-weight: 700; src: url('fonts/FreeMonoBold.ttf'); }
+html, body { margin: 0; background: #111; height: 100%; } body { display: flex; align-items: center; justify-content: center; }
+canvas { display: block; height: 100vh; width: auto; } body.capture canvas { height: auto; }
+#play { position: fixed; font: 900 28px Inter, sans-serif; padding: 18px 36px; border: 0; border-radius: 40px; background: #F2B23E; cursor: pointer; }
+</style></head>
+<body><canvas id="cv" width="1080" height="1920"></canvas><button id="play" hidden>▶ PLAY</button>
+<script>if (location.search.includes('capture')) document.body.className = 'capture';</script>
+<script type="module" src="src/main.js"></script></body></html>

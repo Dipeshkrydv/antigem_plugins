@@ -175,11 +175,14 @@ async function execute(tool,args={}) {
 
     return {
       project_dir: projectDir,
+      fast_command: `python studio.py render --fast --project "${projectDir}"`,
+      turbo_command: `python studio.py render --turbo --project "${projectDir}"`,
+      full_hd_command: `python studio.py render --1080p --project "${projectDir}"`,
       preview_command: `python studio.py preview --project "${projectDir}"`,
-      master_command: `python studio.py render --project "${projectDir}"`,
+      master_command: `python studio.py render --fast --project "${projectDir}"`,
       recommended: isPreview
         ? `python studio.py preview --project "${projectDir}"`
-        : `python studio.py render --project "${projectDir}"`
+        : `python studio.py render --fast --project "${projectDir}"`
     };
   }
 

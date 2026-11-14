@@ -1,0 +1,44 @@
+================================================================================
+  🎬 DEEPESH 3D STUDIO — MASTER 3D FACELESS VIDEO PRODUCTION ENGINE
+================================================================================
+
+100% Code-Driven 3D & 2D Vertical Explainer Videos (Three.js, SDF raymarching,
+Headless Chrome capture, local Kokoro neural TTS, local Whisper word timing, FFmpeg).
+$0 Free, 100% Local Execution, Zero Generative AI Morphing/Hallucinations, Zero API Keys.
+
+--------------------------------------------------------------------------------
+THE 6 FLAGSHIP PRODUCTION STYLES:
+--------------------------------------------------------------------------------
+1. DEEP DIVE 3D (deep-dive) — Zack D. Films style 3D body & science explainers.
+   - 3-world movement: Real world set -> Glowing cyan x-ray -> Macro internal anatomy
+   - Continuous moving camera, shallow depth of field (DoF), ACES tone mapping
+   - Smooth clay-like SDF sculpted biology, zero gore.
+
+2. NIGHT FILE 3D (night-file) — True crime, cold cases & unsolved mysteries.
+   - Single-light chiaroscuro with volumetric mesh light cone
+   - Red subject spotlight rule: the subject of investigation glows red
+   - Typewriter evidence dates, retro polaroids, case file stamps.
+
+3. TALL TALE 3D (tall-tale) — Quirky true stories & historical loopholes.
+   - 2D cartoon characters emoting on every beat inside a sunlit 3D miniature town
+   - Dynamic mood flaps (shock, smug, worry, laugh), rapid 1-word center captions.
+
+4. INSIDE OUT (inside-out) — High-retention flat 2D vector x-ray explainers.
+5. STICK STORY (stick-story) — Tactical survival steps with gold cards.
+6. PAPER ATLAS (paper-atlas) — Grand history in cut paper with crimson routes.
+
+--------------------------------------------------------------------------------
+MASTER PRODUCTION LAWS:
+--------------------------------------------------------------------------------
+Read AGENTS.md for complete directorial standards:
+- MODE A: Strict 7-step conversational intake with Smart Parameter Skip Law
+- MODE B: Headless 1-command automated pipeline execution
+- The Continuous Moving Camera Law (zero static frames)
+- Depth of Field & Bokeh Law (aperture 0.003 - 0.006)
+- Hardcoded Mobile / Anti-LMK Protection (<150MB peak RAM, /dev/shm bypass, periodic V8 GC purge, single-process Chrome, zero mobile crashes)
+- Compulsory QA Contact Sheet Protocol ("Never ship a frame you haven't looked at")
+
+Quickstart:
+  bash skills/faceless-shorts/scripts/setup.sh
+  bash skills/faceless-shorts/scripts/new_video.sh deep-dive ~/faceless-shorts/swallow-gum
+================================================================================

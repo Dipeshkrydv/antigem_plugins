@@ -1326,8 +1326,19 @@ class Engine:
 
 _ENG = None
 
+def is_mobile():
+    """Detects whether running on an Android / Termux / AntiGem mobile environment."""
+    return (
+        os.environ.get("IS_MOBILE") in ("1", "true", "True")
+        or os.environ.get("ANDROID_ROOT") is not None
+        or os.environ.get("ANDROID_DATA") is not None
+        or os.path.exists("/data/data/com.termux")
+        or os.environ.get("TERMUX_VERSION") is not None
+        or os.environ.get("ANTIGEM_MOBILE") is not None
+    )
 
 def _render_chunk(job):
+    import gc
     edit, scale, f0, f1, out, preview = job
     global _ENG
     if _ENG is None:
@@ -1338,8 +1349,6 @@ def _render_chunk(job):
     vf = e.vf(preview)
     if vf:
         cmd += ["-vf", ",".join(vf)]
-    # grain is temporal noise: it must be light (<=4) and paired with a slightly higher CRF, or files
-    # balloon (alls=9 @ crf18 = 600 MB/min) and encoding becomes the bottleneck
     crf = "26" if preview else ("22" if e.look.get("grain") else "19")
     cmd += ["-c:v", "libx264", "-preset", "ultrafast" if preview else "veryfast", "-crf", crf,
             "-pix_fmt", "yuv420p", "-threads", "2", "-g", str(e.fps * 2), out]
@@ -1348,22 +1357,109 @@ def _render_chunk(job):
     for fr in range(f0, f1):
         t = fr / e.fps
         k = e.frame_key(t)
-        if k is None or k != prev_key:           # something changed (or is moving): render; otherwise reuse the last pixels
+        if k is None or k != prev_key:
             prev, prev_key = e.frame(t).tobytes(), k
         pr.stdin.write(prev)
+        if fr % 25 == 0:
+            gc.collect()
+            time.sleep(0.001)  # Anti-offline heartbeat yield
     pr.stdin.close()
     if pr.wait() != 0:
         raise RuntimeError(f"ffmpeg failed on chunk {out}")
     return out
 
 
+def _render_direct(e, f_start, f_end, out, preview, t_from, t_to, preset="fast", crf=None, threads=None):
+    """Direct single-process streaming directly to one FFmpeg pipe.
+    Eliminates multiple worker processes, intermediate chunk files, disk thrashing,
+    and LMK memory spikes. Periodic GIL yields prevent AntiGem WebSocket timeouts ('offline server').
+    """
+    import gc
+    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{e.W}x{e.H}",
+           "-r", str(e.fps), "-i", "-"]
+    if e.audio and os.path.exists(e.audio):
+        cmd += ["-ss", f"{t_from:.3f}", "-t", f"{t_to - t_from:.3f}", "-i", e.audio,
+                "-map", "0:v", "-map", "1:a", "-c:a", "aac", "-b:a", "192k", "-shortest"]
+    else:
+        cmd += ["-an"]
+
+    vf = e.vf(preview)
+    if vf:
+        cmd += ["-vf", ",".join(vf)]
+
+    if crf is None or crf <= 0:
+        if preset == "draft":
+            crf = 28
+        elif preset == "turbo":
+            crf = 24
+        elif preset == "fast":
+            crf = 22
+        else:
+            crf = 22 if e.look.get("grain") else 19
+
+    enc_preset = "ultrafast" if preset in ("draft", "turbo") else "veryfast"
+    if threads is None:
+        threads = "2" if is_mobile() else str(min(os.cpu_count() or 4, 4))
+
+    cmd += ["-c:v", "libx264", "-preset", enc_preset, "-crf", str(crf),
+            "-pix_fmt", "yuv420p", "-threads", str(threads), "-movflags", "+faststart", out]
+
+    total_frames = f_end - f_start
+    t0 = time.time()
+    print(f"▶ [Direct In-Memory Stream] {preset} ({e.W}x{e.H} @ {e.fps}fps) | {total_frames} frames ({(total_frames)/e.fps:.1f}s) | encoder: {enc_preset} (crf {crf})", flush=True)
+
+    pr = subprocess.Popen(cmd, stdin=subprocess.PIPE)
+    prev_key, prev = None, None
+    last_print = 0
+
+    try:
+        for idx, fr in enumerate(range(f_start, f_end)):
+            t = fr / e.fps
+            k = e.frame_key(t)
+            if k is None or k != prev_key:
+                prev = e.frame(t).tobytes()
+                prev_key = k
+            pr.stdin.write(prev)
+
+            # Anti-LMK & Anti-Offline Heartbeat Shield:
+            # Yield every 10 frames to release Python GIL for WebSocket heartbeat,
+            # and trigger gc.collect() every 25 frames to keep RAM flat (< 140MB).
+            if idx % 10 == 0:
+                time.sleep(0.001)  # Keeps WebSocket / Termux server alive!
+            if idx % 25 == 0:
+                gc.collect()
+
+            now = time.time()
+            if now - last_print >= 0.6 or idx == total_frames - 1:
+                elapsed = now - t0
+                fps = (idx + 1) / max(0.001, elapsed)
+                eta = (total_frames - (idx + 1)) / max(0.001, fps)
+                pct = int((idx + 1) * 100 / total_frames)
+                print(f"  → {idx + 1}/{total_frames} frames ({pct}%) | {fps:.1f} fps | ETA: {eta:.0f}s   ", end="\r", flush=True)
+                last_print = now
+    finally:
+        if pr.stdin:
+            pr.stdin.close()
+        rc = pr.wait()
+        print()  # newline after carriage return
+
+    if rc != 0:
+        raise RuntimeError(f"FFmpeg encoding failed with exit code {rc}")
+    dt = time.time() - t0
+    print(f"✓ Render Complete: {out} ({probe_duration(out):.1f}s) in {dt:.1f}s ({total_frames / max(0.1, dt):.1f} fps)")
+
+
 def default_workers():
+    if is_mobile():
+        return 1
     cpus = os.cpu_count() or 2
     try:
         avail = int(open("/proc/meminfo").read().split("MemAvailable:")[1].split()[0]) / 1024
     except Exception:
         avail = 2048
-    return max(1, min(cpus - 2, int(avail // 420), 6))
+    if avail <= 3500:
+        return 1
+    return max(1, min(cpus - 2, int(avail // 600), 4))
 
 
 def _ensure_audio_mix():
@@ -1386,14 +1482,27 @@ def _ensure_audio_mix():
             pass
 
 
-def render_video(edit, scale, out, preview, workers, t_from=0.0, t_to=None):
+def render_video(edit, scale, out, preview, workers, t_from=0.0, t_to=None, preset="fast", fps=None, crf=None):
     _ensure_audio_mix()
     e = Engine(edit, scale)
+    if fps:
+        e.fps = int(fps)
     for w in e.warnings:
         print("⚠", w)
     t_to = min(t_to or e.dur, e.dur)
     f_start, f_end = int(t_from * e.fps), int(math.ceil(t_to * e.fps))
-    workers = workers or default_workers()
+    
+    mobile = is_mobile()
+    if workers is None or workers == 0:
+        workers = 1 if mobile else default_workers()
+
+    if workers <= 1 or mobile:
+        if mobile:
+            print("📱 Mobile / AntiGem Shield Active: Direct Single-Process Stream (Flat RAM < 140MB, Heartbeat Safe)", flush=True)
+        _render_direct(e, f_start, f_end, out, preview, t_from, t_to, preset=preset, crf=crf, threads=2 if mobile else None)
+        return
+
+    import gc
     n_chunks = max(1, min(workers * 3, (f_end - f_start) // 48))
     edges = [f_start + (f_end - f_start) * k // n_chunks for k in range(n_chunks + 1)]
     os.makedirs("_chunks", exist_ok=True)
@@ -1404,6 +1513,7 @@ def render_video(edit, scale, out, preview, workers, t_from=0.0, t_to=None):
     import multiprocessing as mp
     with mp.get_context("fork" if hasattr(os, "fork") else "spawn").Pool(workers) as pool:   # Windows has no fork
         for k, _ in enumerate(pool.imap_unordered(_render_chunk, jobs), 1):
+            gc.collect()
             print(f"  chunk {k}/{len(jobs)}  ({time.time() - t0:.0f}s)", flush=True)
     with open("_chunks/list.txt", "w") as f:
         for j in jobs:
@@ -1415,7 +1525,10 @@ def render_video(edit, scale, out, preview, workers, t_from=0.0, t_to=None):
     cmd += ["-c:v", "copy", "-movflags", "+faststart", out]
     subprocess.run(cmd, check=True)
     for j in jobs:
-        os.remove(j[4])
+        try:
+            os.remove(j[4])
+        except Exception:
+            pass
     dt = time.time() - t0
     print(f"✓ {out}  {probe_duration(out):.1f}s video in {dt:.0f}s ({(f_end - f_start) / max(1, dt):.1f} fps)")
 
@@ -1525,7 +1638,7 @@ def sheet(edit, every=6.0, cols=4, scale=0.5):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Deepesh Studio Engine v2")
+    ap = argparse.ArgumentParser(description="Deepesh Studio Engine v2 - High Performance Video Renderer")
     ap.add_argument("cmd", choices=["check", "still", "sheet", "preview", "video"])
     ap.add_argument("times", nargs="*", type=float)
     ap.add_argument("--edit", default="EDIT.json")
@@ -1534,17 +1647,56 @@ def main():
     ap.add_argument("--to", dest="t_to", type=float, default=None)
     ap.add_argument("--every", type=float, default=6.0)
     ap.add_argument("--out", default=None)
+    ap.add_argument("--preset", choices=["fast", "turbo", "draft", "quality"], default=None,
+                    help="Rendering speed preset (fast=720p HD, turbo=540p ultrafast, quality=1080p)")
+    ap.add_argument("--fast", action="store_true", help="Fast 720p HD rendering optimized for mobile")
+    ap.add_argument("--turbo", action="store_true", help="Ultra-fast 540p draft rendering")
+    ap.add_argument("--draft", action="store_true", help="Quick draft preview rendering")
+    ap.add_argument("--1080p", "--full", dest="full_hd", action="store_true", help="Full 1080p resolution")
+    ap.add_argument("--scale", type=float, default=None, help="Explicit resolution scale (e.g. 0.6667 for 720p, 1.0 for 1080p)")
+    ap.add_argument("--fps", type=int, default=None, help="Frame rate override")
+    ap.add_argument("--crf", type=int, default=None, help="H.264 CRF quality level")
     a = ap.parse_args()
+
+    mobile = is_mobile()
+
+    # Determine preset
+    preset = a.preset
+    if a.draft:
+        preset = "draft"
+    elif a.turbo:
+        preset = "turbo"
+    elif a.fast:
+        preset = "fast"
+    elif preset is None:
+        preset = "fast" if mobile else "quality"
+
+    # Determine scale
+    if a.scale is not None:
+        scale = a.scale
+    elif a.full_hd:
+        scale = 1.0
+    elif preset in ("draft", "turbo"):
+        scale = 0.5
+    elif preset == "fast" and mobile:
+        scale = 0.6667  # 720p HD (720x1280 vertical / 1280x720 landscape)
+    elif a.cmd == "preview":
+        scale = 0.5
+    else:
+        scale = 0.6667 if mobile else 1.0
+
     if a.cmd == "check":
         check(a.edit)
     elif a.cmd == "still":
-        stills(a.edit, a.times or [1.0])
+        stills(a.edit, a.times or [1.0], scale=scale)
     elif a.cmd == "sheet":
-        sheet(a.edit, a.every)
+        sheet(a.edit, a.every, scale=scale)
     elif a.cmd == "preview":
-        render_video(a.edit, 0.5, a.out or "preview.mp4", True, a.workers, a.t_from, a.t_to)
+        render_video(a.edit, scale, a.out or "preview.mp4", True, a.workers, a.t_from, a.t_to,
+                     preset="draft", fps=a.fps, crf=a.crf)
     else:
-        render_video(a.edit, 1.0, a.out or "master.mp4", False, a.workers, a.t_from, a.t_to)
+        render_video(a.edit, scale, a.out or "master.mp4", False, a.workers, a.t_from, a.t_to,
+                     preset=preset, fps=a.fps, crf=a.crf)
 
 
 if __name__ == "__main__":

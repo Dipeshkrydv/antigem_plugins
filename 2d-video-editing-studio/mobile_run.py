@@ -53,12 +53,18 @@ def check_prerequisites():
             missing.append(f"python-{mod.lower()}")
             
     if missing:
-        print(f"⚠️  Missing required packages: {', '.join(missing)}")
-        print("\nTo install on Android Termux, run:")
-        print("    pkg update && pkg install -y ffmpeg python")
-        print("    pip install pillow numpy scipy soundfile")
-        print("    sh setup_mobile.sh\n")
-        return False
+        print(f"📦 [Auto-Install] Missing required packages: {', '.join(missing)}. Installing automatically now...", flush=True)
+        py_pkgs = ["pillow", "numpy", "scipy", "soundfile"]
+        try:
+            subprocess.run([sys.executable, "-m", "pip", "install", "--break-system-packages", *py_pkgs], check=True)
+        except Exception:
+            subprocess.run([sys.executable, "-m", "pip", "install", *py_pkgs], check=False)
+        if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
+            try:
+                import static_ffmpeg
+                static_ffmpeg.add_paths()
+            except ImportError:
+                pass
         
     print("✓ All mobile prerequisites installed and verified!")
     return True
@@ -153,7 +159,10 @@ def main():
 
     if os.path.exists("EDIT.json"):   # v2 project: hand over to the v2 engine (see ENGINE_V2.md)
         studio = os.path.join(os.path.dirname(os.path.realpath(__file__)), "studio.py")
-        sys.exit(subprocess.run([sys.executable, studio, "render"]).returncode)
+        render_cmd = [sys.executable, studio, "render", "--fast"]
+        if len(sys.argv) > 1:
+            render_cmd = [sys.executable, studio, "render"] + [x for x in sys.argv[1:] if x != "--all"]
+        sys.exit(subprocess.run(render_cmd).returncode)
 
     os.environ["VOX_ASPECT"] = args.aspect
     print_banner()

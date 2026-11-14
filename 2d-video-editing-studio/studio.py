@@ -27,7 +27,7 @@ Run every step from inside a PROJECT folder (create one with `new`):
   python studio.py sheet   [--every 6]             contact sheet of the whole edit -> _stills/sheet.jpg
   python studio.py still 12.5 40                   exact frames -> _stills/
   python studio.py preview                         fast 960x540 draft -> preview.mp4
-  python studio.py render                          final 1080p -> master.mp4
+  python studio.py render  [--fast|--turbo|--1080p] final video -> master.mp4 (fast=720p HD mobile default, turbo=540p, 1080p=full)
   python studio.py styles                          list the creative style engines (box / noir / sticker / vox / kinetic / cinematic)
   python studio.py recipes <style> [recipe]        show scene templates from a style's engine (paste into EDIT.json)
   python studio.py selftest [--quick]              test every feature on THIS machine (phone or laptop) and report timings
@@ -40,7 +40,30 @@ CORE = os.path.join(ROOT, "core")
 PY = sys.executable
 
 
+def ensure_prerequisites():
+    """Guarantees required libraries and ffmpeg are installed before running any studio command."""
+    missing = []
+    for mod in ["PIL", "numpy", "scipy", "soundfile"]:
+        try:
+            __import__(mod)
+        except ImportError:
+            missing.append("pillow" if mod == "PIL" else mod)
+    if missing:
+        print(f"📦 [Auto-Install] Missing required dependencies: {', '.join(missing)}. Installing now...", flush=True)
+        try:
+            subprocess.run([PY, "-m", "pip", "install", "--break-system-packages", *missing], check=True)
+        except Exception:
+            subprocess.run([PY, "-m", "pip", "install", *missing], check=False)
+    if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
+        try:
+            import static_ffmpeg
+            static_ffmpeg.add_paths()
+        except ImportError:
+            pass
+
+
 def run(*args):
+    ensure_prerequisites()
     r = subprocess.run([PY, *args])
     if r.returncode:
         sys.exit(r.returncode)
@@ -162,7 +185,10 @@ def run_autopilot(args):
     ap.add_argument("--lang", default="hi")
     ap.add_argument("--parallel", type=int, default=2)
     ap.add_argument("--preview-only", action="store_true")
-    a, _ = ap.parse_known_args(args)
+    ap.add_argument("--fast", action="store_true")
+    ap.add_argument("--turbo", action="store_true")
+    ap.add_argument("--1080p", "--full", dest="full_hd", action="store_true")
+    a, extra_render_args = ap.parse_known_args(args)
 
     eng = os.path.join(CORE, "engine", "render.py")
     print("▶ [1/6] Voiceover synthesis (LINES.tsv -> VO.wav + WORDS.tsv)...", flush=True)
@@ -192,10 +218,12 @@ def run_autopilot(args):
             *(["--lines", "VO.tsv"] if os.path.exists("VO.tsv") else []),
             *(["--words", "WORDS.tsv"] if os.path.exists("WORDS.tsv") else []),
             "--out", "mix.wav")
-    run(eng, "preview" if a.preview_only else "video")
+    render_flags = (["--fast"] if a.fast else []) + (["--turbo"] if a.turbo else []) + (["--1080p"] if a.full_hd else []) + extra_render_args
+    run(eng, "preview" if a.preview_only else "video", *render_flags)
 
 
 def main():
+    ensure_prerequisites()
     if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help", "help"):
         sys.exit(__doc__)
     cmd, rest = sys.argv[1], sys.argv[2:]
