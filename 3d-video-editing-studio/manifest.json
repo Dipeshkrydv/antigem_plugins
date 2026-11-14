@@ -17,9 +17,98 @@
     "service_worker": "worker.js",
     "type": "module"
   },
+  "worker": "worker.js",
   "permissions": [
     "storage",
     "antigemFiles"
   ],
-  "mcp_tools": []
+  "mcp_tools": [
+    {
+      "name": "studio_3d_status",
+      "description": "Check 3D Video Editing Part 1 status, 6 flagship visual styles (Deep Dive 3D, Night File 3D, Tall Tale 3D, Inside Out, Stick Story, Paper Atlas), audio engine, and render presets.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "studio_3d_list_styles",
+      "description": "List all 6 code-driven 3D & 2D styles, aesthetic descriptions, camera recipes, and sample running times.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "style": {
+            "type": "string",
+            "description": "Optional specific style name to inspect (deep-dive, night-file, tall-tale, inside-out, stick-story, paper-atlas)."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "studio_3d_plan_short",
+      "description": "Generate a shot plan and directorial breakdown for a 3D Faceless Short based on chosen style and script.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "topic": {
+            "type": "string",
+            "description": "Topic or title of the 3D short."
+          },
+          "style": {
+            "type": "string",
+            "enum": [
+              "deep-dive",
+              "night-file",
+              "tall-tale",
+              "inside-out",
+              "stick-story",
+              "paper-atlas"
+            ],
+            "description": "Visual style: deep-dive (Zack D. Films 3D), night-file (noir mystery), tall-tale (3D cartoon), inside-out (2D x-ray), stick-story (survival steps), or paper-atlas (cut paper map)."
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Optional spoken narration lines."
+          }
+        },
+        "required": [
+          "topic",
+          "style"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "studio_3d_render_command",
+      "description": "Get the precise CLI render commands for mobile or desktop (fast 720p HD mobile default, turbo 540p draft 45-55 fps, or full 1080p master).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project_dir": {
+            "type": "string",
+            "description": "Path to the faceless short project directory."
+          },
+          "preset": {
+            "type": "string",
+            "enum": [
+              "fast",
+              "turbo",
+              "1080p"
+            ],
+            "default": "fast",
+            "description": "Rendering preset: fast (720p HD mobile default, < 140MB RAM), turbo (540p draft, 45-55 fps), or 1080p (broadcast master)."
+          }
+        },
+        "required": [
+          "project_dir"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ]
 }
