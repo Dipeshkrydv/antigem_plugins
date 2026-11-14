@@ -61,21 +61,24 @@ function isCommentOrSearch(el) {
   if (!el) return true;
   if (
     el.closest(
-      'div[role="article"], div[data-pagelet*="FeedUnit"], form[action*="comment"], div[aria-label*="comment" i], div[aria-label*="टिप्पणी" i], div[role="search"]'
+      'div[role="article"], div[data-pagelet*="FeedUnit"], form[action*="comment"], div[aria-label*="comment" i], div[aria-label*="टिप्पणी" i], div[role="search"], [role="banner"], [role="navigation"], [data-testid*="comment" i], [data-testid*="UFI" i], [data-pagelet*="comment" i], [data-pagelet*="UFI" i], div[role="complementary"], [data-sigil*="comment" i], [data-sigil*="ufi" i], ul[role="list"], div[aria-label*="replies" i], div[aria-label*="reply" i], div[aria-label*="जवाब" i]'
     )
   ) {
     return true;
   }
-  const meta = `${el.getAttribute("aria-label") || ""} ${el.getAttribute("placeholder") || ""} ${
-    el.getAttribute("aria-placeholder") || ""
-  } ${el.getAttribute("type") || ""}`.toLowerCase();
-  return (
-    meta.includes("comment") ||
-    meta.includes("reply") ||
-    meta.includes("search") ||
-    meta.includes("टिप्पणी") ||
-    meta.includes("खोज")
-  );
+  const aria = (el.getAttribute("aria-label") || "").toLowerCase();
+  const ph = (el.getAttribute("placeholder") || "").toLowerCase();
+  const aph = (el.getAttribute("aria-placeholder") || "").toLowerCase();
+  const dph = (el.getAttribute("data-placeholder") || "").toLowerCase();
+  const meta = `${aria} ${ph} ${aph} ${dph} ${el.getAttribute("type") || ""}`.toLowerCase();
+  if (/comment|reply|replies|टिप्पणी|कमेंट|जवाब|राय|search|खोज/.test(meta) && !/describe your reel|what['’]?s on your mind|write a description/i.test(meta)) {
+    return true;
+  }
+  const parentTxt = (el.parentElement ? el.parentElement.innerText || "" : "").slice(0, 200).toLowerCase();
+  if (/write a (public )?comment|leave a comment|comment as|write a reply|टिप्पणी लिखें|कमेंट करें|जवाब दें/i.test(parentTxt)) {
+    return true;
+  }
+  return false;
 }
 
 function findBestComposerDialog() {
@@ -88,16 +91,17 @@ function findBestComposerDialog() {
   for (const d of dialogs) {
     if (d.querySelector('div[role="article"], div[data-pagelet*="FeedUnit"]')) continue;
     const aria = (d.getAttribute("aria-label") || "").toLowerCase();
-    if (/notifications|messenger|chats|account controls|menu/i.test(aria)) continue;
+    if (/notifications|messenger|chats|account controls|menu|media viewer|photo viewer|video viewer|comments/i.test(aria)) continue;
     const txt = (d.innerText || d.textContent || "").slice(0, 1200).toLowerCase();
     let s = 0;
     if (/create post|create a post|make a post|edit post|पोस्ट बनाउनुहोस्|पोस्ट करें/i.test(txt) || /create post/i.test(aria))
       s += 100;
     if (/add to your post|what['’]?s on your mind|describe your reel|share to story/i.test(txt)) s += 80;
-    if (d.querySelector('div[role="textbox"][contenteditable="true"], div[data-lexical-editor="true"], textarea'))
-      s += 70;
-    if (d.querySelector('div[aria-label="Post"], div[aria-label="Publish"]')) s += 50;
-    if (s > bestScore) {
+    if (d.querySelector('div[role="textbox"][contenteditable="true"], div[data-lexical-editor="true"], textarea') && s > 0)
+      s += 40;
+    if (/comment|reply|टिप्पणी|reply to/i.test(aria) || /write a comment|write a reply/i.test(txt.slice(0, 100)))
+      s -= 300;
+    if (s > bestScore && s > 50) {
       bestScore = s;
       best = d;
     }
@@ -515,7 +519,6 @@ async function applyThumbnailInDom(thumbnailFile, surface = "video") {
       const acc = (this.getAttribute("accept") || "").toLowerCase();
       if (!acc || acc.includes("image")) {
         thumbInput = this;
-        return;
       }
     }
     return origClick.apply(this, args);
@@ -580,18 +583,14 @@ async function applyThumbnailInDom(thumbnailFile, surface = "video") {
     await sleep(1500);
 
     let confirmed = false;
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 8; i++) {
       const panels = Array.from(document.querySelectorAll('div[role="dialog"], div[aria-modal="true"]')).filter((d) =>
-        /thumbnail|cover/i.test((d.innerText || "").slice(0, 2000))
+        /thumbnail|cover|video options|options/i.test((d.innerText || "").slice(0, 2500))
       );
-      const scope = panels[panels.length - 1];
-      if (!scope) {
-        confirmed = true;
-        break;
-      }
+      const scope = panels[panels.length - 1] || document;
       const saveBtn = Array.from(scope.querySelectorAll('div[role="button"], button')).find((b) => {
         const t = `${b.getAttribute("aria-label") || ""} ${b.innerText || ""}`.replace(/\s+/g, " ").trim();
-        return /^(save|done|apply|set thumbnail|use as thumbnail|use as cover|set cover)$/i.test(t) && b.getAttribute("aria-disabled") !== "true";
+        return /^(save|done|apply|set thumbnail|use as thumbnail|use as cover|set cover|save changes)$/i.test(t) && b.getAttribute("aria-disabled") !== "true";
       });
       if (saveBtn) {
         saveBtn.click();
@@ -609,12 +608,26 @@ async function applyThumbnailInDom(thumbnailFile, surface = "video") {
 
 async function publishReelDom(payload) {
   const { title = "", caption = "", hashtags = [], media_files = [], thumbnail_file = null } = payload;
-  const inputs = Array.from(document.querySelectorAll('input[type="file"]'));
-  const videoInput =
-    inputs.find((inp) => (inp.getAttribute("accept") || "").toLowerCase().includes("video")) || inputs[0];
+  
+  // Wait up to 15s for video file input or "Add video" button on Facebook Reels creator
+  let videoInput = null;
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const inputs = Array.from(document.querySelectorAll('input[type="file"]'));
+    videoInput = inputs.find((inp) => (inp.getAttribute("accept") || "").toLowerCase().includes("video")) || inputs[0];
+    if (videoInput) break;
+
+    const addVideoBtn = Array.from(document.querySelectorAll('div[role="button"], button, span[role="button"], a, label')).find((el) => {
+      const t = `${el.getAttribute("aria-label") || ""} ${el.innerText || el.textContent || ""}`.trim();
+      return /^(add video|upload video|create reel|भिडियो थप्नुहोस्|वीडियो जोड़ें)$/i.test(t) || /add video|upload video/i.test(t);
+    });
+    if (addVideoBtn) {
+      try { addVideoBtn.click(); } catch (_) {}
+    }
+    await sleep(500);
+  }
 
   if (!videoInput) {
-    throw new Error("Could not find video file input on Facebook Reels page.");
+    throw new Error("Could not find video file input on Facebook Reels page after 15s wait.");
   }
 
   attachBase64MediaToInput(videoInput, media_files);
@@ -840,10 +853,46 @@ async function publishPost(payload) {
     post_type = "text"
   } = payload;
 
-  if (post_type === "reel" && window.location.pathname.includes("/reels/create")) {
+  if (post_type === "reel") {
+    if (!window.location.pathname.includes("/reels/create")) {
+      window.location.href = "https://www.facebook.com/reels/create";
+      let onReels = false;
+      for (let nav = 0; nav < 15; nav++) {
+        await sleep(1000);
+        if (window.location.pathname.includes("/reels/create")) {
+          onReels = true;
+          break;
+        }
+      }
+      if (!onReels) {
+        return {
+          success: false,
+          navigating: true,
+          message: "Navigating to https://www.facebook.com/reels/create for Reel upload. Please re-trigger after navigation completes."
+        };
+      }
+    }
     return await publishReelDom(payload);
   }
-  if (post_type === "story" && window.location.pathname.includes("/stories/create")) {
+  if (post_type === "story") {
+    if (!window.location.pathname.includes("/stories/create")) {
+      window.location.href = "https://www.facebook.com/stories/create";
+      let onStories = false;
+      for (let nav = 0; nav < 15; nav++) {
+        await sleep(1000);
+        if (window.location.pathname.includes("/stories/create")) {
+          onStories = true;
+          break;
+        }
+      }
+      if (!onStories) {
+        return {
+          success: false,
+          navigating: true,
+          message: "Navigating to https://www.facebook.com/stories/create for Story upload. Please re-trigger after navigation completes."
+        };
+      }
+    }
     return await publishStoryDom(payload);
   }
 
@@ -858,13 +907,14 @@ async function publishPost(payload) {
         'div[aria-label*="Create a post" i], div[aria-label*="Make a post" i], div[data-pagelet*="Composer"] div[role="button"], #MComposer div[role="button"], a[href*="/composer/"]'
       ) ||
       Array.from(document.querySelectorAll('div[role="button"], span[role="button"], a')).find((el) => {
-        if (el.closest('div[role="article"], div[data-pagelet*="FeedUnit"]')) return false;
+        if (el.closest('div[role="article"], div[data-pagelet*="FeedUnit"], [data-testid*="comment" i], form[action*="comment" i]')) return false;
         const txt = `${el.getAttribute("aria-label") || ""} ${el.innerText || el.textContent || ""}`.trim();
         return (
           /what['’]?s on your mind/i.test(txt) ||
           /make a post/i.test(txt) ||
           /write something/i.test(txt) ||
-          /create a post/i.test(txt)
+          /create a post/i.test(txt) ||
+          /कुछ लिखें|पोस्ट बनाउनुहोस्|पोस्ट करें/i.test(txt)
         );
       });
 
@@ -875,11 +925,17 @@ async function publishPost(payload) {
     }
 
     composerTrigger.click();
-    await sleep(1200);
-    dialog = findBestComposerDialog() || document;
-  } else {
-    dialog = dialog || document;
+    for (let w = 0; w < 16; w++) {
+      await sleep(250);
+      dialog = findBestComposerDialog();
+      if (dialog) break;
+    }
+    if (!dialog && !document.querySelector('#MComposer, div[data-pagelet="Composer"]')) {
+      throw new Error("Facebook 'Create post' dialog failed to open. Aborted to avoid posting into a feed comment.");
+    }
   }
+
+  const postContainer = dialog || document.querySelector('#MComposer, div[data-pagelet="Composer"]') || document;
 
   // 2. Populate Title + Formatted Caption FIRST while composer textbox is open
   let captionResult = { ok: true, skipped: true, formatting_preserved: true };
@@ -1019,9 +1075,23 @@ async function publishPost(payload) {
 
   // 4. Locate & Click "Post" / "Publish" Button (or Mobile "Next" -> "Post")
   const findSubmitBtn = (allowNext = false) => {
+    const isCommentContainer = (el) => {
+      if (!el) return false;
+      if (
+        el.closest(
+          'div[role="article"], div[data-pagelet*="FeedUnit"], [data-testid*="comment" i], [data-testid*="UFI" i], form[action*="comment" i], [data-pagelet*="comment" i], [data-pagelet*="UFI" i], div[role="complementary"], [data-sigil*="comment" i], [data-sigil*="ufi" i], ul[role="list"]'
+        )
+      ) {
+        return true;
+      }
+      const a = `${el.getAttribute("aria-label") || ""} ${el.getAttribute("title") || ""}`.toLowerCase();
+      return /comment|reply|टिप्पणी|जवाब/i.test(a);
+    };
+
+    const targetScope = postContainer || document;
     const allBtns = Array.from(
-      document.querySelectorAll('div[role="button"], button, span[role="button"], input[type="submit"]')
-    ).filter((el) => isVisible(el) && !el.closest('div[role="article"], div[data-pagelet*="FeedUnit"]'));
+      targetScope.querySelectorAll('div[role="button"], button, span[role="button"], input[type="submit"]')
+    ).filter((el) => isVisible(el) && !isCommentContainer(el));
 
     allBtns.sort((a, b) => (b.closest('div[role="dialog"]') ? 1 : 0) - (a.closest('div[role="dialog"]') ? 1 : 0));
 

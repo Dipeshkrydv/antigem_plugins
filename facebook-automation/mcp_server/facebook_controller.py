@@ -257,7 +257,15 @@ class FacebookController:
             return {"success": False, "error": dup_reason, "duplicate_detected": True, "stop_loop": True}
 
         # 2. One-Time Login Gatekeeper (Opens Facebook in browser if not open)
-        login_state = await self.get_login_status()
+        target_view_url = None
+        if post_type == "reel":
+            target_view_url = "https://www.facebook.com/reels/create"
+        elif post_type == "story":
+            target_view_url = "https://www.facebook.com/stories/create"
+        elif target_type == "page" and target_id:
+            target_view_url = target_id if target_id.startswith("http") else f"https://www.facebook.com/{target_id}"
+
+        login_state = await self.get_login_status(target_url=target_view_url)
         if not login_state.get("logged_in"):
             self.pending_task = {
                 "action": "publish_post",

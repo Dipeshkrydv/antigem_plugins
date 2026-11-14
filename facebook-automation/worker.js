@@ -838,16 +838,29 @@ async function populateComposerCaption(tabId, captionText, titleText = "", optio
         };
         const isCommentOrSearch = (el) => {
           if (!el) return true;
+          // 1. Ancestor container check: strictly exclude all feed articles, comments, replies, searches, and sidebars
           if (
             el.closest(
-              'div[role="article"], div[data-pagelet*="FeedUnit"], form[action*="comment"], div[aria-label*="comment" i], div[aria-label*="टिप्पणी" i], div[role="search"], [role="banner"]'
+              'div[role="article"], div[data-pagelet*="FeedUnit"], form[action*="comment"], div[aria-label*="comment" i], div[aria-label*="टिप्पणी" i], div[role="search"], [role="banner"], [role="navigation"], [data-testid*="comment" i], [data-testid*="UFI" i], [data-pagelet*="comment" i], [data-pagelet*="UFI" i], div[role="complementary"], [data-sigil*="comment" i], [data-sigil*="ufi" i], ul[role="list"], div[aria-label*="replies" i], div[aria-label*="reply" i], div[aria-label*="जवाब" i]'
             )
-          )
+          ) {
             return true;
-          const meta = `${el.getAttribute("aria-label") || ""} ${el.getAttribute("placeholder") || ""} ${
-            el.getAttribute("aria-placeholder") || ""
-          }`.toLowerCase();
-          return /comment|reply|search|टिप्पणी|खोज|title/.test(meta) && !/describe|description|mind|caption/.test(meta);
+          }
+          // 2. Element metadata check: aria-label, placeholder, type, title
+          const aria = (el.getAttribute("aria-label") || "").toLowerCase();
+          const ph = (el.getAttribute("placeholder") || "").toLowerCase();
+          const aph = (el.getAttribute("aria-placeholder") || "").toLowerCase();
+          const dph = (el.getAttribute("data-placeholder") || "").toLowerCase();
+          const meta = `${aria} ${ph} ${aph} ${dph} ${el.getAttribute("type") || ""}`.toLowerCase();
+          if (/comment|reply|replies|टिप्पणी|कमेंट|जवाब|राय|search|खोज/.test(meta) && !/describe your reel|what['’]?s on your mind|write a description/i.test(meta)) {
+            return true;
+          }
+          // 3. Surrounding/sibling placeholder text check
+          const parentTxt = (el.parentElement ? el.parentElement.innerText || "" : "").slice(0, 200).toLowerCase();
+          if (/write a (public )?comment|leave a comment|comment as|write a reply|टिप्पणी लिखें|कमेंट करें|जवाब दें/i.test(parentTxt)) {
+            return true;
+          }
+          return false;
         };
 
         if (!canReuseLocked) {
@@ -855,7 +868,7 @@ async function populateComposerCaption(tabId, captionText, titleText = "", optio
         }
         // Re-use editor locked on a previous attempt within this publish pass
         let editor = canReuseLocked ? document.querySelector('[data-ag-caption-target="1"]') : null;
-        if (editor && (!document.contains(editor) || !isNotHidden(editor))) editor = null;
+        if (editor && (!document.contains(editor) || !isNotHidden(editor) || isCommentOrSearch(editor))) editor = null;
 
         if (!editor) {
           const dialogs = Array.from(document.querySelectorAll('div[role="dialog"], div[aria-modal="true"]')).filter(
@@ -866,18 +879,21 @@ async function populateComposerCaption(tabId, captionText, titleText = "", optio
           for (const d of dialogs) {
             if (d.querySelector('div[role="article"]')) continue;
             const aria = (d.getAttribute("aria-label") || "").toLowerCase();
-            if (/notifications|messenger|chats|account controls|menu/.test(aria)) continue;
+            if (/notifications|messenger|chats|account controls|menu|media viewer|photo viewer|video viewer|comments/i.test(aria)) continue;
             const txt = (d.innerText || "").slice(0, 1200).toLowerCase();
             let s = 0;
-            if (/create post|edit post|create reel|create story|पोस्ट बनाउनुहोस्/.test(txt)) s += 100;
-            if (/add to your post|what['’]?s on your mind|describe your reel|start typing/.test(txt)) s += 80;
-            if (d.querySelector('[contenteditable="true"], textarea')) s += 60;
-            if (s > bestScore) {
+            if (/create post|create a post|make a post|edit post|create reel|create story|पोस्ट बनाउनुहोस्|पोस्ट करें/i.test(txt) || /create post/i.test(aria)) s += 100;
+            if (/add to your post|what['’]?s on your mind|describe your reel|start typing|के सोचिरहनुभएको|कुछ लिखें/i.test(txt)) s += 80;
+            if (d.querySelector('div[role="textbox"][contenteditable="true"], div[data-lexical-editor="true"]') && s > 0) s += 40;
+            if (/comment|reply|टिप्पणी|reply to/i.test(aria) || /write a comment|write a reply/i.test(txt.slice(0, 100))) s -= 300;
+            if (s > bestScore && s > 50) {
               bestScore = s;
               bestDialog = d;
             }
           }
-          const roots = bestDialog ? [bestDialog, document] : [document];
+          // Never fall back to arbitrary document if posting to feed — only search inside bestDialog or mobile #MComposer
+          const mobileComposer = document.querySelector('#MComposer, div[data-pagelet="Composer"], div[data-pagelet="ProfileComposer"]');
+          const roots = bestDialog ? [bestDialog] : (hint === "reel" ? [document] : (mobileComposer ? [mobileComposer] : []));
           const sel = [
             'div[role="textbox"][contenteditable="true"]',
             'div[data-lexical-editor="true"]',
@@ -893,7 +909,7 @@ async function populateComposerCaption(tabId, captionText, titleText = "", optio
               ? /describe your reel|description|caption|write/i
               : hint === "story"
               ? /start typing|text|type/i
-              : /on your mind|write something|say something|post|caption/i;
+              : /on your mind|write something|say something|create post|make a post|post|caption|कुछ लिखें|पोस्ट/i;
           for (const root of roots) {
             const found = Array.from(root.querySelectorAll(sel)).filter((el) => isNotHidden(el) && !isCommentOrSearch(el));
             if (found.length) {
@@ -934,7 +950,7 @@ async function populateComposerCaption(tabId, captionText, titleText = "", optio
                 const ae = document.activeElement;
                 editor =
                   (ph.parentElement && ph.parentElement.querySelector('[contenteditable="true"], textarea')) ||
-                  (ae && (ae.isContentEditable || ae.tagName === "TEXTAREA") ? ae : null);
+                  (ae && (ae.isContentEditable || ae.tagName === "TEXTAREA") && !isCommentOrSearch(ae) ? ae : null);
                 if (editor) break;
               }
             }
@@ -1145,7 +1161,6 @@ async function uploadThumbnailImage(tabId, thumbnailPath, options = {}) {
               try {
                 this.setAttribute("data-ag-thumb-target", "1");
               } catch (_) {}
-              return;
             }
           }
           return orig.apply(this, a);
@@ -1325,31 +1340,47 @@ async function uploadThumbnailImage(tabId, thumbnailPath, options = {}) {
 
     if (!bound) return { attempted: true, applied: false, reason: "Could not attach thumbnail image file." };
 
+    // Fire synthetic input and change events so React updates the thumbnail state
+    await chrome.scripting.executeScript({
+      world: "MAIN",
+      target: { tabId },
+      func: () => {
+        const inp = window.__agThumbInput || document.querySelector('input[data-ag-thumb-target="1"]');
+        if (inp) {
+          try {
+            inp.dispatchEvent(new Event("input", { bubbles: true }));
+            inp.dispatchEvent(new Event("change", { bubbles: true }));
+          } catch (_) {}
+        }
+      }
+    });
+
     await sleep(1500);
 
-    // Confirm inside the thumbnail panel only (Save / Done / Apply) — never Post / Publish / Share
+    // Confirm inside the thumbnail / video options panel (Save / Done / Apply) — never Post / Publish / Share
     let confirmed = false;
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 8; i++) {
       const [conf] = await chrome.scripting.executeScript({
         world: "MAIN",
         target: { tabId },
         func: () => {
           const panels = Array.from(document.querySelectorAll('div[role="dialog"], div[aria-modal="true"]')).filter((d) =>
-            /thumbnail|cover/i.test((d.innerText || "").slice(0, 2000))
+            /thumbnail|cover|video options|options/i.test((d.innerText || "").slice(0, 2500))
           );
-          const scope = panels[panels.length - 1];
-          if (!scope) return { noPanel: true };
+          const scope = panels[panels.length - 1] || document;
           const btn = Array.from(scope.querySelectorAll('div[role="button"], button')).find((b) => {
             const t = `${b.getAttribute("aria-label") || ""} ${b.innerText || ""}`.replace(/\s+/g, " ").trim();
-            return /^(save|done|apply|set thumbnail|use as thumbnail|use as cover|set cover)$/i.test(t) && b.getAttribute("aria-disabled") !== "true";
+            return /^(save|done|apply|set thumbnail|use as thumbnail|use as cover|set cover|save changes)$/i.test(t) && b.getAttribute("aria-disabled") !== "true";
           });
           if (!btn) return { waiting: true };
-          btn.click();
+          try {
+            btn.click();
+          } catch (_) {}
           return { clicked: true };
         }
       });
       const c = (conf && conf.result) || {};
-      if (c.clicked || c.noPanel) {
+      if (c.clicked) {
         confirmed = true;
         break;
       }
@@ -1566,7 +1597,7 @@ async function attachMediaToFacebookComposer(tabId, rawPaths, options = {}) {
               /^(photo\/video|photos\/videos|photos|photo|add photos|add photo|add photos\/videos|add video|upload video|create a photo story|फोटो\/भिडियो|फोटो|तस्विर)$/i.test(
                 txt
               ) ||
-              /photo\/video|photos\/videos|add photos|create a photo story|add to your post.*photo/i.test(combined)
+              /photo\/video|photos\/videos|add photos|create a photo story|add to your post.*photo|add video|upload video/i.test(combined)
             );
           });
           if (byLabel) return byLabel;
@@ -1743,6 +1774,28 @@ async function attachMediaToFacebookComposer(tabId, rawPaths, options = {}) {
       if (!bound) {
         bound = await bindViaDataTransfer();
       }
+    }
+
+    // For videos and reels, dispatch input and change events so React starts upload and processing
+    if (bound && preferVideo) {
+      await chrome.scripting.executeScript({
+        world: "MAIN",
+        target: { tabId },
+        func: () => {
+          const inp =
+            window.__agFbUploadInput ||
+            document.querySelector('input[type="file"][accept*="video"]') ||
+            document.querySelector('input[type="file"][data-antigem-upload-target="1"]') ||
+            document.querySelector('input[type="file"]');
+          if (inp) {
+            try {
+              inp.dispatchEvent(new Event("input", { bubbles: true }));
+              inp.dispatchEvent(new Event("change", { bubbles: true }));
+            } catch (_) {}
+          }
+        }
+      });
+      await sleep(1000);
     }
 
     // If bound already succeeded, wait up to 2.2s for preview to render BEFORE considering any fallback tier!
@@ -2033,10 +2086,12 @@ async function executeFeedPostInBrowser(tabId, payload) {
       );
       for (const d of dialogs) {
         if (d.querySelector('div[role="article"], div[data-pagelet*="FeedUnit"]')) continue;
+        const aria = (d.getAttribute("aria-label") || "").toLowerCase();
+        if (/notifications|messenger|chats|account controls|menu|media viewer|photo viewer|video viewer|comments/i.test(aria)) continue;
         const txt = (d.innerText || d.textContent || "").slice(0, 800).toLowerCase();
         if (
-          /create post|add to your post|what['’]?s on your mind|पोस्ट बनाउनुहोस्/i.test(txt) ||
-          d.querySelector('div[role="textbox"][contenteditable="true"], div[data-lexical-editor="true"], textarea')
+          /create post|create a post|make a post|add to your post|what['’]?s on your mind|पोस्ट बनाउनुहोस्|पोस्ट करें/i.test(txt) ||
+          /create post|make a post/i.test(aria)
         ) {
           return { ok: true, alreadyOpen: true };
         }
@@ -2058,7 +2113,7 @@ async function executeFeedPostInBrowser(tabId, payload) {
       ).filter(isVisible);
 
       const match = candidates.find((el) => {
-        if (el.closest('div[role="article"], div[data-pagelet*="FeedUnit"]')) return false;
+        if (el.closest('div[role="article"], div[data-pagelet*="FeedUnit"], [data-testid*="comment" i], form[action*="comment" i]')) return false;
         const txt = `${el.getAttribute("aria-label") || ""} ${el.innerText || el.textContent || ""}`.trim();
         return (
           /what['’]?s on your mind/i.test(txt) ||
@@ -2066,7 +2121,7 @@ async function executeFeedPostInBrowser(tabId, payload) {
           /write something/i.test(txt) ||
           /create a post/i.test(txt) ||
           /share something/i.test(txt) ||
-          /के सोचिरहनुभएको|तपाईंको दिमाग|पोस्ट बनाउनुहोस्|कुछ लिखें/i.test(txt)
+          /के सोचिरहनुभएको|तपाईंको दिमाग|पोस्ट बनाउनुहोस्|कुछ लिखें|पोस्ट करें/i.test(txt)
         );
       });
 
@@ -2098,28 +2153,18 @@ async function executeFeedPostInBrowser(tabId, payload) {
         const dialogs = Array.from(document.querySelectorAll('div[role="dialog"], div[aria-modal="true"]'));
         for (const dlg of dialogs) {
           if (dlg.querySelector('div[role="article"], div[data-pagelet*="FeedUnit"]')) continue;
+          const aria = (dlg.getAttribute("aria-label") || "").toLowerCase();
+          if (/notifications|messenger|chats|account controls|menu|media viewer|photo viewer|video viewer|comments/i.test(aria)) continue;
           const txt = (dlg.innerText || "").slice(0, 600).toLowerCase();
           if (
-            /create post|add to your post|what['’]?s on your mind/i.test(txt) ||
-            dlg.querySelector(
-              'div[role="textbox"][contenteditable="true"], div[data-lexical-editor="true"], div[contenteditable="true"], textarea'
-            )
+            /create post|create a post|make a post|add to your post|what['’]?s on your mind|पोस्ट बनाउनुहोस्|पोस्ट करें/i.test(txt) ||
+            /create post|make a post/i.test(aria)
           ) {
             return true;
           }
         }
-        const editors = Array.from(
-          document.querySelectorAll(
-            'div[role="textbox"][contenteditable="true"], div[data-lexical-editor="true"], textarea.composerInput, textarea[name="xc_message"], textarea'
-          )
-        ).filter((el) => {
-          const r = el.getBoundingClientRect();
-          if (r.width < 10) return false;
-          if (el.closest('div[role="article"], div[data-pagelet*="FeedUnit"]')) return false;
-          const aria = `${el.getAttribute("aria-label") || ""} ${el.getAttribute("placeholder") || ""}`.toLowerCase();
-          return !aria.includes("comment") && !aria.includes("reply") && !aria.includes("search");
-        });
-        return editors.length > 0;
+        const mobileBox = document.querySelector('#MComposer, div[data-pagelet="Composer"], div[data-pagelet="ProfileComposer"]');
+        return Boolean(mobileBox);
       }
     });
     return Boolean(chk && chk.result);
@@ -2222,10 +2267,37 @@ async function executeFeedPostInBrowser(tabId, payload) {
           };
         };
 
-        // Search all dialogs AND document (excluding feed articles)
+        const isCommentContainer = (el) => {
+          if (!el) return false;
+          if (
+            el.closest(
+              'div[role="article"], div[data-pagelet*="FeedUnit"], [data-testid*="comment" i], [data-testid*="UFI" i], form[action*="comment" i], [data-pagelet*="comment" i], [data-pagelet*="UFI" i], div[role="complementary"], [data-sigil*="comment" i], [data-sigil*="ufi" i], ul[role="list"]'
+            )
+          ) {
+            return true;
+          }
+          const a = `${el.getAttribute("aria-label") || ""} ${el.getAttribute("title") || ""}`.toLowerCase();
+          return /comment|reply|टिप्पणी|जवाब/i.test(a);
+        };
+
+        // Locate active Create Post dialog first to guarantee we never click outside into feed comments
+        const createPostDialog = Array.from(document.querySelectorAll('div[role="dialog"], div[aria-modal="true"]')).find((d) => {
+          if (!isVisible(d)) return false;
+          const txt = (d.innerText || "").slice(0, 800).toLowerCase();
+          const aria = (d.getAttribute("aria-label") || "").toLowerCase();
+          return (
+            /create post|create a post|make a post|add to your post|what['’]?s on your mind|पोस्ट बनाउनुहोस्|पोस्ट करें/i.test(txt) ||
+            /create post|make a post/i.test(aria)
+          );
+        });
+
+        const mobileScope = document.querySelector('#MComposer, div[data-pagelet="Composer"], div[data-pagelet="ProfileComposer"]');
+        const scope = createPostDialog || mobileScope || document;
+
+        // Search strictly inside the Create Post scope and reject any comment buttons
         const buttons = Array.from(
-          document.querySelectorAll('div[role="button"], button, span[role="button"], input[type="submit"]')
-        ).filter((el) => isVisible(el) && !el.closest('div[role="article"], div[data-pagelet*="FeedUnit"]'));
+          scope.querySelectorAll('div[role="button"], button, span[role="button"], input[type="submit"]')
+        ).filter((el) => isVisible(el) && !isCommentContainer(el));
 
         const postRegex =
           /^(post|publish|share|share now|पोस्ट गर्नुहोस्|पोस्ट गर्नुहोस|पोस्ट|पोस्ट करें|साझा गर्नुहोस्|शेयर करें)$/i;
@@ -2459,7 +2531,7 @@ async function executeReelUploadInBrowser(tabId, payload) {
   await sleep(1200);
 
   let isReelCreator = false;
-  for (let p = 0; p < 4; p++) {
+  for (let p = 0; p < 8; p++) {
     const [surfaceProbe] = await chrome.scripting.executeScript({
       world: "MAIN",
       target: { tabId },
@@ -2468,7 +2540,11 @@ async function executeReelUploadInBrowser(tabId, payload) {
         const hasVideoInput = Array.from(document.querySelectorAll('input[type="file"]')).some((i) =>
           /video/.test((i.getAttribute("accept") || "").toLowerCase())
         );
-        return { isReelCreator: hasVideoInput || /create reel|add video|upload video|drag and drop/.test(txt), href: location.href };
+        const onReelsPath = location.pathname.includes("/reels/create") || location.href.includes("/reels/create");
+        return {
+          isReelCreator: onReelsPath || hasVideoInput || /create reel|add video|upload video|drag and drop|भिडियो|रील|वीडियो/.test(txt),
+          href: location.href
+        };
       }
     });
     if (surfaceProbe && surfaceProbe.result && surfaceProbe.result.isReelCreator) {
