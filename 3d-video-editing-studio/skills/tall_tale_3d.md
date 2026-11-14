@@ -1,13 +1,14 @@
 ---
 name: Tall Tale 3D Storytime
-description: Direct humorous and quirky true stories with 2D cartoon characters emoting inside warm 3D miniature towns and rapid 1-word captions.
-version: 1.0.0
+description: Direct humorous and quirky true stories with 2D cartoon characters emoting inside warm 3D miniature towns and rapid 1-word captions. Standalone execution via studio.py.
+version: 1.1.0
 ---
 
-# Tall Tale 3D Storytime Style (Humorous True Stories)
+# 🎭 Tall Tale 3D Storytime Style (Humorous True Stories) v1.1.0
 
-> 🎭 **Genre**: Bizarre historical events, quirky loopholes, funny cons, and astonishing true stories.
+> 🎪 **Genre**: Bizarre historical events, quirky loopholes, funny cons, and astonishing true stories.
 > ⏱️ **Default Timing**: 40–60 seconds · 9:16 vertical widescreen.
+> ⚡ **Self-Contained**: Automatically pre-wires `src/main.js` and `index.html`. Zero external template prompts needed.
 
 ## Visual Language & Staging
 - **Flat 2D Cutout Characters in 3D Worlds**: Bold ink-outlined expressive cartoon characters acting inside sunny, pastel 3D miniature sets.
@@ -17,10 +18,11 @@ version: 1.0.0
 
 ## Production CLI
 ```bash
-bash skills/faceless-shorts/scripts/new_video.sh tall-tale ~/faceless-shorts/my-tall-tale
+python3 studio.py new tall-tale ~/faceless-shorts/my-tall-tale
 cd ~/faceless-shorts/my-tall-tale
-skills/faceless-shorts/scripts/py skills/faceless-shorts/scripts/voice.py . --voice am_michael
-skills/faceless-shorts/scripts/py skills/faceless-shorts/scripts/words.py .
-node tools/capture.mjs sheet review/all.jpg 0.5 10
-node tools/capture.mjs video renders/master.mp4 --fast
+python3 studio.py voice . --voice am_michael
+python3 studio.py words .
+python3 studio.py mix .
+python3 studio.py sheet .
+python3 studio.py render . --fast
 ```

@@ -1,7 +1,7 @@
 {
   "name": "antigem-plugins",
   "displayName": "Antigem Official Plugins",
-  "description": "Official Antigem plugins repository: 2D Video Editing Studio, Facebook Automation & SEO Studio, and 3D Video Editing Part 1.",
+  "description": "Official Antigem plugins repository: 2D Video Editing Studio (v3.3.0), Facebook Automation & SEO Studio (v1.6.0), and 3D Video Editing Part 1 (v1.1.0).",
   "owner": {
     "name": "Dipesh Kr Yadav",
     "url": "https://github.com/Dipeshkrydv"
@@ -11,8 +11,8 @@
       "name": "2d-video-editing-studio",
       "source": "./2d-video-editing-studio",
       "displayName": "2D Video Editing Studio",
-      "description": "Senior Video Editor & Autonomous 2D Production Engine (v3.2): Anti-Offline Server Shield (flat RAM < 140MB), Direct In-Memory FFmpeg Stream, High-Speed Render Presets (--fast 720p HD mobile default, --turbo 540p ultrafast 45-55 fps, --1080p full HD), Broadcast-quality Vox explainers, Bento Box data cards, Stickman storytelling, die-cut Sticker collages, Crime Noir thrillers, and 8-bit Arcade videos with 3-Tier Google Flow Rapid Parallel Engine, 25 creative Latin/Devanagari fonts, and quintic smooth transitions.",
-      "version": "3.2.0",
+      "description": "Senior Video Editor & Autonomous 2D Production Engine (v3.3): Anti-Offline Server Shield (flat RAM < 140MB), Direct In-Memory FFmpeg Stream, High-Speed Render Presets (--fast 720p HD mobile default, --turbo 540p ultrafast 45-55 fps, --1080p full HD), Broadcast-quality Vox explainers, Bento Box data cards, Stickman storytelling, die-cut Sticker collages, Crime Noir thrillers, and 8-bit Arcade videos with 3-Tier Google Flow Rapid Parallel Engine, 25 creative Latin/Devanagari fonts, and quintic smooth transitions.",
+      "version": "3.3.0",
       "author": {
         "name": "Dipesh Kr Yadav"
       },
@@ -32,8 +32,8 @@
       "name": "facebook-automation",
       "source": "./facebook-automation",
       "displayName": "Facebook Automation & SEO Studio",
-      "description": "Senior Social Media Manager & Production-grade Facebook automation engine for AntiGem Mobile Browser (m.facebook.com & www.facebook.com), Kiwi Browser, Termux, and Desktop: precision visualViewport touch coordinates, 4-tier media attachment with DOM preview verification, 1-touch unified Photo + Deep Quote + Viral Hook + Hashtags publishing, scheduling, anti-duplicate protection, and post re-edit/delete.",
-      "version": "1.5.0",
+      "description": "Pre-Trained Phone (Desktop-on-Phone www.facebook.com & Mobile Touch m.facebook.com) and Desktop Facebook Automation Engine (v1.6.0): Dedicated Feed Posts (Text/Photo/Carousel/Video), Anti-Comment Firewall (strictly never posts into comments), Reels (/reels/create + automatic mobile fallback + video event dispatch), Stories (/stories/create Photo/Video with overlay story_text & Text Story), Real Video/Reel Thumbnail & Cover Uploader, Multiline Formatted Caption Engine (Title + Description + Bullets + CTA + 3-6 #Hashtags), and Zero-Overthinking 1-Call Dispatch.",
+      "version": "1.6.0",
       "author": {
         "name": "Dipesh Kr Yadav"
       },
@@ -55,8 +55,8 @@
       "name": "3d-video-editing-studio",
       "source": "./3d-video-editing-studio",
       "displayName": "3D Video Editing Part 1",
-      "description": "Autonomous 3D Video Director & Production Engine (Part 1 - Faceless Shorts): 100% Code-Driven 3D & 2D (Three.js, SDF raymarching, Kokoro-82M neural TTS, Whisper alignment, NumPy/SciPy audio). 6 Styles: Deep Dive 3D (Zack D. Films style), Night File 3D (unsolved mystery), Inside Out, Stick Story, Paper Atlas, Tall Tale 3D. Anti-LMK Shield, High-Speed Render Presets (--fast, --turbo, --1080p), $0 Cost, Zero Generative AI Morphing, Zero Third-Party API Keys.",
-      "version": "1.0.0",
+      "description": "Autonomous 3D Video Director & Production Engine (Part 1 - Faceless Shorts): 100% Code-Driven 3D & 2D (Three.js, SDF raymarching, Kokoro-82M neural TTS, Whisper alignment, NumPy/SciPy audio). 6 Styles: Deep Dive 3D (Zack D. Films style), Night File 3D (unsolved mystery), Inside Out, Stick Story, Paper Atlas, Tall Tale 3D. Anti-LMK Shield, High-Speed Render Presets (--fast, --turbo, --1080p), $0 Cost, Zero Generative AI Morphing, Zero Third-Party API Keys. Zero-reference standalone execution via studio.py.",
+      "version": "1.1.0",
       "author": {
         "name": "Dipesh Kr Yadav"
       },

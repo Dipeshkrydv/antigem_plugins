@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "3D Video Editing Part 1",
   "id": "3d-video-editing-part-1",
-  "version": "1.0.0",
-  "description": "Autonomous 3D Video Director & Production Engine (Part 1 - Faceless Shorts): Make narrated faceless YouTube Shorts / TikToks / Reels fully in code: free local AI voice (Kokoro), Whisper word-synced captions, animated 3D & 2D shots, sound and music, rendered to MP4. Six styles: Deep Dive 3D, Night File 3D, Inside Out, Stick Story, Paper Atlas, Tall Tale 3D. Anti-LMK Shield, High-Speed Render Presets (--fast, --turbo, --1080p). No API keys, no credits.",
+  "version": "1.1.0",
+  "description": "Autonomous 3D Video Director & Production Engine (Part 1 - Faceless Shorts): Make narrated faceless YouTube Shorts / TikToks / Reels fully in code: free local AI voice (Kokoro), Whisper word-synced captions, animated 3D & 2D shots, sound and music, rendered to MP4. Six styles: Deep Dive 3D, Night File 3D, Inside Out, Stick Story, Paper Atlas, Tall Tale 3D. Anti-LMK Shield, High-Speed Render Presets (--fast, --turbo, --1080p). Zero external main.js dependencies, standalone studio.py execution. No API keys, no credits.",
   "author": "Dipesh Kr Yadav",
   "icon": "icon.png",
   "icons": {
