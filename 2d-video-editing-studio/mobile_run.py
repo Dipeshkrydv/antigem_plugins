@@ -157,6 +157,8 @@ def main():
     parser.add_argument("--all", action="store_true", default=True, help="Run complete pipeline")
     args = parser.parse_args()
 
+    os.environ["VOX_ASPECT"] = args.aspect
+
     if os.path.exists("EDIT.json"):   # v2 project: hand over to the v2 engine (see ENGINE_V2.md)
         studio = os.path.join(os.path.dirname(os.path.realpath(__file__)), "studio.py")
         render_cmd = [sys.executable, studio, "render", "--fast"]

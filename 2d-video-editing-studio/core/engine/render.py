@@ -674,7 +674,7 @@ class Engine:
         self.spec = json.load(open(edit, encoding="utf-8"))
         self.style_name = self.spec.get("style", "noir")
         self.look = styles.get(self.style_name)["look"]
-        self.aspect = self.spec.get("aspect", "16:9")
+        self.aspect = os.environ.get("VOX_ASPECT") or self.spec.get("aspect", "16:9")
         bw, bh = (1080, 1920) if self.aspect == "9:16" else (1920, 1080)
         self.W, self.H = int(bw * scale) // 2 * 2, int(bh * scale) // 2 * 2
         self.S = min(self.W, self.H) / 1080
@@ -1642,8 +1642,9 @@ def sheet(edit, every=6.0, cols=4, scale=0.5):
 def main():
     ap = argparse.ArgumentParser(description="Deepesh Studio Engine v2 - High Performance Video Renderer")
     ap.add_argument("cmd", choices=["check", "still", "sheet", "preview", "video"])
-    ap.add_argument("times", nargs="*", type=float)
+    ap.add_argument("times", nargs="*", default=[], help="Times for 'still' frames, or optional project folder / edit file")
     ap.add_argument("--edit", default="EDIT.json")
+    ap.add_argument("--aspect", choices=["9:16", "16:9"], default=None, help="Override aspect ratio")
     ap.add_argument("--workers", type=int, default=0)
     ap.add_argument("--from", dest="t_from", type=float, default=0.0)
     ap.add_argument("--to", dest="t_to", type=float, default=None)
@@ -1659,6 +1660,33 @@ def main():
     ap.add_argument("--fps", type=int, default=None, help="Frame rate override")
     ap.add_argument("--crf", type=int, default=None, help="H.264 CRF quality level")
     a = ap.parse_args()
+
+    # Gracefully handle positional arguments (project folder or custom EDIT.json path)
+    remaining_times = []
+    for item in a.times:
+        if isinstance(item, str):
+            if item.endswith(".json") and os.path.isfile(item):
+                a.edit = item
+                continue
+            if os.path.isdir(item):
+                candidate = os.path.join(item, "EDIT.json")
+                if os.path.isfile(candidate):
+                    a.edit = candidate
+                else:
+                    os.chdir(item)
+                continue
+            try:
+                remaining_times.append(float(item))
+            except ValueError:
+                pass
+        else:
+            try:
+                remaining_times.append(float(item))
+            except (ValueError, TypeError):
+                pass
+
+    if a.aspect:
+        os.environ["VOX_ASPECT"] = a.aspect
 
     mobile = is_mobile()
 
@@ -1690,7 +1718,7 @@ def main():
     if a.cmd == "check":
         check(a.edit)
     elif a.cmd == "still":
-        stills(a.edit, a.times or [1.0], scale=scale)
+        stills(a.edit, remaining_times or [1.0], scale=scale)
     elif a.cmd == "sheet":
         sheet(a.edit, a.every, scale=scale)
     elif a.cmd == "preview":

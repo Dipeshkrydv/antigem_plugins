@@ -250,6 +250,13 @@ def main():
         sys.exit(0)
     ensure_prerequisites()
     cmd, rest = sys.argv[1], sys.argv[2:]
+
+    # Auto-detect project folder passed as positional argument for any subcommand (except 'new')
+    if cmd != "new" and rest and not rest[0].startswith("-") and os.path.isdir(rest[0]):
+        proj_dir = rest.pop(0)
+        os.chdir(proj_dir)
+        print(f"📁 Working inside project directory: {proj_dir}")
+
     eng = os.path.join(CORE, "engine", "render.py")
     if cmd == "new":
         new(rest[0] if rest else "my_video")

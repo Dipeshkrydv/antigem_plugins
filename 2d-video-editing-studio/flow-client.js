@@ -19,7 +19,7 @@ export class FlowClient {
   }
   async tab() {
     if(this.readyTab && Date.now()-this.readyTab.at<30000)return this.readyTab.id;
-    let tab = (await this.chrome.tabs.query({})).find(t => { try { return new URL(t.url).hostname === 'flow.google.com'; } catch { return false; } });
+    let tab = (await this.chrome.tabs.query({})).find(t => { try { const u = new URL(t.url); return u.hostname === 'flow.google.com' || (u.hostname.includes('labs.google') && u.pathname.includes('/flow')); } catch { return false; } });
     if (!tab) tab = await this.chrome.tabs.create({ url:'https://flow.google.com/', active:true });
     await this.wait(async () => { try { return (await this.js(tab.id, 's.ui()')).ready; } catch { return false; } }, 30000);
     if (!this.attached.has(tab.id)) { await this.chrome.debugger.attach({ tabId:tab.id }, '1.3'); this.attached.add(tab.id); }
@@ -47,7 +47,9 @@ export class FlowClient {
     const target = `/project/${projectId}${suffix}`;
     if ((await this.js(tabId, 's.ui()')).path !== target) {
       if (this.pending) await this.wait(() => this.pending === 0, 240000, 100);
-      await this.chrome.tabs.update(tabId, { url:'https://flow.google.com' + target });
+      const tab = await this.chrome.tabs.get(tabId).catch(() => null);
+      const base = tab?.url && tab.url.includes('labs.google/fx/tools/flow') ? 'https://labs.google/fx/tools/flow' : 'https://flow.google.com';
+      await this.chrome.tabs.update(tabId, { url: base + target });
       await this.wait(async () => {
         try {
           const ui = await this.js(tabId, 's.ui()');
