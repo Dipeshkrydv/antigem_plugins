@@ -1,19 +1,22 @@
 # 🎬 Deepesh Autonomous Studios & AntiGem Plugins Repository
 
 [![AntiGem Compatible](https://img.shields.io/badge/AntiGem-Plugins_Ready-brightgreen.svg)](https://github.com/Dipeshkrydv/2d-video-editing-skill)
-[![2D Engine](https://img.shields.io/badge/2D_Video_Studio-v3.3_(Anti--Offline_Shield)-blue.svg)](./2d-video-editing-studio)
+[![2D Engine](https://img.shields.io/badge/2D_Video_Studio-v3.3.1_(Flow_Agent_%26_Anti--Offline)-blue.svg)](./2d-video-editing-studio)
 [![Facebook Engine](https://img.shields.io/badge/Facebook_Automation-v1.6.0-blue.svg)](./facebook-automation)
 [![Platform](https://img.shields.io/badge/Platform-Android_(Termux)_%7C_Linux_%7C_macOS_%7C_Windows-purple.svg)]()
 
-> Official production-grade plugin suite for **AntiGem**, **Android (Termux)**, and **Desktop**. Includes the **2D Video Editing Studio (v3.3.0 Anti-Offline Server Shield)** and **Facebook Automation & SEO Studio (v1.6.0)**.
+> Official production-grade plugin suite for **AntiGem**, **Android (Termux)**, and **Desktop**. Includes the **2D Video Editing Studio (v3.3.1 Flow Agent & Anti-Offline Shield)** and **Facebook Automation & SEO Studio (v1.6.0)**.
 
 ---
 
-## 🚀 What's New in This Universal Update
+## 🚀 What's New in This Universal Update (v3.3.1)
 
-### 1. 2D Video Editing Studio (v3.3.0)
-- 🛡️ **Anti-Offline Server Shield**: Micro-yields the Python GIL every 10 frames (`time.sleep(0.001)`) to maintain background WebSocket and Node.js ping/pong heartbeats, permanently eliminating "Server Offline" errors during long renders on Android/Termux!
-- ⚡ **Direct In-Memory FFmpeg Streaming**: Renders RGB24 frames directly into an FFmpeg stdin pipe with scheduled `gc.collect()` cycles, keeping RAM usage flat **under 140 MB** across 10,000+ frames with zero intermediate chunk files.
+### 1. 2D Video Editing Studio (v3.3.1)
+- 🤖 **Google Flow Agent Mode & Batch Prompt Dispatch**: New batch prompt dispatcher (`core/flow_agent_dispatch.py`, `studio.py generate --agent`, `studio.py autopilot --agent`) and MCP tools (`flow_agent_dispatch`, `flow_agent_status`, `flow_agent_toggle`) to paste entire multi-scene storyboards in one shot.
+- 🌐 **Multi-Domain Google Flow Bridge**: Native detection and resilience across both `flow.google.com` and `labs.google/fx/tools/flow`, with automatic project canvas creation when `project_id` is null (eliminating 30s timeouts).
+- 📏 **Strict 15-Minute Timeline Scaling Laws**: Mathematically verified duration scaling (1,950–2,300 spoken words, 420–600+ visual assets for 15-min videos) with the "Never Use Less Assets" mandate.
+- ⚡ **Zero-Latency CLI & Auto Project Detection**: Instant `studio.py --help` (0.02s) on Termux, and automatic project folder argument ingestion (`studio.py check templates/v2`, `studio.py render my_video --turbo`).
+- 🛡️ **Anti-Offline Server Shield**: In-memory single-process FFmpeg direct streaming with 1 reserved CPU core and 5ms GIL heartbeats every 8 frames, guaranteeing WebSocket connections never drop during exports.
 - 🏎️ **Hardcoded High-Speed Presets**:
   - `python studio.py render --fast` : **720p HD mobile default (20–30 FPS)**, 4x faster, thermal & battery safe.
   - `python studio.py render --turbo`: **540p ultrafast draft (45–55 FPS)**, 10x faster (5s of video in ~2.7s!).
