@@ -54,6 +54,26 @@ version: 1.2.0
 
 ---
 
+## 🎵 2D Stickman SFX & BGM Audio Engine
+
+- **Music Beds (`script.json` `"music"`)**:
+  - `"bed"` / `"acoustic"` / `"revolution"` *(Default)*: Acoustic guitar & rhythm for narrative explainers.
+  - `"bounce"` / `"viral"`: Modern 808 viral bounce for high-energy shorts.
+  - `"action"` / `"drums"`: Cinematic percussion for emergency dilemmas and countdowns.
+  - Sidechain ducking: BGM ducks by **$-18\text{ dB}$ to $-24\text{ dB}$** during speech.
+  - Master target: **$-14\text{ LUFS}$ integrated** with a **$-1.5\text{ dBTP}$ ceiling**.
+- **Tactile Foley SFX Cues (`shots.js` `cue(t, 'type')`)**:
+  - `cue(t, 'pop')` / `'step'` / `'card'`: Step card entrance (`b3_paper_popup_a.mp3`, `-14 dB`)
+  - `cue(t, 'whoosh')` / `'cut'`: Scene cut / whip pan (`b2_sweep_down_a.mp3`, `-17 dB`)
+  - `cue(t, 'ding')` / `'chime'` / `'check'`: Green checkmark / safe rule (`b2_typewriter_bell_a.mp3`, `-14 dB`)
+  - `cue(t, 'buzzer')` / `'cross'` / `'danger'`: Red cross / fatal mistake (`b2_sub_drop_a.mp3`, `-15 dB`)
+  - `cue(t, 'click')` / `'switch'`: Flashlight toggle / wall plug (`b4_thumbtack_drop_a.mp3`, `-15 dB`)
+  - `cue(t, 'marker')` / `'circle'`: Doodle circle / highlight (`b4_marker_circle_a.mp3`, `-14 dB`)
+  - `cue(t, 'counter')` / `'timer'`: Countdown timer / odometer (`b5_odometer_roll_a.mp3`, `-16 dB`)
+  - `cue(t, 'shimmer')` / `'sparkle'`: Eye dart / smirking punchline (`b4_shimmer_g.mp3`, `-16 dB`)
+
+---
+
 ## Direct CLI Production
 ```bash
 python3 studio.py new stick-story ~/faceless-shorts/my-stick-short

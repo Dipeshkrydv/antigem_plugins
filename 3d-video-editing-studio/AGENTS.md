@@ -85,14 +85,21 @@
 - Flat illustrated rooms (living room, kitchen, hallway) in day and night versions.
 - **Compulsory Rule**: In dark/night scenes, always set `glow: true` on stick figures so their ink-black silhouettes pop clearly against dark wallpaper.
 
-### 9. 0.000s Audio-Visual Attack Synchronization
+### 9. 0.000s Audio-Visual Attack Synchronization & 2D Stickman Sound Engine
 - The entrance of every step card, text pill, and visual cut MUST sync mathematically to the voice consonant ($t = 0$).
-- Foley audio counterparts:
-  - Step card pop $\to$ `pop.wav` or `snap.wav`.
-  - Visual cut $\to$ Subtle paper swoosh `whoosh.wav`.
-  - Green check $\to$ Crisp chime `ding.wav`.
-  - Red cross $\to$ Low friction buzz `buzzer.wav`.
-  - Flashlight $\to$ Analog click `click.wav`.
+- **Recorded 2D Studio Foley Library (`audio/sfx/`)**:
+  - `stepCard` entrance $\to$ Crisp paper popup `cue(t, 'pop')` (`b3_paper_popup` / `b4_postit_flip`, `-14 dB`).
+  - Visual cut / whip pan $\to$ Subtle swoosh `cue(t, 'whoosh')` (`b2_sweep_down` / `b4_sweep_up`, `-17 dB`).
+  - Green check solution $\to$ Pleasant chime `cue(t, 'ding')` (`b2_typewriter_bell`, `-14 dB`).
+  - Red cross fatal mistake $\to$ Warning subdrop / buzzer `cue(t, 'buzzer')` (`b2_sub_drop` / `b4_sub_drop`, `-15 dB`).
+  - Flashlight / switch $\to$ Mechanical click `cue(t, 'click')` (`b4_thumbtack_drop`, `-15 dB`).
+  - Doodle circle highlight $\to$ Marker sweep `cue(t, 'marker')` (`b4_marker_circle`, `-14 dB`).
+  - Countdown timer / stat $\to$ Rolling odometer `cue(t, 'counter')` (`b5_odometer_roll`, `-16 dB`).
+  - Eye glance / comedic punchline $\to$ Shimmer glint `cue(t, 'shimmer')` (`b4_shimmer`, `-16 dB`).
+- **Dynamic Music Bed & Ducking (`tools/mix.py`)**:
+  - Selection: `"bed"` / `"acoustic"` / `"revolution"` (warm acoustic guitar & drums, default), `"bounce"` / `"viral"` (modern 808 viral beat), `"action"` / `"drums"` (disaster adrenaline).
+  - Sidechain ducking: BGM ducks automatically by **$-18\text{ dB}$ to $-24\text{ dB}$** during speech, smoothly restoring during narrative pauses.
+  - Master broadcast target: Master mix normalized to **$-14\text{ LUFS}$ integrated** with a **$-1.5\text{ dBTP}$ true peak ceiling**.
 
 ### 10. Anti-LMK Shield & Memory Safety
 - Single-process Chrome and active V8 garbage collection purge keep RAM usage flat **< 140 MB** across long renders.

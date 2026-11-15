@@ -174,9 +174,69 @@ In high-retention 2D animation (Casually Explained / Alan Becker standard), move
 
 - **0.000s Attack**: The entrance of every step card, text pill, and visual cut MUST sync mathematically to the voice consonant ($t = 0$).
 - **Foley Audio Counterparts**:
-  - `stepCard` entrance $\to$ Crisp punchy `pop.wav` or `snap.wav`.
-  - Visual cut $\to$ Subtle paper swoosh `whoosh.wav`.
-  - Green `check` $\to$ Pleasant high chime `ding.wav`.
-  - Red `cross` $\to$ Low friction buzz or thud `buzzer.wav`.
-  - Flashlight switch $\to$ Mechanical analog `click.wav`.
-- **Music Ducking**: Background music stays ducked to $-18\text{dB}$ while the voice is active, maintaining pristine vocal clarity.
+  - `stepCard` entrance $\to$ Crisp punchy `pop` (`b3_paper_popup` / `b4_postit_flip`).
+  - Visual cut $\to$ Subtle paper swoosh `whoosh` (`b2_sweep_down` / `b4_sweep_up`).
+  - Green `check` $\to$ Pleasant high chime `ding` (`b2_typewriter_bell`).
+  - Red `cross` $\to$ Low friction buzz or subdrop `buzzer` (`b2_sub_drop` / `b4_sub_drop`).
+  - Flashlight switch $\to$ Mechanical analog `click` (`b4_thumbtack_drop`).
+
+---
+
+## 🎵 7. SFX & BACKGROUND MUSIC (BGM) ENGINEERING GUIDE (2D STICKMAN STYLE)
+
+> 🎧 **Directorial Acoustic Standard**: High-energy, tactile, and expressive sound design modelled directly on the broadcast-grade 2D stickman explainer standard. Foley sounds accentuate physical character actions and narrative milestones, while dynamically ducked music drives viral momentum without masking spoken voiceover.
+
+### 7.1 Background Music (BGM) Library & Curation
+All music beds are sourced from the studio's curated, copyright-free documentary audio library (`audio/music/`). Set `"music"` in `script.json` to any of the following genre presets or filenames:
+
+| Preset / Alias | Track File | Mood & Best Used For |
+| :--- | :--- | :--- |
+| **`"bed"`** / **`"acoustic"`** / **`"revolution"`** *(Default)* | `lifestyle_and_acoustic/The Score - Revolution (Acoustic Cover) by Ryderboy.mp3` | **The Stickman Gold Standard**: Warm, inspiring, organic acoustic guitar & percussion. Perfect for tactical survival explainers, life hacks, and storytelling dilemmas. |
+| **`"bounce"`** / **`"viral"`** / **`"hiphop"`** | `viral_and_hiphop/Tommy Richman - Million Dollar Baby [Instrumental].mp3` | **High-Retention Viral Pace**: Punchy 808 bass, rhythmic bounce, modern TikTok/Reels energy. Ideal for fast-paced what-if scenarios and youth-oriented shorts. |
+| **`"action"`** / **`"drums"`** / **`"epic"`** | `epic_and_action/Energetic_Drum_Background_Music_NO_COPYRIGHT_Action_Drums_Background.mp3` | **Emergency Dilemmas & Timers**: Driving cinematic percussion and adrenaline-charged drums. Perfect for disaster countdowns and intense survival stakes. |
+| **`"mystery"`** / **`"tension"`** / **`"suspense"`** | `crime_and_suspense/mystery_ambient.mp3` | **Suspenseful Cold Opens**: Atmospheric tension, subtle noir pads. Best for mysterious psychological dilemmas and dark what-if premises. |
+| **`"documentary"`** / **`"history"`** | `documentary_and_history/ES_Desert Whispers - Tellsonic.mp3` | **Curious Investigation**: Desert/world percussion, historical intrigue, analytical tone. |
+| **`"none"`** | *None* | Spoken narration + Foley sound effects only (no background music). |
+
+### 7.2 Comprehensive Stickman SFX Cue Dictionary
+Sound effects are triggered in `shots.js` via `cue(t, 'type', { gain: 1.0, dur: 0.5 })`. The audio engine maps them automatically to high-fidelity recorded Foley samples from `audio/sfx/`:
+
+| Cue Type | Sound File Mapping | Scene Event / Visual Trigger | Gain Level |
+| :--- | :--- | :--- | :--- |
+| **`'pop'`** / **`'step'`** / **`'card'`** | `audio/sfx/paper/b3_paper_popup_a.mp3` & `b4_postit_flip_a.mp3` | Numbered step card entrance (`stepCard`), character pop-in, sticker badge reveal | `-14 dB` |
+| **`'whoosh'`** / **`'cut'`** / **`'transition'`** | `audio/sfx/transition/b2_sweep_down_a.mp3` & `b4_sweep_up_h.mp3` | Visual scene cuts, whip pans, dramatic camera reframing | `-16 to -18 dB` |
+| **`'ding'`** / **`'chime'`** / **`'check'`** / **`'safe'`** | `audio/sfx/paper/b2_typewriter_bell_a.mp3` | Green checkmark (`check`), correct choice, smart survival rule, solution reveal | `-14 dB` |
+| **`'buzzer'`** / **`'cross'`** / **`'danger'`** / **`'sub_drop'`** | `audio/sfx/transition/b2_sub_drop_a.mp3` & `b4_sub_drop_g.mp3` | Red cross mark (`cross`), fatal survival mistake, sudden blackout, emergency warning | `-14 to -16 dB` |
+| **`'click'`** / **`'switch'`** / **`'tock'`** | `audio/sfx/paper/b4_thumbtack_drop_a.mp3` & `b2_typewriter_keys_a.mp3` | Flashlight toggle, wall plug insertion/removal, light switch, tactile button click | `-15 dB` |
+| **`'marker'`** / **`'circle'`** / **`'highlight'`** | `audio/sfx/paper/b4_marker_circle_a.mp3` & `b4_marker_draw_a.mp3` | Hand-drawn doodle circle highlight (`doodleCircle`), marker sweep (`markerSweep`) | `-14 dB` |
+| **`'stamp'`** / **`'seal'`** | `audio/sfx/paper/b4_stamp_press_j.mp3` | Rubber stamp / seal landing with single 0.12s haptic settle pulse | `-14 dB` |
+| **`'counter'`** / **`'timer'`** / **`'odometer'`** | `audio/sfx/ui/b5_odometer_roll_a.mp3` & `b5_scoreboard_flip_a.mp3` | Countdown timer, numerical statistic rolling, time clock counter | `-16 dB` |
+| **`'shimmer'`** / **`'sparkle'`** / **`'boing'`** | `audio/sfx/transition/b4_shimmer_g.mp3` & `b2_shimmer_a.mp3` | Eye darts, smirking stickman facial reaction, comic speech bubble punchline | `-16 dB` |
+| **`'slide'`** / **`'cutout'`** | `audio/sfx/paper/b3_cutout_slide_a.mp3` & `b2_paper_slide_a.mp3` | Hero prop slide-in, map or note sliding into frame | `-16 dB` |
+| **`'slam'`** / **`'thud'`** | `audio/sfx/paper/b4_book_slam_a.mp3` & `b4_thumbtack_drop_a.mp3` | Heavy prop landing, fridge door slamming shut | `-12 to -14 dB` |
+
+### 7.3 Directorial Sound Cue Placement Law
+1. **The Hook Subdrop**: Frame 0 or Line 1 entrance MUST feature a subtle subdrop (`cue(st, 'whoosh'); cue(st + dark, 'thud')`) to establish immediate gravity.
+2. **Step Pop Attack**: Every `stepCard(i, ...)` MUST have a synchronized `cue(t, 'pop')` landing exactly on the initial consonant of the spoken step word ("Step one" $\to$ $t = 0$).
+3. **The Danger Buzzer & Safe Chime Contrast**:
+   - When revealing what NOT to do: place `cue(t, 'buzzer')` or `cue(t, 'cross')` alongside the red `cross`.
+   - When revealing the correct action: place `cue(t, 'ding')` or `cue(t, 'check')` alongside the green `check`.
+4. **Comic Breathers**: Accompany eye glances and speech bubble punchlines with `cue(t, 'shimmer')` or `cue(t, 'tock')`.
+
+### 7.4 Broadcast Mix Engineering Pipeline
+The studio mixing engine (`tools/mix.py`) automatically applies an end-to-end broadcast mastering chain:
+1. **Voice Level Normalization**: The vocal track (`data/narration.wav`) is normalized to a clean broadcast dialogue reference ($-22\text{ LUFS}$ / $-1.5\text{ dBFS}$ peak).
+2. **Dynamic Sidechain Ducking**: The background music bed smoothly ducks by **$-18\text{ dB}$ to $-24\text{ dB}$** during spoken speech, preserving 100% vocal intelligibility, with a smooth $120\text{ms}$ recovery during narrative pauses.
+3. **Loop & Seamless Crossfades**: Background tracks automatically tile with seamless crossfades to match the exact duration of the short, ending with a smooth $1.5\text{s}$ fade out.
+4. **YouTube & Social Mastering Standard**: The combined master mix is soft-limited via hyperbolic tangent saturation (`tanh`) and normalized to **$-14\text{ LUFS}$ integrated** with a **$-1.5\text{ dBTP}$ true peak ceiling** (YouTube Shorts, Instagram Reels, TikTok standard).
+5. **Zero-Latency Consonant Alignment**: One-shot Foley effects are peak-aligned so that the loudest attack consonant hits at $t = 0.000\text{s}$ of the visual element entrance. Rolling sounds (odometer reels, countdown timers) start on the cue.
+
+### 7.5 Production Audio CLI Commands
+```bash
+# Mix audio, cues, and music bed automatically:
+python3 studio.py mix .
+
+# Custom audio mixing with tools/mix.py:
+python3 tools/mix.py .
+```
+Mix output is written to `data/mix.wav` (48 kHz, 16-bit stereo) and multiplexed into the video during `python3 studio.py render . --fast`.

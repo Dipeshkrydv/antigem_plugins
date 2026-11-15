@@ -92,7 +92,34 @@ version: 1.2.0
 
 ---
 
-## 🏎️ 5. 1-COMMAND AUTOPILOT & PRODUCTION WORKFLOW
+## 🎵 5. SFX & BACKGROUND MUSIC (BGM) AUDIO ENGINE (2D STICKMAN STANDARD)
+
+The studio audio engine (`tools/mix.py`) provides broadcast-quality audio mixing trained on the 2D stickman standard:
+
+### Background Music (BGM) Selection (`script.json` `"music"` field):
+- **`"bed"`** / **`"acoustic"`** / **`"revolution"`** *(Default)*: `lifestyle_and_acoustic/The Score - Revolution (Acoustic Cover) by Ryderboy.mp3` — Warm acoustic guitar & drums, ideal for tactical survival and dilemmas.
+- **`"bounce"`** / **`"viral"`** / **`"hiphop"`**: `viral_and_hiphop/Tommy Richman - Million Dollar Baby [Instrumental].mp3` — High-retention modern viral bounce.
+- **`"action"`** / **`"drums"`** / **`"epic"`**: `epic_and_action/Energetic_Drum_Background_Music_NO_COPYRIGHT_Action_Drums_Background.mp3` — High-stakes disaster and countdown timers.
+- **`"mystery"`** / **`"tension"`**: `crime_and_suspense/mystery_ambient.mp3` — Eerie cold opens and suspenseful what-if setups.
+
+### Stickman Foley Sound Effects Dictionary (`shots.js` `cue(t, 'type')`):
+- **Step Card Pop**: `cue(t, 'pop')` / `'step'` / `'card'` $\to$ `audio/sfx/paper/b3_paper_popup_a.mp3` (`-14 dB`)
+- **Visual Cut / Transition**: `cue(t, 'whoosh')` / `'cut'` $\to$ `audio/sfx/transition/b2_sweep_down_a.mp3` (`-17 dB`)
+- **Safe Solution / Green Check**: `cue(t, 'ding')` / `'chime'` / `'check'` $\to$ `audio/sfx/paper/b2_typewriter_bell_a.mp3` (`-14 dB`)
+- **Fatal Mistake / Red Cross**: `cue(t, 'buzzer')` / `'cross'` / `'sub_drop'` $\to$ `audio/sfx/transition/b2_sub_drop_a.mp3` (`-15 dB`)
+- **Tool Switch / Flashlight**: `cue(t, 'click')` / `'switch'` $\to$ `audio/sfx/paper/b4_thumbtack_drop_a.mp3` (`-15 dB`)
+- **Doodle Circle / Highlight**: `cue(t, 'marker')` / `'circle'` $\to$ `audio/sfx/paper/b4_marker_circle_a.mp3` (`-14 dB`)
+- **Odometer / Timer**: `cue(t, 'counter')` / `'timer'` $\to$ `audio/sfx/ui/b5_odometer_roll_a.mp3` (`-16 dB`)
+- **Comic Eye Dart / Punchline**: `cue(t, 'shimmer')` / `'sparkle'` $\to$ `audio/sfx/transition/b4_shimmer_g.mp3` (`-16 dB`)
+
+### Mixing Chain & Loudness Standard:
+- **Automatic Sidechain Ducking**: Background music automatically ducks by **$-18\text{ dB}$ to $-24\text{ dB}$** during speech, smoothly restoring during narrative pauses.
+- **Broadcast Loudness**: Master output mixed to **$-14\text{ LUFS}$ integrated** with a **$-1.5\text{ dBTP}$ true peak ceiling** (YouTube Shorts / Reels / TikTok standard).
+- **Consonant Synchronization**: Cue attacks hit at $t = 0.000\text{s}$ relative to spoken consonants, peak-aligned with visual card animations.
+
+---
+
+## 🏎️ 6. 1-COMMAND AUTOPILOT & PRODUCTION WORKFLOW
 
 ```bash
 # 1-Command Autopilot Production:

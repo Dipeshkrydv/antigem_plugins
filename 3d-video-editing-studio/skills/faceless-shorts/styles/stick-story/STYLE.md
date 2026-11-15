@@ -12,7 +12,9 @@ Example: `example/` = **WHAT IF THE POWER WENT OUT FOR 3 DAYS?** (34 s, 12 shots
 - One picture per clause: cut every 1.5-3 s; the eyes react first (look, then mood), then the body.
 - The same rooms all video; night versions for the problem, daylight for the happy ending.
 - Captions: sentence case on a dark rounded bar, 2-4 words, one gold word, y 1690 (they auto-shrink to fit).
-- Narration: lively, `am_puck`. Music `"bed"`. Sounds: pop on cards, whoosh on cuts, plops for objects, soft and round.
+- Audio Engine (2D Stickman Standard):
+  - Music: `"bed"` / `"acoustic"` (warm acoustic guitar), `"bounce"` / `"viral"` (808 viral beat), `"action"` / `"drums"` (adrenaline percussion). Ducks smoothly by $-18\text{ dB}$ under vocal consonants. Master mixed to $-14\text{ LUFS}$ with $-1.5\text{ dBTP}$ ceiling.
+  - SFX Foley: `pop` on step cards/badges, `whoosh` on scene cuts, `ding` on green safe checkmarks, `buzzer`/`sub_drop` on red fatal crosses, `click` on flashlights/switches, `marker` on doodle circle highlights, `counter` on timer reels, `shimmer` on comedic eye darts.
 - Safety advice is checked against official sources (Red Cross, Ready.gov, CDC) and listed in `script.json`.
 
 ## 2. Kit (`example/src/core/kit.js`, `import * as K`)

@@ -132,6 +132,14 @@ def cmd_words(project_dir: str):
 def cmd_mix(project_dir: str):
     py = get_python_bin()
     target = Path(project_dir).expanduser().resolve()
+    cues_file = target / "data" / "cues.json"
+    capture_tool = target / "tools" / "capture.mjs"
+    if not cues_file.exists() and capture_tool.exists():
+        print("🎵 Auto-extracting sound cues from story shots...")
+        try:
+            subprocess.run(["node", str(capture_tool), "cues"], cwd=str(target), check=True)
+        except Exception as e:
+            print(f"⚠️ Warning: auto-extracting cues returned: {e}")
     mix_script = target / "tools" / "mix.py"
     if not mix_script.exists():
         mix_script = SCRIPTS_DIR / "mix.py"

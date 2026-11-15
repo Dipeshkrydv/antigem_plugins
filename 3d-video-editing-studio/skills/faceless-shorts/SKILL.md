@@ -33,7 +33,9 @@ It automatically checks and non-interactively installs all required tools:
 - **One picture per clause**: Cut every 1.5-3s; the eyes react first (look, then mood: calm, happy, worried, scared, determined, sleepy), then the body.
 - **The same rooms all video**: Night versions for the problem, daylight for the solution/happy ending.
 - **Captions**: Sentence case on a dark rounded bar, 2-4 words, one gold word, y 1690.
-- **Narration**: Lively, `am_puck` (or `am_michael`). Music `"bed"`. Sounds: pop on cards, whoosh on cuts, plops for objects.
+- **Audio Engine (2D Stickman Standard)**:
+  - Music: `"bed"` / `"acoustic"` (warm acoustic guitar), `"bounce"` / `"viral"` (808 viral beat), `"action"` / `"drums"` (adrenaline percussion). Ducks smoothly by $-18\text{ dB}$ under vocal consonants. Output normalized to $-14\text{ LUFS}$ with $-1.5\text{ dBTP}$ ceiling.
+  - SFX Foley: `pop` on step cards/badges, `whoosh` on scene cuts, `ding` on green safe checkmarks, `buzzer`/`sub_drop` on red fatal crosses, `click` on flashlights/switches, `marker` on doodle circle highlights, `counter` on timer reels, `shimmer` on comedic eye darts.
 
 ## 2. Quickstart Workflow
 ```bash

@@ -20,8 +20,18 @@ rng = np.random.default_rng(11)
 
 cj_file = P / 'data/cues.json'
 if not cj_file.exists():
-    # If cues.json does not exist, build an empty default
-    cj = {'duration': 10.0, 'cues': []}
+    # If cues.json does not exist, attempt auto-extraction via tools/capture.mjs cues
+    capture_tool = P / 'tools/capture.mjs'
+    if capture_tool.exists():
+        try:
+            print("🎵 Auto-extracting sound cues from story shots...")
+            subprocess.run(['node', str(capture_tool), 'cues'], cwd=str(P), check=True)
+        except Exception as e:
+            print(f"⚠️ Warning: Auto-extracting cues returned: {e}")
+    if cj_file.exists():
+        cj = json.loads(cj_file.read_text())
+    else:
+        cj = {'duration': 10.0, 'cues': []}
 else:
     cj = json.loads(cj_file.read_text())
 
@@ -96,6 +106,12 @@ def slam(**_):
     d = 0.5; t = tt(d); x = np.sin(2 * np.pi * (60 + 60 * np.exp(-t * 25)) * t) * env(len(t), 0.002, 6)
     return np.tanh(1.6 * (x + lp(noise(d), 1200) * env(len(t), 0.001, 10) * 0.6)) * 0.9
 def tock(**_): d = 0.09; t = tt(d); return (np.sin(2 * np.pi * 420 * t) + 0.3 * np.sin(2 * np.pi * 840 * t)) * env(len(t), 0.001, 9) * 0.35
+def chime(**_):
+    d = 0.6; t = tt(d); return (np.sin(2 * np.pi * 1760 * t) + 0.4 * np.sin(2 * np.pi * 3520 * t)) * env(len(t), 0.001, 8) * 0.4
+def buzzer(**_):
+    d = 0.45; t = tt(d); x = np.sign(np.sin(2 * np.pi * 95 * t)) * env(len(t), 0.005, 4); return lp(x, 400) * 0.6
+def click(**_):
+    d = 0.04; t = tt(d); return (rng.standard_normal(len(t)) + np.sin(2 * np.pi * 1200 * t)) * env(len(t), 0.001, 20) * 0.35
 def zip_(**_):
     d = 0.32; n = bp(noise(d), 400, 3000); k = np.linspace(0, 1, len(n))
     return (n / (np.abs(n).max() + 1e-9) * 0.35 + sweep(300, 1100, d) * 0.12) * np.sin(np.pi * k) ** 1.2
@@ -111,9 +127,12 @@ def heartbeat(**_):
     x = np.concatenate([one(0.16, 58), np.zeros(int(0.09 * SR)), one(0.2, 52) * 0.75]); return lp(x, 300) * 1.0
 
 PROC_FX = dict(inhale=inhale, heartbeat=heartbeat, whoosh=whoosh, slide=slide, pop=pop, plop=plop, gulp=gulp, boing=boing,
-               bubbles=bubbles, sizzle=sizzle, sparkle=sparkle, thud=thud, slam=slam, tock=tock, zip=zip_, alarm=alarm)
+               bubbles=bubbles, sizzle=sizzle, sparkle=sparkle, thud=thud, slam=slam, tock=tock, zip=zip_, alarm=alarm,
+               chime=chime, bell=chime, ding=chime, check=chime, safe=chime, buzzer=buzzer, cross=buzzer, danger=buzzer,
+               sub_drop=thud, click=click, switch=click, step=pop, card=pop)
 PROC_LEVEL = dict(inhale=-15, heartbeat=-8, whoosh=-17, slide=-19, pop=-14, plop=-15, gulp=-11, boing=-15, bubbles=-21, sizzle=-18,
-                  sparkle=-17, thud=-11, slam=-9, tock=-18, zip=-14, alarm=-17)
+                  sparkle=-17, thud=-11, slam=-9, tock=-18, zip=-14, alarm=-17, chime=-14, bell=-14, ding=-14, check=-14,
+                  safe=-14, buzzer=-15, cross=-15, danger=-15, sub_drop=-14, click=-15, switch=-15, step=-14, card=-14)
 
 # ---------- Asset Search Paths (P, workspace, plugin, system skills) ----------
 AUDIO_ROOTS = [
@@ -137,6 +156,7 @@ def load_audio(f):
 GENRE_MAP = {
     'bed': ['bed.mp3', 'acoustic.mp3', 'The Score - Revolution', 'tech_modern', 'history_serious'],
     'acoustic': ['acoustic.mp3', 'The Score - Revolution', 'bed.mp3'],
+    'revolution': ['The Score - Revolution', 'acoustic.mp3', 'bed.mp3'],
     'tension': ['tension.mp3', 'tension_build', 'mystery_ambient'],
     'mystery': ['mystery.mp3', 'mystery_ambient', 'tension_build'],
     'suspense': ['suspense.mp3', 'tension_build', 'mystery_ambient'],
@@ -146,6 +166,7 @@ GENRE_MAP = {
     'action': ['action.mp3', 'Energetic_Drum_Background_Music', 'drums.mp3'],
     'drums': ['drums.mp3', 'action.mp3', 'Energetic_Drum_Background_Music'],
     'epic': ['action.mp3', 'Energetic_Drum_Background_Music'],
+    'fast': ['action.mp3', 'Energetic_Drum_Background_Music', 'bounce.mp3'],
     'tech': ['tech.mp3', 'tech_modern', 'synthwave.mp3'],
     'synthwave': ['synthwave.mp3', 'No_Copyright_Music_Dark_Synthwave'],
     'viral': ['viral.mp3', 'Tommy Richman', 'hiphop.mp3', 'bounce.mp3'],
@@ -190,32 +211,54 @@ def find_music(mus_name):
 # Semantic mapping for cue sound effects to real 2D studio Foley samples
 SFX_MAP = {
     'whoosh': ['whoosh', 'b2_sweep_down', 'b4_shimmer', 'b3_riser_short'],
-    'slide': ['b4_paper_slide', 'b2_paper_slide', 'paper_slide'],
-    'pop': ['b3_paper_popup', 'b4_postit_flip', 'b5_split_flap'],
+    'cut': ['b2_sweep_down', 'b4_sweep_up', 'whoosh'],
+    'transition': ['b4_sweep_up', 'b2_sweep_down', 'b4_riser_short', 'b4_shimmer'],
+    'sweep': ['b4_sweep_up', 'b2_sweep_down'],
+    'slide': ['b4_paper_slide', 'b2_paper_slide', 'paper_slide', 'b3_cutout_slide'],
+    'pop': ['b3_paper_popup', 'b4_postit_flip', 'b5_split_flap', 'b3_cutout_slide'],
+    'step': ['b3_paper_popup', 'b4_postit_flip', 'b3_cutout_slide'],
+    'card': ['b3_cutout_slide', 'b3_paper_popup', 'b4_postit_flip'],
+    'stepcard': ['b3_paper_popup', 'b4_postit_flip', 'b3_cutout_slide'],
     'plop': ['b3_paper_popup', 'b4_postit_flip'],
     'slam': ['b4_book_slam', 'b4_sub_drop'],
     'thud': ['b4_book_slam', 'b4_sub_drop', 'b4_thumbtack_drop'],
     'stamp': ['b4_stamp_press', 'stamp'],
+    'seal': ['b4_stamp_press', 'stamp'],
     'marker': ['b4_marker_circle', 'b4_marker_draw', 'b4_marker_underline'],
     'circle': ['b4_marker_circle', 'b4_marker_draw'],
     'underline': ['b4_marker_underline', 'b4_marker_draw'],
     'draw': ['b4_marker_draw', 'b2_pen_writing', 'b2_pencil_scribble'],
+    'highlight': ['b4_marker_draw', 'b4_marker_circle', 'b4_marker_underline'],
     'typewriter': ['b2_typewriter_keys', 'b4_typewriter_keys'],
     'tock': ['b2_typewriter_keys', 'b2_typewriter_bell', 'b5_split_flap'],
+    'click': ['b4_thumbtack_drop', 'b2_typewriter_keys', 'b5_split_flap'],
+    'switch': ['b4_thumbtack_drop', 'b2_typewriter_keys'],
     'bell': ['b2_typewriter_bell'],
     'ding': ['b2_typewriter_bell'],
+    'chime': ['b2_typewriter_bell'],
+    'check': ['b2_typewriter_bell'],
+    'safe': ['b2_typewriter_bell'],
+    'buzzer': ['b2_sub_drop', 'b4_sub_drop', 'b4_book_slam'],
+    'cross': ['b2_sub_drop', 'b4_sub_drop', 'b4_book_slam'],
+    'danger': ['b2_sub_drop', 'b4_sub_drop'],
+    'sub_drop': ['b2_sub_drop', 'b4_sub_drop'],
+    'subdrop': ['b2_sub_drop', 'b4_sub_drop'],
+    'hook': ['b2_sub_drop', 'b4_riser_short'],
     'paper': ['b2_map_unfold', 'b3_paper_fold', 'b2_paper_crumple'],
     'fold': ['b3_paper_fold', 'b4_map_fold'],
     'unfold': ['b2_map_unfold', 'b2_letter_unfold'],
-    'pin': ['b4_thumbtack_drop'],
+    'pin': ['b4_thumbtack_drop', 'drop_001'],
     'tack': ['b4_thumbtack_drop'],
     'tape': ['b2_tape_pull', 'b2_tape_rewind'],
     'rewind': ['b2_tape_rewind'],
     'riser': ['b3_riser_short', 'b2_riser_long'],
     'swell': ['b3_swell_reverse', 'b4_swell_reverse'],
     'shimmer': ['b4_shimmer', 'b2_shimmer'],
+    'sparkle': ['b4_shimmer', 'b2_shimmer'],
     'scoreboard': ['b5_scoreboard_flip', 'b5_odometer_roll'],
     'counter': ['b5_odometer_roll', 'b5_scoreboard_flip', 'b5_split_flap'],
+    'timer': ['b5_odometer_roll', 'b5_scoreboard_flip'],
+    'odometer': ['b5_odometer_roll', 'b5_scoreboard_flip'],
     'flip': ['b5_split_flap', 'b4_postit_flip', 'b5_scoreboard_flip'],
     'burn': ['b5_film_burn'],
     'leak': ['b5_light_leak'],
