@@ -1061,10 +1061,15 @@ def selfcheck():
     print("selfcheck ok -- Remotion springs, Disney squash/stretch, forensic stamps, and optical leaks verified")
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] in ("-h", "--help", "help"):
+        print("Usage: python render.py [shots|plan|master|selfcheck] [options]")
+        sys.exit(0)
     cmd, args = (sys.argv[1:] or ["shots"])[0], sys.argv[2:]
     if cmd == "selfcheck":
         selfcheck()
         sys.exit(0)
+    if not os.path.exists("SCENES.tsv"):
+        sys.exit(f"Error: SCENES.tsv not found in current directory ({os.getcwd()}). Run inside a project directory.")
     scenes = plan()
     if cmd == "plan":
         total_els = sum(len(s["els"]) for s in scenes)

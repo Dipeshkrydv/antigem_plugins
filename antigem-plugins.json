@@ -16,14 +16,6 @@
       "version": "1.6.0",
       "description": "Pre-Trained Phone (Desktop-on-Phone www.facebook.com & Mobile Touch m.facebook.com) and Desktop Facebook Automation Engine (v1.6.0): Dedicated Feed Posts (Text/Photo/Carousel/Video), Anti-Comment Firewall (never posts into comments), Reels (/reels/create + automatic mobile fallback + video event dispatch), Stories (/stories/create Photo/Video with overlay story_text & Text Story), Real Video/Reel Thumbnail & Cover Uploader, Multiline Formatted Caption Engine (Title + Description + Bullets + CTA + 3-6 #Hashtags), and Zero-Overthinking 1-Call Dispatch.",
       "icon": "icon.png"
-    },
-    {
-      "path": "3d-video-editing-studio",
-      "id": "3d-video-editing-part-1",
-      "name": "Stickman Video Editing Studio",
-      "version": "1.2.0",
-      "description": "Autonomous Stickman Video Director & Production Engine (Stick Story): 100% Code-Driven Stick Figure Storytelling & Tactical Survival Shorts. Ink-black stick figures with emotive acting eyes, day/night rooms, gold numbered step cards, Kokoro-82M neural TTS, Whisper alignment, NumPy/SciPy audio, Anti-LMK Shield, High-Speed Render Presets (--fast 720p HD mobile default, --turbo 540p ultrafast, --1080p full HD), $0 Cost, Zero Third-Party API Keys.",
-      "icon": "icon.png"
     }
   ]
 }

@@ -1,13 +1,3 @@
-def _cues_is_stub(path="cues.tsv"):
-    if not os.path.exists(path):
-        return True
-    try:
-        with open(path, encoding="utf-8") as f:
-            lines = [l for l in f if l.strip()]
-        return len(lines) <= 5  # Template stub (<= 5 rows)
-    except Exception:
-        return True
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """studio.py -- Deepesh Studio v2: one command line for the whole production.
@@ -38,6 +28,17 @@ import csv, os, shutil, subprocess, sys
 ROOT = os.path.dirname(os.path.realpath(__file__))
 CORE = os.path.join(ROOT, "core")
 PY = sys.executable
+
+
+def _cues_is_stub(path="cues.tsv"):
+    if not os.path.exists(path):
+        return True
+    try:
+        with open(path, encoding="utf-8") as f:
+            lines = [l for l in f if l.strip()]
+        return len(lines) <= 5  # Template stub (<= 5 rows)
+    except Exception:
+        return True
 
 
 def ensure_prerequisites():

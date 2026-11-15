@@ -37,6 +37,8 @@ PROMPT = (
 
 
 def rows():
+    if not os.path.exists("ELEMENTS.tsv"):
+        return []
     with open("ELEMENTS.tsv", encoding="utf-8") as f:
         return list(csv.DictReader(f, delimiter="\t"))
 
@@ -141,6 +143,11 @@ def key():
 
 
 if __name__ == "__main__":
+    if any(a in ("-h", "--help", "help") for a in sys.argv[1:]):
+        print("Usage: python elements.py [key]")
+        sys.exit(0)
+    if not os.path.exists("ELEMENTS.tsv") and "key" not in sys.argv[1:]:
+        sys.exit("Error: ELEMENTS.tsv not found in current directory. Run inside a project directory.")
     if "key" not in sys.argv[1:]:
         generate()
     key()

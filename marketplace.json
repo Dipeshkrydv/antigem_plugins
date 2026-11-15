@@ -1,7 +1,7 @@
 {
   "name": "antigem-plugins",
   "displayName": "Antigem Official Plugins",
-  "description": "Official Antigem plugins repository: 2D Video Editing Studio (v3.3.0), Facebook Automation & SEO Studio (v1.6.0), and 3D Video Editing Part 1 (v1.1.0).",
+  "description": "Official Antigem plugins repository: 2D Video Editing Studio (v3.3.0) and Facebook Automation & SEO Studio (v1.6.0).",
   "owner": {
     "name": "Dipesh Kr Yadav",
     "url": "https://github.com/Dipeshkrydv"
@@ -49,30 +49,6 @@
         "antigem-browser",
         "kiwi-browser",
         "mobile"
-      ]
-    },
-    {
-      "name": "3d-video-editing-studio",
-      "source": "./3d-video-editing-studio",
-      "displayName": "Stickman Video Editing Studio",
-      "description": "Autonomous Stickman Video Director & Production Engine (Stick Story): 100% Code-Driven Stick Figure Storytelling & Tactical Survival Shorts. Ink-black stick figures with emotive acting eyes, day/night rooms, gold numbered step cards, Kokoro-82M neural TTS, Whisper alignment, NumPy/SciPy audio, Anti-LMK Shield, High-Speed Render Presets (--fast 720p HD mobile default, --turbo 540p ultrafast, --1080p full HD), $0 Cost, Zero Third-Party API Keys.",
-      "version": "1.2.0",
-      "author": {
-        "name": "Dipesh Kr Yadav"
-      },
-      "homepage": "https://github.com/Dipeshkrydv/antigem_plugins",
-      "keywords": [
-        "stickman",
-        "stick-story",
-        "stickman-animation",
-        "stick-figure",
-        "faceless-shorts",
-        "youtube-shorts",
-        "tiktok",
-        "reels",
-        "kokoro-tts",
-        "whisper",
-        "procedural-audio"
       ]
     }
   ]

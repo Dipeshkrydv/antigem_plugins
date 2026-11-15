@@ -50,7 +50,7 @@ def cartesia_generate_voice(
         )
         return json.dumps({
             "status": "success",
-            "message": f"Successfully generated {res["duration_seconds"]}s voiceover in {res["generation_time_seconds"]}s with emotion "{res["emotion"]}"",
+            "message": f"Successfully generated {res['duration_seconds']}s voiceover in {res['generation_time_seconds']}s with emotion '{res['emotion']}'",
             "output_path": res["output_path"],
             "duration_seconds": res["duration_seconds"],
             "generation_time_seconds": res["generation_time_seconds"],

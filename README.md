@@ -3,10 +3,9 @@
 [![AntiGem Compatible](https://img.shields.io/badge/AntiGem-Plugins_Ready-brightgreen.svg)](https://github.com/Dipeshkrydv/2d-video-editing-skill)
 [![2D Engine](https://img.shields.io/badge/2D_Video_Studio-v3.3_(Anti--Offline_Shield)-blue.svg)](./2d-video-editing-studio)
 [![Facebook Engine](https://img.shields.io/badge/Facebook_Automation-v1.6.0-blue.svg)](./facebook-automation)
-[![3D Engine](https://img.shields.io/badge/3D_Video_Part_1-v1.1.0-orange.svg)](./3d-video-editing-studio)
 [![Platform](https://img.shields.io/badge/Platform-Android_(Termux)_%7C_Linux_%7C_macOS_%7C_Windows-purple.svg)]()
 
-> Official production-grade plugin suite for **AntiGem**, **Android (Termux)**, and **Desktop**. Includes the **2D Video Editing Studio (v3.3.0 Anti-Offline Server Shield)**, **Facebook Automation & SEO Studio (v1.6.0)**, and **3D Video Editing Part 1 (v1.1.0 Standalone Engine)**.
+> Official production-grade plugin suite for **AntiGem**, **Android (Termux)**, and **Desktop**. Includes the **2D Video Editing Studio (v3.3.0 Anti-Offline Server Shield)** and **Facebook Automation & SEO Studio (v1.6.0)**.
 
 ---
 
@@ -25,12 +24,6 @@
 - 🎬 **Reel Auto-Wizard & Video Event Dispatch**: Dispatches native `input`/`change` events on `/reels/create` file inputs so React initiates upload processing immediately, keeping the wizard active and unblocking "Next" and "Publish" buttons.
 - 🖼️ **Thumbnail & Cover Uploader**: Direct upload for custom Reel and Video thumbnails via Video Options / Cover panel with active click event delegation.
 
-### 3. Stickman Video Editing Studio — Stick Story (v1.2.0)
-- 🏃 **Dedicated Stickman Focus**: 100% focused on Stick Story & Stickman tactical survival, life-hack, and dilemma shorts.
-- ⚡ **Zero External Template Prompts**: Everything is self-contained. The agent and user run `python3 studio.py new stick-story <name>` with zero need to locate external files.
-- 🛡️ **Anti-LMK Shield**: Built-in micro-yields and single-process headless Chromium keep RAM flat **< 140 MB** during 1,000+ frame renders.
-- 🎨 **Stick Story Visual Language**: Ink-black stick figures with emotive acting eyes, day/night illustrated rooms, warm silhouette glows, gold step cards, and word-synced captions.
-
 ---
 
 ## 🧩 Plugins in this Repository
@@ -39,7 +32,6 @@
 |:---:|---|---|:---:|---|
 | **1** | **2D Video Editing Studio** | [`2d-video-editing-studio/`](./2d-video-editing-studio) | `3.3.0` | **Anti-Offline Server Shield**, Direct In-Memory Streaming, High-Speed Render Presets (`--fast`, `--turbo`, `--1080p`), Vox Documentary, Stickman Storytelling, Die-Cut Pop-Art Stickers, Crime Noir, 8-Bit Arcade, 25 fonts, and Google Flow rapid parallel dispatch. |
 | **2** | **Facebook Automation & SEO Studio** | [`facebook-automation/`](./facebook-automation) | `1.6.0` | Dedicated Feed Posts (Photo/Carousel/Video), Anti-Comment Firewall, Reels (`/reels/create` + mobile fallback + event dispatch), Stories, Real Thumbnail/Cover Uploader, and Multiline Formatted Captions. |
-| **3** | **Stickman Video Editing Studio** | [`3d-video-editing-studio/`](./3d-video-editing-studio) | `1.2.0` | Dedicated Stickman & Stick Story Video Engine (`studio.py`), 100% Code-Driven vertical shorts (Canvas 2D + Three.js, Kokoro neural TTS, Whisper alignment, gold step cards, acting eyes). Anti-LMK Shield. $0 Cost. |
 
 ---
 
@@ -55,5 +47,4 @@
 4. Browse the repository plugins and click **Install** or **Update** on any or all plugins:
    - ✅ **2D Video Editing Studio (v3.3.0)**
    - ✅ **Facebook Automation & SEO Studio (v1.6.0)**
-   - ✅ **3D Video Editing Part 1 (v1.1.0)**
 5. All skills, models, tools, and background workers will be registered instantly!

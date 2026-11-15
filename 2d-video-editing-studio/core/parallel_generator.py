@@ -4,7 +4,21 @@ import glob
 import json
 import shutil
 import subprocess
-from core.flow_bridge import bridge
+
+try:
+    from core.flow_bridge import bridge
+except ImportError:
+    try:
+        from flow_bridge import bridge
+    except ImportError:
+        bridge = None
+
+
+def _format_id(idx):
+    try:
+        return f"{int(idx):03d}"
+    except (ValueError, TypeError):
+        return str(idx)
 
 
 def check_flow_auto():
@@ -36,9 +50,10 @@ def generate_all_assets(prompts, output_dir, aspect_ratio="16:9", timeout=600, m
     results = {}
 
     for idx, p in prompts.items():
-        expected = os.path.join(output_dir, f"scene_{idx:03d}.png")
+        f_id = _format_id(idx)
+        expected = os.path.join(output_dir, f"scene_{f_id}.png")
         if os.path.exists(expected) and os.path.getsize(expected) > 1024:
-            print(f"  [✓] Scene {idx:03d} already exists on disk. Skipping.")
+            print(f"  [✓] Scene {f_id} already exists on disk. Skipping.")
             results[idx] = expected
         else:
             missing_prompts[idx] = p
@@ -55,6 +70,7 @@ def generate_all_assets(prompts, output_dir, aspect_ratio="16:9", timeout=600, m
         print(f"  [⚡] Flow Connector Extension detected! Queuing {len(missing_prompts)} prompts in parallel (batch=4, 1.2s gap)...")
         job_ids = {}
         for idx, prompt in missing_prompts.items():
+            f_id = _format_id(idx)
             clean_prompt = f"{prompt}, ultra clean graphic, NO WATERMARK, NO TEXT LOGOS"
             cmd = [
                 "flow-auto", "generate", "create", "flow-text-to-image",
@@ -76,9 +92,9 @@ def generate_all_assets(prompts, output_dir, aspect_ratio="16:9", timeout=600, m
                     jid = data.get("jobId") or data.get("id")
                     if jid:
                         job_ids[idx] = jid
-                print(f"    -> Queued Scene {idx:03d} to Flow Connector")
+                print(f"    -> Queued Scene {f_id} to Flow Connector")
             except Exception as e:
-                print(f"    [!] Queue warning for Scene {idx:03d}: {e}")
+                print(f"    [!] Queue warning for Scene {f_id}: {e}")
             time.sleep(0.4)
 
         # Poll Downloads folder continuously as parallel jobs complete
@@ -86,27 +102,30 @@ def generate_all_assets(prompts, output_dir, aspect_ratio="16:9", timeout=600, m
         pending_indices = set(missing_prompts.keys())
         while pending_indices and time.time() < deadline:
             for idx in list(pending_indices):
+                f_id = _format_id(idx)
                 matches = []
                 for ext in ("*.png", "*.jpg", "*.jpeg", "*.webp"):
                     matches.extend(glob.glob(os.path.join(downloads_dir, f"{idx}_*{ext[1:]}")))
                     matches.extend(glob.glob(os.path.join(os.path.expanduser("~/Downloads"), f"{idx}_*{ext[1:]}")))
+                    matches.extend(glob.glob(os.path.join(downloads_dir, f"{f_id}_*{ext[1:]}")))
+                    matches.extend(glob.glob(os.path.join(os.path.expanduser("~/Downloads"), f"{f_id}_*{ext[1:]}")))
                 if matches:
                     latest_file = max(matches, key=os.path.getctime)
                     if os.path.getsize(latest_file) > 1024:
-                        expected_path = os.path.join(output_dir, f"scene_{idx:03d}.png")
+                        expected_path = os.path.join(output_dir, f"scene_{f_id}.png")
                         shutil.copy2(latest_file, expected_path)
                         results[idx] = expected_path
                         pending_indices.remove(idx)
-                        print(f"    [✓] Scene {idx:03d} harvested ({len(results)}/{len(prompts)} ready)")
+                        print(f"    [✓] Scene {f_id} harvested ({len(results)}/{len(prompts)} ready)")
             if pending_indices:
                 time.sleep(1.5)
         return results
 
     # TIER 2: DeepX Bridge Slotted Parallel Dispatch
-    if bridge.check_connection():
+    if bridge and bridge.check_connection():
         print(f"  [🚀] DeepX Flow Bridge connected! Dispatching {len(missing_prompts)} assets via rapid batch...")
         batch_items = [
-            {"id": f"scene_{idx:03d}", "prompt": f"{p} #scene_{idx:03d}", "aspectRatio": aspect_ratio}
+            {"id": f"scene_{_format_id(idx)}", "prompt": f"{p} #scene_{_format_id(idx)}", "aspectRatio": aspect_ratio}
             for idx, p in missing_prompts.items()
         ]
         try:
@@ -119,3 +138,47 @@ def generate_all_assets(prompts, output_dir, aspect_ratio="16:9", timeout=600, m
             print(f"  [!] DeepX batch warning: {e}")
 
     return results
+
+
+class ParallelAssetGenerator:
+    """Parallel asset generator that bridges ELEMENTS.tsv with 3-Tier high-speed parallel asset dispatcher."""
+    def __init__(self, elements_tsv="ELEMENTS.tsv", model="nano-banana-2", speed=5):
+        self.elements_tsv = elements_tsv
+        self.model = model
+        self.speed = speed
+        self.raw_dir = "elements/raw"
+        self.cut_dir = "elements/cut"
+        self.dispatched = []
+
+    def dispatch_all_parallel(self):
+        import csv
+        if not os.path.exists(self.elements_tsv):
+            return 0
+        with open(self.elements_tsv, encoding="utf-8") as f:
+            rows = list(csv.DictReader(f, delimiter="\t"))
+
+        try:
+            try:
+                from core.dedupe_guard import get_pending_assets
+            except ImportError:
+                from dedupe_guard import get_pending_assets
+            todo = get_pending_assets(rows)
+        except Exception:
+            todo = [r for r in rows if not (glob.glob(f"{self.cut_dir}/{r.get('id', '')}.*") or glob.glob(f"{self.raw_dir}/{r.get('id', '')}.*"))]
+
+        if not todo:
+            return 0
+
+        prompts = {}
+        for r in todo:
+            aid = r.get("id") or r.get("name") or "0"
+            raw_obj = r.get("prompt") or r.get("object") or r.get("name") or ""
+            prompts[aid] = raw_obj
+
+        res = generate_all_assets(prompts, self.raw_dir, max_workers=self.speed)
+        self.dispatched = list(prompts.keys())
+        return len(self.dispatched)
+
+    def watch_and_sync(self):
+        pass
+

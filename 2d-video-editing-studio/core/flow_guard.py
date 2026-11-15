@@ -140,7 +140,10 @@ def status():
 
 if __name__ == "__main__":
     cmd = (sys.argv[1:] or ["status"])[0]
-    if cmd == "status":
+    if cmd in ("-h", "--help", "help"):
+        print(__doc__)
+        sys.exit(0)
+    elif cmd == "status":
         print(json.dumps(status(), indent=2))
     elif cmd == "reset":
         reset(); print("Flow guard: pause cleared")
