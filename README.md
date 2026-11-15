@@ -33,7 +33,7 @@
 
 | Order | Plugin Name | Directory | Version | Core Capabilities |
 |:---:|---|---|:---:|---|
-| **1** | **2D Video Editing Studio** | [`2d-video-editing-studio/`](./2d-video-editing-studio) | `3.3.0` | **Anti-Offline Server Shield**, Direct In-Memory Streaming, High-Speed Render Presets (`--fast`, `--turbo`, `--1080p`), Vox Documentary, Stickman Storytelling, Die-Cut Pop-Art Stickers, Crime Noir, 8-Bit Arcade, 25 fonts, and Google Flow rapid parallel dispatch. |
+| **1** | **2D Video Editing Studio** | [`2d-video-editing-studio/`](./2d-video-editing-studio) | `3.3.1` | **Anti-Offline Server Shield**, Direct In-Memory Streaming, High-Speed Render Presets (`--fast`, `--turbo`, `--1080p`), Vox Documentary, Stickman Storytelling, Die-Cut Pop-Art Stickers, Crime Noir, 8-Bit Arcade, 25 fonts, and Google Flow rapid parallel dispatch. |
 | **2** | **Facebook Automation & SEO Studio** | [`facebook-automation/`](./facebook-automation) | `1.6.0` | Dedicated Feed Posts (Photo/Carousel/Video), Anti-Comment Firewall, Reels (`/reels/create` + mobile fallback + event dispatch), Stories, Real Thumbnail/Cover Uploader, and Multiline Formatted Captions. |
 
 ---
@@ -48,6 +48,6 @@
    ```
    *(or `https://github.com/Dipeshkrydv/antigem_plugins`)*
 4. Browse the repository plugins and click **Install** or **Update** on any or all plugins:
-   - ✅ **2D Video Editing Studio (v3.3.0)**
+   - ✅ **2D Video Editing Studio (v3.3.1)**
    - ✅ **Facebook Automation & SEO Studio (v1.6.0)**
 5. All skills, models, tools, and background workers will be registered instantly!
