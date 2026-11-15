@@ -247,3 +247,22 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
   execute(message.tool,message.args||{}).then(sendResponse,error=>sendResponse({isError:true,content:[{type:'text',text:error.message}]}));
   return true;
 });
+
+// Anti-Offline Service Worker Heartbeat Shield
+const KEEPALIVE_INTERVAL = 20000;
+setInterval(() => {
+  try {
+    chrome.runtime?.getPlatformInfo?.(() => {});
+  } catch (_) {}
+}, KEEPALIVE_INTERVAL);
+
+if (chrome.alarms) {
+  try {
+    chrome.alarms.create("anti_offline_heartbeat", { periodInMinutes: 0.5 });
+    chrome.alarms.onAlarm.addListener(alarm => {
+      if (alarm.name === "anti_offline_heartbeat") {
+        try { chrome.runtime?.getPlatformInfo?.(() => {}); } catch (_) {}
+      }
+    });
+  } catch (_) {}
+}

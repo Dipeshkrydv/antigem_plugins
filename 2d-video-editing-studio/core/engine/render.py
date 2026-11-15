@@ -1360,9 +1360,10 @@ def _render_chunk(job):
         if k is None or k != prev_key:
             prev, prev_key = e.frame(t).tobytes(), k
         pr.stdin.write(prev)
-        if fr % 25 == 0:
+        if fr % 5 == 0:
+            time.sleep(0.002)  # Anti-offline heartbeat yield
+        if fr % 20 == 0:
             gc.collect()
-            time.sleep(0.001)  # Anti-offline heartbeat yield
     pr.stdin.close()
     if pr.wait() != 0:
         raise RuntimeError(f"ffmpeg failed on chunk {out}")
@@ -1422,11 +1423,11 @@ def _render_direct(e, f_start, f_end, out, preview, t_from, t_to, preset="fast",
             pr.stdin.write(prev)
 
             # Anti-LMK & Anti-Offline Heartbeat Shield:
-            # Yield every 10 frames to release Python GIL for WebSocket heartbeat,
-            # and trigger gc.collect() every 25 frames to keep RAM flat (< 140MB).
-            if idx % 10 == 0:
-                time.sleep(0.001)  # Keeps WebSocket / Termux server alive!
-            if idx % 25 == 0:
+            # Yield every 5 frames to release Python GIL for WebSocket heartbeat,
+            # and trigger gc.collect() every 20 frames to keep RAM flat (< 140MB).
+            if idx % 5 == 0:
+                time.sleep(0.002)  # Keeps WebSocket / Termux server alive!
+            if idx % 20 == 0:
                 gc.collect()
 
             now = time.time()
@@ -1450,16 +1451,8 @@ def _render_direct(e, f_start, f_end, out, preview, t_from, t_to, preset="fast",
 
 
 def default_workers():
-    if is_mobile():
-        return 1
-    cpus = os.cpu_count() or 2
-    try:
-        avail = int(open("/proc/meminfo").read().split("MemAvailable:")[1].split()[0]) / 1024
-    except Exception:
-        avail = 2048
-    if avail <= 3500:
-        return 1
-    return max(1, min(cpus - 2, int(avail // 600), 4))
+    """Default to 1 worker to enforce the Anti-Offline Server Shield (flat RAM < 140MB and continuous heartbeats)."""
+    return 1
 
 
 def _ensure_audio_mix():
@@ -1493,12 +1486,11 @@ def render_video(edit, scale, out, preview, workers, t_from=0.0, t_to=None, pres
     f_start, f_end = int(t_from * e.fps), int(math.ceil(t_to * e.fps))
     
     mobile = is_mobile()
-    if workers is None or workers == 0:
-        workers = 1 if mobile else default_workers()
-
-    if workers <= 1 or mobile:
-        if mobile:
-            print("📱 Mobile / AntiGem Shield Active: Direct Single-Process Stream (Flat RAM < 140MB, Heartbeat Safe)", flush=True)
+    # Anti-Offline Server Shield: Direct Single-Process In-Memory Streaming is the default
+    # across ALL environments (Termux, AntiGem, Android, Linux, Desktop) to keep RAM flat < 140MB
+    # and guarantee continuous Python GIL micro-yields for WebSocket / Node.js heartbeats.
+    if workers is None or workers <= 1:
+        print("🛡️ Anti-Offline Server Shield Active: Direct Single-Process Stream (Flat RAM < 140MB, Heartbeat Safe)", flush=True)
         _render_direct(e, f_start, f_end, out, preview, t_from, t_to, preset=preset, crf=crf, threads=2 if mobile else None)
         return
 

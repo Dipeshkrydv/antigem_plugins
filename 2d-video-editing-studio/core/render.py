@@ -912,6 +912,11 @@ def render_scene(sc):
             cv.paste(leak_overlay, (0, 0), leak_overlay)
             
         pr.stdin.write(cv.tobytes())
+        if (f - f0) % 5 == 0:
+            time.sleep(0.002)  # Anti-offline heartbeat yield
+        if (f - f0) % 20 == 0:
+            import gc
+            gc.collect()
     pr.stdin.close()
     assert pr.wait() == 0, f"ffmpeg failed on scene {sc['id']}"
     print(f"scene {sc['id']}: {(f1 - f0) / FPS:.2f}s, {len(sc['els'])} elements", flush=True)
@@ -1130,7 +1135,7 @@ if __name__ == "__main__":
             to_render = [s for s in scenes if not (os.path.exists(f"shots/{s['id']}.mp4") and os.path.getmtime(f"shots/{s['id']}.mp4") >= scenes_mtime)]
         else:
             to_render = [s for s in scenes if s["id"] in args]
-        workers = mc.get_safe_workers()
+        workers = 1  # Clamped to 1 to guarantee zero offline server disconnections and flat RAM
         print(f"Rendering {len(to_render)} scenes (skipped {len(scenes) - len(to_render)} already rendered) with {workers} parallel workers...")
         with ProcessPoolExecutor(max_workers=workers) as executor:
             list(executor.map(render_scene, to_render))
