@@ -164,3 +164,79 @@ export function captionBar(words, x, y, sc = 1, look = CAPLOOK) {
   let cx = -tw / 2; words.forEach((w, i) => { ctx.fillStyle = w.hi ? look.hi : look.fg; ctx.fillText(w.txt, cx, 4); cx += ws[i] + sp; });
   ctx.restore();
 }
+
+// ═════════════════════════ STICKMAN EDITORIAL TYPOGRAPHY & OVERLAYS ═════════════════════════
+
+/** Clean 1-3 word anchor label beneath a character, organ, or prop */
+export function label(text, x, y, opt = {}) {
+  ctx.save(); ctx.translate(x, y);
+  const font = opt.font || '700 40px "Baloo 2", Inter, sans-serif';
+  ctx.font = font; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+  const tw = ctx.measureText(text).width, pw = tw + 44, ph = 64;
+  rr(-pw / 2, -ph / 2, pw, ph, 18);
+  ctx.fillStyle = opt.bg || 'rgba(20, 20, 26, 0.85)'; ctx.fill();
+  if (opt.border) { ctx.lineWidth = 3; ctx.strokeStyle = opt.border; ctx.stroke(); }
+  ctx.fillStyle = opt.color || P.white; ctx.fillText(text, 0, 3);
+  ctx.restore();
+}
+
+/** High-impact punchy keyword pill: danger (crimson), safe (green), gold (step), dark (navy) */
+export function keywordPill(text, x, y, type = 'gold', sc = 1) {
+  if (sc <= 0) return; ctx.save(); ctx.translate(x, y); ctx.scale(sc, sc);
+  ctx.font = '800 48px "Baloo 2", Inter, sans-serif';
+  const tw = ctx.measureText(text).width, w = tw + 72, h = 84;
+  let bg = P.gold, fg = P.navy;
+  if (type === 'danger') { bg = P.red; fg = P.white; }
+  else if (type === 'safe') { bg = P.green; fg = P.white; }
+  else if (type === 'dark') { bg = P.navy; fg = P.white; }
+  else if (type === 'mustard') { bg = '#F5A623'; fg = P.navy; }
+  rr(-w / 2 + 4, -h / 2 + 6, w, h, 24); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fill();
+  rr(-w / 2, -h / 2, w, h, 24); ctx.fillStyle = bg; ctx.fill();
+  ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, 0, 4);
+  ctx.restore();
+}
+
+/** Comic speech bubble with pointer tail toward character's mouth (tx, ty) */
+export function speechBubble(text, x, y, tx, ty, sc = 1, opt = {}) {
+  if (sc <= 0) return; ctx.save(); ctx.translate(x, y); ctx.scale(sc, sc);
+  const font = opt.font || '800 46px "Baloo 2", Kalam, Inter, sans-serif';
+  ctx.font = font; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+  const tw = ctx.measureText(text).width, w = Math.max(160, tw + 60), h = 96;
+  const relTx = (tx - x) / (sc || 1), relTy = (ty - y) / (sc || 1);
+  ctx.beginPath();
+  rr(-w / 2, -h / 2, w, h, 24);
+  ctx.moveTo(Math.sign(relTx) * Math.min(w * 0.25, Math.abs(relTx * 0.4)), h / 2 - 2);
+  ctx.lineTo(relTx * 0.75, relTy * 0.75);
+  ctx.lineTo(Math.sign(relTx) * Math.min(w * 0.25, Math.abs(relTx * 0.4)) + 24, h / 2 - 2);
+  ctx.fillStyle = opt.bg || '#FFFFFF'; ctx.fill();
+  ctx.lineWidth = 4; ctx.strokeStyle = P.ink; ctx.stroke();
+  ctx.fillStyle = opt.color || P.ink; ctx.fillText(text, 0, 4);
+  ctx.restore();
+}
+
+/** Chisel-tip yellow highlighter sweep behind text */
+export function markerSweep(text, x, y, sc = 1, col = 'rgba(255, 225, 0, 0.55)') {
+  ctx.save(); ctx.translate(x, y); ctx.scale(sc, sc);
+  ctx.font = '800 52px "Baloo 2", Inter, sans-serif';
+  const tw = ctx.measureText(text).width;
+  ctx.fillStyle = col;
+  ctx.fillRect(-tw / 2 - 16, -24, tw + 32, 54);
+  ctx.fillStyle = P.ink; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, 0, 4);
+  ctx.restore();
+}
+
+/** Organic wobbly hand-drawn doodle ring circling important clues or numbers */
+export function doodleCircle(x, y, rx, ry, col = '#E63946') {
+  ctx.save(); ctx.translate(x, y);
+  ctx.strokeStyle = col; ctx.lineWidth = 6; ctx.lineCap = 'round';
+  ctx.beginPath();
+  for (let a = 0; a <= TAU + 0.5; a += 0.2) {
+    const rX = rx + (Math.sin(a * 5) * 4);
+    const rY = ry + (Math.cos(a * 4) * 3);
+    const px = Math.cos(a) * rX, py = Math.sin(a) * rY;
+    if (a === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.stroke(); ctx.restore();
+}

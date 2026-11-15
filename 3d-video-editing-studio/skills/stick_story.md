@@ -1,6 +1,6 @@
 ---
 name: Stick Story Stickman Explainer
-description: Tactical survival, life hacks, dilemma decisions, and storytelling shorts featuring expressive stick figures with acting eyes, flat illustrated rooms (day/night), gold numbered step cards, and word-synced captions.
+description: Tactical survival, life hacks, dilemma decisions, and storytelling shorts featuring expressive stick figures with acting eyes, flat illustrated rooms (day/night), gold numbered step cards, master typography (Baloo 2, Kalam, Montserrat), universal text backgrounds, and word-synced captions.
 version: 1.2.0
 ---
 
@@ -8,16 +8,51 @@ version: 1.2.0
 
 > 🏃 **Genre**: Tactical survival steps, life hacks, "What would you do if...?", psychological dilemmas, and clever storytelling shorts.
 > ⏱️ **Default Timing**: 30–45 seconds · 9:16 vertical shorts (TikTok, Reels, YouTube Shorts).
-> 💰 **100% Free & Code-Driven ($0)**: Canvas 2D + WebGL, local Kokoro neural voiceover, local Whisper word alignment, procedural sound and music.
+> 💰 **100% Free & Code-Driven ($0)**: Canvas 2D + WebGL, local Kokoro neural voiceover (`am_puck`), local Whisper word alignment, procedural sound and music.
 
-## Visual Language & Directorial Rules
-- **Ink-Black Stick Figures**: Bold black ink stick people whose large white acting eyes do the acting (`mood`: 'calm', 'happy', 'worried', 'scared', 'determined', 'sleepy').
-- **Soft Warm Glow at Night**: Figures receive a soft warm outline glow (`glow: true`) to pop against dark night backgrounds.
-- **Flat Illustrated Rooms**: Stylized day and night environments (living room, kitchen, hallway) with clean furniture (couch, lamp, fridge, plant, window).
-- **Gold Numbered Step Cards**: High-impact gold cards (`K.stepCard(n, 'LABEL', x, y, scale)`) popping in on each step.
-- **Red Danger & Green Safe Cues**: Red warning crosses for bad choices, green checks for smart solutions.
-- **Word-Synced Captions**: Centered sentence-case captions on dark rounded plates with gold highlighted keywords (`y: 1690`).
-- **One Picture Per Clause**: Dynamic visual cuts every 1.5–3 seconds; eyes react first, then body action follows.
+---
+
+## 🔤 Master Typography & Text Background Rules
+
+### 1. The Anti-Book Typography Mandate
+- **Zero Explanatory Paragraphs**: Never render sentences or body text blocks on screen. The voiceover narrates; text is for:
+  - 1–2 word asset labels (`label("WATER FILTER", x, y)`).
+  - 1–3 word keyword highlight pills (`keywordPill("DON'T DRINK!", x, y, "danger")`).
+  - 1–4 word comic dialogue bubbles (`speechBubble("3 DAYS?!", x, y, tx, ty)`).
+  - Numbered step cards (`stepCard(1, "STORE WATER", x, y)`).
+- **Max 2 Text Elements per Scene**: Subtitle bar at bottom (`y: 1690`) + at most ONE contextual text widget (Step Card at top OR Speech Bubble near stickman OR Label tag under prop).
+
+### 2. Font Selection Hierarchy
+- **`Baloo 2` (ExtraBold / Bold)**: The core stickman comic font. Friendly, rounded, punchy. Used for speech bubbles, step titles, reaction punchlines, keyword pills.
+- **`Montserrat` / `Inter` (Bold / Black)**: Ultra-clean geometric legibility for word-synced subtitle chunks.
+- **`Kalam` (Bold)**: Organic hand-marker feel for sticky notes, sketch tags, doodle arrows.
+- **`Anton` / `Metropolis` (Bold)**: Heavy condensed impact reveals for opening hook questions.
+- **`Space Mono` (Bold)**: Technical monospaced countdown timers (`72:00:00`) and step statistics.
+
+### 3. Compulsory Text Backgrounds
+- **Subtitles (`captionBar`)**: Dark rounded pill (`rgba(28,28,34,0.88)`), border radius `30px`, placed at `y: 1690`. Active spoken word highlighted in Gold `#F5A623`.
+- **Asset Labels (`label`)**: Translucent dark pill (`rgba(20,20,26,0.85)`) placed 20–30px directly below hero props or stick figures.
+- **Keyword Pills (`keywordPill`)**:
+  - Danger: Crimson Red (`#E63946`) background, white text.
+  - Safe: Emerald Green (`#2A9D8F`) background, white text.
+  - Gold Step: Rich Gold (`#FFB703`) background, dark navy text.
+- **Comic Speech Bubbles (`speechBubble`)**: Crisp white bubble with 4px solid black ink border and pointer tail to stickman's mouth.
+- **Gold Step Cards (`stepCard`)**: High-impact gold card (`#F5A623`) with dark navy number circle (`[1]`, `[2]`, `[3]`) placed at `y: 300`, `x: 540`.
+- **Marker Highlighter Sweep (`markerSweep`)**: Chisel-tip yellow highlighter sweep (`rgba(255, 225, 0, 0.55)`) behind key words.
+- **Doodle Circle (`doodleCircle`)**: Wobbly hand-drawn red circle around key clues or numbers.
+
+---
+
+## 🎬 Directorial Rules & Retention Architecture
+
+- **Acting Eyes First**: White circle head, simple ink body. The large white eyes shift direction (`look: [x, y]`) and change mood (`calm`, `happy`, `worried`, `scared`, `determined`, `sleepy`) **0.08–0.12s BEFORE the body moves**.
+- **Night Glow**: In dark/night scenes, stick figures must receive `glow: true` (warm amber silhouette outline) so they pop against dark wallpaper.
+- **3-Act Arc**:
+  - *Act 1 (0–20%)*: Golden Hook question + stickman panic reaction + fast 1.2s cuts.
+  - *Act 2 (20–75%)*: Step cards + Hero Beat at ~65% (blackout climax) + comic breather.
+  - *Act 3 (75–100%)*: Fatal mistake red `cross` + safe tip green `check` + infinite loop outro.
+
+---
 
 ## Direct CLI Production
 ```bash
