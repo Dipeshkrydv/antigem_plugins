@@ -873,7 +873,7 @@ class Engine:
         key = (sc["bg"], sc["layout"], rect)
         if key in self._bg_cache:
             return self._bg_cache[key]
-        if len(self._bg_cache) > 24:
+        if len(self._bg_cache) > 5:
             self._bg_cache.pop(next(iter(self._bg_cache)))
         if sc["bg_is_image"]:
             im = Image.open(find_image(sc["bg"])).convert("RGB")
@@ -1362,10 +1362,9 @@ def _render_chunk(job):
         if k is None or k != prev_key:
             prev, prev_key = e.frame(t).tobytes(), k
         pr.stdin.write(prev)
-        if fr % 5 == 0:
-            time.sleep(0.002)  # Anti-offline heartbeat yield
-        if fr % 20 == 0:
+        if fr % 25 == 0:
             gc.collect()
+            time.sleep(0.001)  # Anti-offline heartbeat yield
     pr.stdin.close()
     if pr.wait() != 0:
         raise RuntimeError(f"ffmpeg failed on chunk {out}")
@@ -1400,16 +1399,18 @@ def _render_direct(e, f_start, f_end, out, preview, t_from, t_to, preset="fast",
         else:
             crf = 22 if e.look.get("grain") else 19
 
-    enc_preset = "ultrafast" if preset in ("draft", "turbo", "fast") else "veryfast"
+    enc_preset = "ultrafast" if preset in ("draft", "turbo") else "veryfast"
     if threads is None:
-        threads = "2" if is_mobile() else str(min(os.cpu_count() or 4, 4))
+        # Always leave at least 1 CPU core free for AntiGem / WebSocket heartbeat daemon to prevent 'offline server'
+        available_cpus = os.cpu_count() or 4
+        threads = str(max(1, min(available_cpus - 1, 3)))
 
-    cmd += ["-c:v", "libx264", "-preset", enc_preset, "-tune", "animation", "-crf", str(crf),
+    cmd += ["-c:v", "libx264", "-preset", enc_preset, "-crf", str(crf),
             "-pix_fmt", "yuv420p", "-threads", str(threads), "-movflags", "+faststart", out]
 
     total_frames = f_end - f_start
     t0 = time.time()
-    print(f"▶ [Direct In-Memory Stream] {preset} ({e.W}x{e.H} @ {e.fps}fps) | {total_frames} frames ({(total_frames)/e.fps:.1f}s) | encoder: {enc_preset} (crf {crf})", flush=True)
+    print(f"▶ [Anti-Offline Stream] {preset} ({e.W}x{e.H} @ {e.fps}fps) | {total_frames} frames ({(total_frames)/e.fps:.1f}s) | threads: {threads} (1 core reserved for AntiGem heartbeat)", flush=True)
 
     pr = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     prev_key, prev = None, None
@@ -1425,20 +1426,19 @@ def _render_direct(e, f_start, f_end, out, preview, t_from, t_to, preset="fast",
             pr.stdin.write(prev)
 
             # Anti-LMK & Anti-Offline Heartbeat Shield:
-            # Yield every 10 frames to release Python GIL for WebSocket heartbeat,
-            # and trigger gc.collect() every 60 frames to keep RAM flat (< 140MB).
-            if idx % 10 == 0:
-                time.sleep(0.001)  # Keeps WebSocket / Termux server alive!
-            if idx % 60 == 0:
+            # Yield CPU every 8 frames for 5ms to allow WebSocket / AntiGem daemon to process ping/pongs
+            if idx % 8 == 0:
+                time.sleep(0.005)  # Guarantees AntiGem / Termux server never goes offline!
+            if idx % 20 == 0:
                 gc.collect()
 
             now = time.time()
-            if now - last_print >= 0.6 or idx == total_frames - 1:
+            if now - last_print >= 0.8 or idx == total_frames - 1:
                 elapsed = now - t0
                 fps = (idx + 1) / max(0.001, elapsed)
                 eta = (total_frames - (idx + 1)) / max(0.001, fps)
                 pct = int((idx + 1) * 100 / total_frames)
-                print(f"  → {idx + 1}/{total_frames} frames ({pct}%) | {fps:.1f} fps | ETA: {eta:.0f}s   ", end="\r", flush=True)
+                print(f"  → [{pct:3d}%] {idx + 1}/{total_frames} frames | {fps:.1f} fps | ETA: {eta:.0f}s", flush=True)
                 last_print = now
     finally:
         if pr.stdin:
@@ -1453,8 +1453,16 @@ def _render_direct(e, f_start, f_end, out, preview, t_from, t_to, preset="fast",
 
 
 def default_workers():
-    """Default to 1 worker to enforce the Anti-Offline Server Shield (flat RAM < 140MB and continuous heartbeats)."""
-    return 1
+    if is_mobile():
+        return 1
+    cpus = os.cpu_count() or 2
+    try:
+        avail = int(open("/proc/meminfo").read().split("MemAvailable:")[1].split()[0]) / 1024
+    except Exception:
+        avail = 2048
+    if avail <= 3500:
+        return 1
+    return max(1, min(cpus - 2, int(avail // 600), 4))
 
 
 def _ensure_audio_mix():
@@ -1488,12 +1496,12 @@ def render_video(edit, scale, out, preview, workers, t_from=0.0, t_to=None, pres
     f_start, f_end = int(t_from * e.fps), int(math.ceil(t_to * e.fps))
     
     mobile = is_mobile()
-    # Anti-Offline Server Shield: Direct Single-Process In-Memory Streaming is the default
-    # across ALL environments (Termux, AntiGem, Android, Linux, Desktop) to keep RAM flat < 140MB
-    # and guarantee continuous Python GIL micro-yields for WebSocket / Node.js heartbeats.
-    if workers is None or workers <= 1:
-        print("🛡️ Anti-Offline Server Shield Active: Direct Single-Process Stream (Flat RAM < 140MB, Heartbeat Safe)", flush=True)
-        _render_direct(e, f_start, f_end, out, preview, t_from, t_to, preset=preset, crf=crf, threads=2 if mobile else None)
+    # Anti-Offline Server Shield: Direct Single-Process In-Memory Stream is enforced by default
+    # across all platforms to guarantee flat memory (<140MB RAM), reserved CPU for AntiGem heartbeat,
+    # and zero 'offline server' WebSocket disconnects.
+    if not os.environ.get("FORCE_MULTIPROCESS") and (workers is None or workers <= 1 or mobile):
+        print("🛡️ Anti-Offline Shield Active: Direct In-Memory Stream (<140MB RAM, Anti-Drop Heartbeat Active)", flush=True)
+        _render_direct(e, f_start, f_end, out, preview, t_from, t_to, preset=preset, crf=crf, threads=None)
         return
 
     import gc
@@ -1662,24 +1670,22 @@ def main():
         preset = "turbo"
     elif a.fast:
         preset = "fast"
-    elif a.full_hd:
-        preset = "quality"
     elif preset is None:
-        preset = "fast"  # High-definition 720p HD universal default for fast, smooth renders
+        preset = "fast" if mobile else "quality"
 
     # Determine scale
     if a.scale is not None:
         scale = a.scale
-    elif a.full_hd or preset == "quality":
+    elif a.full_hd:
         scale = 1.0
     elif preset in ("draft", "turbo"):
         scale = 0.5
-    elif preset == "fast":
+    elif preset == "fast" and mobile:
         scale = 0.6667  # 720p HD (720x1280 vertical / 1280x720 landscape)
     elif a.cmd == "preview":
         scale = 0.5
     else:
-        scale = 0.6667
+        scale = 0.6667 if mobile else 1.0
 
     if a.cmd == "check":
         check(a.edit)

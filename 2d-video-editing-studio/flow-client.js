@@ -23,6 +23,14 @@ export class FlowClient {
     if (!tab) tab = await this.chrome.tabs.create({ url:'https://flow.google.com/', active:true });
     await this.wait(async () => { try { return (await this.js(tab.id, 's.ui()')).ready; } catch { return false; } }, 30000);
     if (!this.attached.has(tab.id)) { await this.chrome.debugger.attach({ tabId:tab.id }, '1.3'); this.attached.add(tab.id); }
+    // If sitting on landing page without active project, auto-open/create so prompt box is immediately available
+    try {
+      const ui = await this.js(tab.id, 's.ui()');
+      if (ui.ready && !ui.projectId) {
+        const p = await this.createProject(tab.id, 'Studio Project');
+        if (p?.projectId) await this.page(tab.id, p.projectId);
+      }
+    } catch (_) {}
     this.readyTab={id:tab.id,at:Date.now()};return tab.id;
   }
   async rpc(tabId, id, args, post = null, timeout = 30000) {
@@ -40,7 +48,13 @@ export class FlowClient {
     if ((await this.js(tabId, 's.ui()')).path !== target) {
       if (this.pending) await this.wait(() => this.pending === 0, 240000, 100);
       await this.chrome.tabs.update(tabId, { url:'https://flow.google.com' + target });
-      await this.wait(async () => { try { const ui = await this.js(tabId, 's.ui()'); return ui.path === target && ui.ready && (ui.prompt || suffix==='/character'&&await this.evaluate(tabId,()=>!!document.querySelector('flow-character-prompt-box,textarea,[contenteditable=true]'))); } catch { return false; } }, 30000);
+      await this.wait(async () => {
+        try {
+          const ui = await this.js(tabId, 's.ui()');
+          if (ui.path !== target || !ui.ready) return false;
+          return Boolean(ui.prompt || ui.agentOn || (suffix === '/character' && await this.evaluate(tabId, () => !!document.querySelector('flow-character-prompt-box,textarea,[contenteditable=true]'))) || await this.evaluate(tabId, () => !!document.querySelector('div.ProseMirror, textarea, [contenteditable="true"], [aria-label*="prompt" i]')));
+        } catch { return false; }
+      }, 30000);
     }
   }
   async project(tabId,id,fresh=false) {

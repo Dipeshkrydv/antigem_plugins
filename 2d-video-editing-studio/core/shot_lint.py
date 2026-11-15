@@ -68,10 +68,6 @@ def load_lines():
 
 
 def lint(shots_path="SHOTS.json", quiet=False):
-    if not os.path.exists(shots_path):
-        if not quiet:
-            print(f"Error: {shots_path} not found.")
-        return [f"File not found: {shots_path}"], []
     spec = json.load(open(shots_path, encoding="utf-8"))
     style = pe.styles.get(spec.get("style", "noir"))
     world = spec.get("world", {})
@@ -209,9 +205,6 @@ def lint(shots_path="SHOTS.json", quiet=False):
 
 
 if __name__ == "__main__":
-    if any(a in ("-h", "--help", "help") for a in sys.argv[1:]):
-        print("Usage: python shot_lint.py [SHOTS.json] [--warn-only]")
-        sys.exit(0)
     pos = [a for a in sys.argv[1:] if not a.startswith("-")]
     e, _ = lint(pos[0] if pos else "SHOTS.json")
     sys.exit(1 if e else 0)

@@ -216,8 +216,60 @@ async function execute(tool,args={}) {
   if(tool==='flow_list_projects')return client.rpc(await client.tab(),RPC.PROJECTS,['projects/*',args.limit??20,null,null,null,null,[1]],'projects');
   if(tool==='flow_get_settings')return client.js(await client.tab(),'s.ui().settingsText');
   if(tool==='flow_get_media'){const tabId=await client.tab();if(!args.media_id)throw new Error('media_id required');const file=await client.file(tabId,args.media_id);if(args.view&&file.type==='image')return{content:[{type:'text',text:JSON.stringify(file)},{type:'image',data:await chrome.antigem.readFile({path:file.path,encoding:'base64'}),mimeType:'image/jpeg'}]};return file;}
+  if(tool==='flow_agent_status'){
+    const tabId=await client.tab();
+    const ui=await client.js(tabId,'s.ui()');
+    return {
+      agent_on: Boolean(ui?.agentOn),
+      has_instructions: Boolean(ui?.agentInstructions),
+      project_id: ui?.projectId || null,
+      account: ui?.account || null
+    };
+  }
+  if(tool==='flow_agent_toggle'){
+    const tabId=await client.tab();
+    const result=await client.evaluate(tabId, async (enable) => {
+      const s=window.__agFlow;
+      if(!s) return { ok: false, error: 'Flow helper not loaded' };
+      const pill=s.agentPill();
+      if(!pill) return { ok: false, error: 'Agent mode toggle not found in Flow UI' };
+      const currentlyOn = pill.getAttribute('aria-pressed') === 'true';
+      if(Boolean(enable) !== currentlyOn) {
+        pill.click();
+      }
+      return { ok: true, agent_on: pill.getAttribute('aria-pressed') === 'true' };
+    }, [args.enable ?? true]);
+    return result;
+  }
+  if(tool==='flow_agent_dispatch'){
+    const tabId=await client.tab();
+    const storyboard=args.storyboard_text || args.prompts_text || args.script_text || '';
+    if(!storyboard.trim()) throw new Error('storyboard_text is required');
+    await client.evaluate(tabId, async () => {
+      const s=window.__agFlow;
+      if(!s) return;
+      const pill=s.agentPill();
+      if(pill && pill.getAttribute('aria-pressed') !== 'true') pill.click();
+    });
+    const sent=await client.evaluate(tabId, async (text) => {
+      const s=window.__agFlow;
+      if(!s) return { ok: false, error: 'Flow helper not loaded' };
+      return s.setPrompt(text);
+    }, [storyboard]);
+    return {
+      dispatched: true,
+      characters: storyboard.length,
+      status: 'submitted to Google Flow Agent',
+      agent_mode: true
+    };
+  }
   if(tool==='flow_list_media'||tool==='flow_get_last_media'){
-    const tabId=await client.tab(),project=args.project_id||(await client.js(tabId,'s.ui()')).projectId;if(!project)throw new Error('Open a project first');
+    const tabId=await client.tab();
+    let project=args.project_id||(await client.js(tabId,'s.ui()')).projectId;
+    if(!project){
+      try { project=await client.project(tabId); } catch(_) {}
+    }
+    if(!project)throw new Error('No active project found in Flow. Please click into a project or create one.');
     let media=await client.contents(tabId,project);media=media.filter(m=>(args.include_trashed||!m.trashed)&&(!args.type||m.type===args.type)&&(!args.pending_only||m.pending)&&(!args.query||`${m.title} ${m.prompt}`.toLowerCase().includes(args.query.toLowerCase())));
     if(tool==='flow_get_last_media'){const history=client.history.filter(m=>!args.type||m.type===args.type).toReversed();const seen=new Set(history.map(m=>m.media_id));return[...history,...media.toReversed().filter(m=>!seen.has(m.mediaId))].slice(0,args.count??1);}
     return media;
@@ -247,22 +299,3 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
   execute(message.tool,message.args||{}).then(sendResponse,error=>sendResponse({isError:true,content:[{type:'text',text:error.message}]}));
   return true;
 });
-
-// Anti-Offline Service Worker Heartbeat Shield
-const KEEPALIVE_INTERVAL = 20000;
-setInterval(() => {
-  try {
-    chrome.runtime?.getPlatformInfo?.(() => {});
-  } catch (_) {}
-}, KEEPALIVE_INTERVAL);
-
-if (chrome.alarms) {
-  try {
-    chrome.alarms.create("anti_offline_heartbeat", { periodInMinutes: 0.5 });
-    chrome.alarms.onAlarm.addListener(alarm => {
-      if (alarm.name === "anti_offline_heartbeat") {
-        try { chrome.runtime?.getPlatformInfo?.(() => {}); } catch (_) {}
-      }
-    });
-  } catch (_) {}
-}

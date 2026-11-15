@@ -204,9 +204,6 @@ def build_auto_edit(shots_path="SHOTS.json", out_path="EDIT.json"):
 
 
 if __name__ == "__main__":
-    if any(a in ("-h", "--help", "help") for a in sys.argv[1:]):
-        print("Usage: python auto_edit.py [SHOTS.json] [EDIT.json]")
-        sys.exit(0)
     shots_arg = sys.argv[1] if len(sys.argv) > 1 else "SHOTS.json"
     out_arg = sys.argv[2] if len(sys.argv) > 2 else "EDIT.json"
     build_auto_edit(shots_arg, out_arg)

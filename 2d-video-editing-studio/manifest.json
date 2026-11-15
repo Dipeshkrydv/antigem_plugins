@@ -108,6 +108,43 @@
       }
     },
     {
+      "name": "flow_agent_status",
+      "description": "Check whether Google Flow Agent mode is currently active, if persistent instructions are set, and account/project context.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "flow_agent_toggle",
+      "description": "Toggle Google Flow Agent mode ON or OFF in the Flow UI.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "enable": {
+            "type": "boolean",
+            "description": "True to activate Agent mode, False to switch to standard direct mode."
+          }
+        }
+      }
+    },
+    {
+      "name": "flow_agent_dispatch",
+      "description": "Dispatch a full multi-scene storyboard or prompt collection into Google Flow Agent mode all at once for automated project-level orchestration and cluster rendering.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "storyboard_text": {
+            "type": "string",
+            "description": "The complete storyboard text with scenes separated by blank lines."
+          }
+        },
+        "required": [
+          "storyboard_text"
+        ]
+      }
+    },
+    {
       "name": "flow_status",
       "description": "Check Google Flow: opens the Flow tab if needed and reports logged_in (with the account and remaining credits), the open project, current composer settings and the job queue. If logged_in is false, tell the user to sign in to Flow in the AntiGem browser and stop.",
       "inputSchema": {

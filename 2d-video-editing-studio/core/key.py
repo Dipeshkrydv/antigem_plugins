@@ -227,8 +227,6 @@ if __name__ == "__main__":
             print("REDO %6s  %s" % ("white" if s == float("inf") else "%.2f%%" % s, n))
         print("%d of %d need regenerating" % (len(bad), len(glob.glob(os.path.join(src, "*.jpg")))))
         raise SystemExit
-    if len(sys.argv) < 3 or sys.argv[1] in ("-h", "--help", "help"):
-        sys.exit("Usage: python key.py <src_folder> <dst_folder> [--qc <src_folder>]")
     src, dst = sys.argv[1], sys.argv[2]
     os.makedirs(dst, exist_ok=True)
     files = sorted(glob.glob(os.path.join(src, "*.jpg")) + glob.glob(os.path.join(src, "*.png")))

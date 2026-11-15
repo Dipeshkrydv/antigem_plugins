@@ -148,18 +148,24 @@ Once all parameters are locked, in the NEXT message:
 1. Generate the complete, high-retention **Narrative Breakdown & Visual Storyboard**.
 2. **MANDATORY EXACT TIMELINE SCRIPT & WORD COUNT LAW**:
    - Generate the **1-Click Ready-to-Copy Spoken Prose Script** in the exact requested language, matching the requested duration with mathematical accuracy:
-     - **45–60s Short**: **130–160 spoken words** (~12–16 lines in `LINES.tsv`).
-     - **2-Minute Video**: **260–300 spoken words** (~25–35 lines in `LINES.tsv`).
-     - **3-Minute Video**: **400–450 spoken words** (~40–55 lines in `LINES.tsv`).
-     - **5-Minute Video**: **650–750+ spoken words** (~65–90+ lines in `LINES.tsv`).
-   - **Zero Truncation / Zero Summarization Law**: NEVER generate an abbreviated summary, teaser, or 1-minute script when 2, 3, or 5 minutes is requested. The script MUST contain the full spoken prose to fill every single second.
+     - **45–60s Short**: **130–160 spoken words** (~12–16 lines in `LINES.tsv`, ≥ 28–40+ assets).
+     - **2-Minute Video**: **260–300 spoken words** (~25–35 lines in `LINES.tsv`, ≥ 55–80+ assets).
+     - **3-Minute Video**: **400–450 spoken words** (~40–55 lines in `LINES.tsv`, ≥ 85–120+ assets).
+     - **5-Minute Video**: **650–750+ spoken words** (~65–90+ lines in `LINES.tsv`, ≥ 140–200+ assets).
+     - **10-Minute Video**: **1,300–1,500+ spoken words** (~130–180+ lines in `LINES.tsv`, ≥ 280–400+ assets).
+     - **15-Minute Video / Deep-Dive Documentary**: **1,950–2,300+ spoken words** (~190–260+ lines in `LINES.tsv`, ≥ 420–600+ assets).
+   - **Zero Truncation / Zero Summarization Law**: NEVER generate an abbreviated summary, teaser, or short script when a longer duration (e.g. 5m, 10m, 15m) is requested. The script and visual asset list MUST be fully expanded to span every single second with zero visual starvation.
+   - **The Strict 'Never Use Less Assets' Mandate**: Visual progression must occur every 1.0 to 1.5 seconds. Under-generating visual assets is strictly forbidden.
    - **Explicit Timeline Timestamps**: Format each line with its projected timestamp interval:
      `[00:00 - 00:04] Line 01: Spoken narration hook goes here...`
      `[00:04 - 00:08] Line 02: Next evidence sentence...`
      `...`
-     `[04:55 - 05:00] Line 78: Concluding revelation and thought-provoking outro.`
-   - **Word Count Verification Pre-Flight Check**: Always print the total word count and line count. If the word count is below the minimum required for the requested duration, the agent MUST expand the story, examples, forensic details, and technical depth before presenting it.
-3. In the **EXACT SAME message**, request their **Cartesian AI Free API Key** (or ask to confirm if they've set the CARTESIA_API_KEY environment variable), accompanied by the 3-step 100% free guide:
+     `[14:55 - 15:00] Line 240: Concluding revelation and thought-provoking outro.`
+3. In the **EXACT SAME message**, present the **Image Generation Mode Selection**:
+   > 🎨 **Choose Image Generation Mode:**
+   > - **1. Direct Generation (🍌 Nano Banana 2.1 — Rapid Parallel Engine)**: Generates visual assets directly on Google Flow (`🍌 Nano Banana 2.1` / `Nano Banana Pro`) in parallel with rate guard (0.5s–1.3s apart), 100% duplicate-proofing, and automatic cutout keying.
+   > - **2. Flow Agent Mode (Batch Paste All Prompts at Once)**: Pastes the entire multi-scene storyboard into Google Flow Agent mode in one shot (<1s per prompt), letting the Flow Agent orchestrate cluster rendering, persistent style instructions, and asset links.
+4. In the **EXACT SAME message**, request their **Cartesian AI Free API Key**:
    > **How to get your Free Cartesian API Key ($0 — No Card Needed):**
    > 1. Open [**play.cartesia.ai**](https://play.cartesia.ai) and sign in with any Google account.
    > 2. Go to **API Keys** and click **+ Create API Key**.

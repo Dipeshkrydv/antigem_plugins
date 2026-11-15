@@ -168,8 +168,6 @@ def demo():
 if __name__ == "__main__":
     if "--demo" in sys.argv:
         demo(); raise SystemExit
-    if len(sys.argv) < 3 or sys.argv[1] in ("-h", "--help", "help"):
-        sys.exit("Usage: python cutout.py <src_folder> <dst_folder> [--demo]")
     src, dst = sys.argv[1], sys.argv[2]
     os.makedirs(dst, exist_ok=True)
     for f in sorted(glob.glob(os.path.join(src, "*.png")) +

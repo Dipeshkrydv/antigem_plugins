@@ -146,9 +146,6 @@ def harvest_from_folder(src_folder=None, elements_tsv="ELEMENTS.tsv"):
 
 
 if __name__ == "__main__":
-    if any(a in ("-h", "--help", "help") for a in sys.argv[1:]):
-        print("Usage: python flow_harvest.py [folder] [ELEMENTS.tsv]")
-        sys.exit(0)
     src = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].endswith(".tsv") else None
     tsv = next((a for a in sys.argv[1:] if a.endswith(".tsv")), "ELEMENTS.tsv")
     harvest_from_folder(src, tsv)

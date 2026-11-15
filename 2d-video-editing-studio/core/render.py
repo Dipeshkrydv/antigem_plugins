@@ -912,11 +912,6 @@ def render_scene(sc):
             cv.paste(leak_overlay, (0, 0), leak_overlay)
             
         pr.stdin.write(cv.tobytes())
-        if (fr - f0) % 10 == 0:
-            time.sleep(0.001)  # Anti-offline heartbeat yield
-        if (fr - f0) % 60 == 0:
-            import gc
-            gc.collect()
     pr.stdin.close()
     assert pr.wait() == 0, f"ffmpeg failed on scene {sc['id']}"
     print(f"scene {sc['id']}: {(f1 - f0) / FPS:.2f}s, {len(sc['els'])} elements", flush=True)
@@ -1066,15 +1061,10 @@ def selfcheck():
     print("selfcheck ok -- Remotion springs, Disney squash/stretch, forensic stamps, and optical leaks verified")
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] in ("-h", "--help", "help"):
-        print("Usage: python render.py [shots|plan|master|selfcheck] [options]")
-        sys.exit(0)
     cmd, args = (sys.argv[1:] or ["shots"])[0], sys.argv[2:]
     if cmd == "selfcheck":
         selfcheck()
         sys.exit(0)
-    if not os.path.exists("SCENES.tsv"):
-        sys.exit(f"Error: SCENES.tsv not found in current directory ({os.getcwd()}). Run inside a project directory.")
     scenes = plan()
     if cmd == "plan":
         total_els = sum(len(s["els"]) for s in scenes)
@@ -1135,7 +1125,7 @@ if __name__ == "__main__":
             to_render = [s for s in scenes if not (os.path.exists(f"shots/{s['id']}.mp4") and os.path.getmtime(f"shots/{s['id']}.mp4") >= scenes_mtime)]
         else:
             to_render = [s for s in scenes if s["id"] in args]
-        workers = 1  # Clamped to 1 to guarantee zero offline server disconnections and flat RAM
+        workers = mc.get_safe_workers()
         print(f"Rendering {len(to_render)} scenes (skipped {len(scenes) - len(to_render)} already rendered) with {workers} parallel workers...")
         with ProcessPoolExecutor(max_workers=workers) as executor:
             list(executor.map(render_scene, to_render))

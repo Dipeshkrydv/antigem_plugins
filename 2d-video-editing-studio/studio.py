@@ -10,7 +10,7 @@ Run every step from inside a PROJECT folder (create one with `new`):
   python studio.py lint                            reject duplicate / repetitive / under-covered shot lists BEFORE Flow
   python studio.py prompts                         SHOTS.json -> ELEMENTS.tsv + PROMPTS.md   (lints first, then writes prompts)
   python studio.py harvest [folder]         autonomously ingest & map downloaded assets into elements/raw/
-  python studio.py generate [--status|--regen N]   ELEMENTS.tsv -> elements/raw/   (parallel, 1.3 s apart, never twice, stops on a flag)
+  python studio.py generate [--status|--regen N|--agent] ELEMENTS.tsv -> elements/raw/ (direct 3-tier or Flow Agent mode)
   python studio.py key                             cut-outs + asset sheets (split into objects) -> elements/cut
   python studio.py mix                             cues.tsv + VO.wav -> mix.wav               (music bed + SFX, optional)
   python studio.py check                           validate EDIT.json (cues, slots, missing images, dead air)
@@ -30,6 +30,45 @@ CORE = os.path.join(ROOT, "core")
 PY = sys.executable
 
 
+def is_mobile():
+    """Detects whether running on an Android / Termux / AntiGem mobile environment."""
+    return (
+        os.environ.get("IS_MOBILE") in ("1", "true", "True")
+        or os.environ.get("ANDROID_ROOT") is not None
+        or os.environ.get("ANDROID_DATA") is not None
+        or os.path.exists("/data/data/com.termux")
+        or os.environ.get("TERMUX_VERSION") is not None
+        or os.environ.get("ANTIGEM_MOBILE") is not None
+    )
+
+
+def ensure_prerequisites():
+    """Guarantees required libraries and ffmpeg are installed before running heavy studio tasks."""
+    missing = []
+    for mod in ["PIL", "numpy", "scipy", "soundfile"]:
+        try:
+            __import__(mod)
+        except ImportError:
+            missing.append("pillow" if mod == "PIL" else mod)
+    if missing:
+        if is_mobile():
+            print(f"⚠️ [Prerequisites Notice] Missing: {', '.join(missing)}.\n"
+                  f"  To install on Android / Termux run:\n"
+                  f"    pkg install -y python-numpy python-scipy && pip install pillow soundfile", flush=True)
+        else:
+            print(f"📦 [Auto-Install] Missing required dependencies: {', '.join(missing)}. Installing now...", flush=True)
+            try:
+                subprocess.run([PY, "-m", "pip", "install", "--break-system-packages", *missing], check=True)
+            except Exception:
+                subprocess.run([PY, "-m", "pip", "install", *missing], check=False)
+    if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
+        try:
+            import static_ffmpeg
+            static_ffmpeg.add_paths()
+        except ImportError:
+            pass
+
+
 def _cues_is_stub(path="cues.tsv"):
     if not os.path.exists(path):
         return True
@@ -41,30 +80,7 @@ def _cues_is_stub(path="cues.tsv"):
         return True
 
 
-def ensure_prerequisites():
-    """Guarantees required libraries and ffmpeg are installed before running any studio command."""
-    missing = []
-    for mod in ["PIL", "numpy", "scipy", "soundfile"]:
-        try:
-            __import__(mod)
-        except ImportError:
-            missing.append("pillow" if mod == "PIL" else mod)
-    if missing:
-        print(f"📦 [Auto-Install] Missing required dependencies: {', '.join(missing)}. Installing now...", flush=True)
-        try:
-            subprocess.run([PY, "-m", "pip", "install", "--break-system-packages", *missing], check=True)
-        except Exception:
-            subprocess.run([PY, "-m", "pip", "install", *missing], check=False)
-    if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
-        try:
-            import static_ffmpeg
-            static_ffmpeg.add_paths()
-        except ImportError:
-            pass
-
-
 def run(*args):
-    ensure_prerequisites()
     r = subprocess.run([PY, *args])
     if r.returncode:
         sys.exit(r.returncode)
@@ -189,6 +205,7 @@ def run_autopilot(args):
     ap.add_argument("--fast", action="store_true")
     ap.add_argument("--turbo", action="store_true")
     ap.add_argument("--1080p", "--full", dest="full_hd", action="store_true")
+    ap.add_argument("--agent", action="store_true", help="Use Google Flow Agent mode to batch paste all prompts at once")
     a, extra_render_args = ap.parse_known_args(args)
 
     eng = os.path.join(CORE, "engine", "render.py")
@@ -201,8 +218,12 @@ def run_autopilot(args):
     print("▶ [2/6] Building & auto-healing Google Flow prompts (SHOTS.json -> ELEMENTS.tsv)...", flush=True)
     run(os.path.join(CORE, "prompt_engine.py"), "SHOTS.json")
 
-    print(f"▶ [3/6] Generating visual assets via 3-Tier Flow Engine (--parallel {a.parallel})...", flush=True)
-    run(os.path.join(CORE, "flow_safe.py"), "--parallel", str(a.parallel))
+    if a.agent:
+        print("▶ [3/6] Dispatching all visual prompts via Google Flow Agent Mode (batch storyboard)...", flush=True)
+        run(os.path.join(CORE, "flow_agent_dispatch.py"))
+    else:
+        print(f"▶ [3/6] Generating visual assets via 3-Tier Flow Engine (--parallel {a.parallel})...", flush=True)
+        run(os.path.join(CORE, "flow_safe.py"), "--parallel", str(a.parallel))
 
     print("▶ [4/6] Keying transparent cutouts (elements/raw -> elements/cut)...", flush=True)
     key_props()
@@ -224,9 +245,10 @@ def run_autopilot(args):
 
 
 def main():
-    ensure_prerequisites()
     if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help", "help"):
-        sys.exit(__doc__)
+        print(__doc__.strip())
+        sys.exit(0)
+    ensure_prerequisites()
     cmd, rest = sys.argv[1], sys.argv[2:]
     eng = os.path.join(CORE, "engine", "render.py")
     if cmd == "new":
@@ -250,7 +272,10 @@ def main():
     elif cmd == "generate":
         if os.path.exists("SHOTS.json") and "--status" not in rest and "--no-lint" not in rest:
             run(os.path.join(CORE, "shot_lint.py"), "--warn-only")
-        run(os.path.join(CORE, "flow_safe.py"), *[x for x in rest if x != "--no-lint"])
+        if "--agent" in rest:
+            run(os.path.join(CORE, "flow_agent_dispatch.py"), *[x for x in rest if x not in ("--agent", "--no-lint")])
+        else:
+            run(os.path.join(CORE, "flow_safe.py"), *[x for x in rest if x != "--no-lint"])
     elif cmd == "key":
         key_props()
     elif cmd == "mix":

@@ -60,35 +60,6 @@ def generate_element_prompts(elements_tsv='ELEMENTS.tsv', style='vox_documentary
     print(f"Generated {len(prompts)} Google Flow prompts in {out_json} using style '{style}'!")
     return prompts
 
-
-class FlowBridge:
-    """Manages connection and command dispatch to Google Flow / DeepX bridge."""
-    def __init__(self, ws_url=WS_URL):
-        self.ws_url = ws_url
-        self.status_url = os.environ.get("DEEPX_STATUS_URL", "http://127.0.0.1:8792/status")
-        self.cmd_url = os.environ.get("DEEPX_API_URL", "http://127.0.0.1:8792/api/command")
-
-    def check_connection(self):
-        try:
-            req = urllib.request.Request(self.status_url, headers={"Accept": "application/json"})
-            with urllib.request.urlopen(req, timeout=2) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-                return bool(data.get("status") == "ok" or data.get("extensionConnected"))
-        except Exception:
-            return False
-
-    def send_command(self, command, payload=None, timeout=180):
-        body = json.dumps({"command": command, "payload": payload or {}, "timeout": timeout * 1000}).encode("utf-8")
-        req = urllib.request.Request(self.cmd_url, data=body, headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=timeout + 10) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-        if not data.get("success"):
-            raise RuntimeError(data.get("error") or "DeepX bridge command failed")
-        return data.get("result", {})
-
-
-bridge = FlowBridge()
-
 if __name__ == '__main__':
     p = argparse.ArgumentParser()
     p.add_argument('--elements', default='ELEMENTS.tsv')
