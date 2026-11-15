@@ -1,50 +1,18 @@
 ---
-name: 3d-video-editing-part-1
-description: Master Autonomous 3D Video Director & Production Engine (Part 1 - Faceless Shorts): 100% Code-Driven 3D & 2D (Three.js, SDF raymarching, Kokoro-82M neural TTS, Whisper alignment). 6 Styles: Deep Dive 3D (Zack D. Films style), Night File 3D (unsolved mystery), Inside Out, Stick Story, Paper Atlas, Tall Tale 3D. Anti-LMK Shield, High-Speed Render Presets (--fast, --turbo, --1080p), $0 Cost, Zero Generative AI Morphing. Completely self-contained; zero external main.js dependencies.
-version: 1.1.0
+name: stick-story-shorts
+description: Autonomous Stickman Video Director & Production Engine (Stick Story): 100% Code-Driven 9:16 vertical shorts (Canvas 2D + WebGL, Kokoro-82M neural TTS, Whisper alignment, NumPy/SciPy audio). Tactical survival steps, life hacks, dilemma decisions, and storytelling with ink-black stick figures with acting eyes, day/night rooms, gold numbered step cards. Anti-LMK Shield, High-Speed Render Presets (--fast, --turbo, --1080p), $0 Cost, Zero Third-Party API Keys.
+version: 1.2.0
 ---
 
-# 🎬 3D Video Editing Part 1 (Faceless Shorts Engine) v1.1.0
+# Stick Story — Autonomous Stickman Video Director & Production Engine
 
-> 🚀 **Executive Director**: Senior 3D Motion Designer, Technical Director & Animation Engineer.
-> 💰 **100% Free ($0)**: 100% Code-driven 3D & 2D vertical explainer videos. Zero AI image/video generation, zero third-party API keys, zero cloud credits.
-> 🛡️ **Zero Offline Server & Anti-LMK Shield**: Built-in micro-yields keep memory flat < 140MB throughout 1,000+ frame renders.
-> ⚡ **Universal Execution Guarantee**: The agent and user run `python3 studio.py new <style> <name>` with zero external file prompts. `main.js` is already pre-configured.
+> 🎬 **Stick Story Engine**: 100% Code-Driven Stick Figure Storytelling & Tactical Survival Shorts.
+> 💰 **100% Free ($0)**: Local Kokoro Neural TTS, Local Whisper Alignment, Canvas & Three.js Engine, Headless Chrome Capture, FFmpeg. Zero API keys, zero cloud credits.
+> 🛡️ **Anti-LMK Shield**: RAM < 140MB flat across long renders, 100% safe on Android (Termux) & Desktop.
 
----
-
-## 🌟 The 6 Flagship Visual Styles
-
-| Style | Aesthetic & Visual Language | Narrative Genre | Default Duration & Aspect |
-|---|---|---|---|
-| **Deep Dive 3D** (`deep-dive`) | **The Flagship (Zack D. Films style)**: Sculpted 3D people in warm sunlit sets, glowing cyan x-ray anatomy, macro blood vessel journeys, shallow focus, continuous camera movement. | Biology, medical, physiology, bodily "what happens if" | 30–45 s · 9:16 |
-| **Night File 3D** (`night-file`) | **Unsolved Mysteries & True Crime Noir**: Single-light chiaroscuro, glowing red subject spotlight, typewriter evidence dates, case files, retro polaroids. | True crime, unsolved mysteries, cold cases | 30–45 s · 9:16 |
-| **Tall Tale 3D** (`tall-tale`) | **Humorous & Quirky True Stories**: Expressive 2D cartoon characters emoting on every beat inside a warm, sunlit 3D miniature town, rapid 1-word captions. | Funny true stories, loopholes, bizarre cons | 40–60 s · 9:16 |
-| **Inside Out** (`inside-out`) | **Flat 2D Vector X-Ray**: Clean minimalist anatomy, bold 1-3 word captions, punchy cuts every 1.5–3s. | Fast 2D bodily & scientific explainers | 25–40 s · 9:16 |
-| **Stick Story** (`stick-story`) | **Tactical Survival & Life Hacks**: Ink-black stick figures with emotive eyes, day/night rooms, gold numbered step cards. | Survival protocols, emergency hacks | 30–45 s · 9:16 |
-| **Paper Atlas** (`paper-atlas`) | **Grand History in Cut Paper**: Tactile parchment maps, crimson routes, wax seals, gold ribbons, historical figures. | Historical events, battles, expeditions | 30–45 s · 9:16 |
-
----
-
-## 🚀 Autonomous Production Workflow
-
-```bash
-# 1. Scaffold project (auto-links audio & fonts, pre-wires main.js):
-python3 studio.py new tall-tale ~/faceless-shorts/my-tall-tale
-cd ~/faceless-shorts/my-tall-tale
-
-# 2. Synthesize voice with Kokoro neural TTS:
-python3 studio.py voice . --voice am_michael
-
-# 3. Align word-level timestamps with Whisper:
-python3 studio.py words .
-
-# 4. Mix procedural audio cues & background music:
-python3 studio.py mix .
-
-# 5. Check visual storyboard sheet:
-python3 studio.py sheet .
-
-# 6. Render master video (720p HD mobile default, flat RAM < 140MB):
-python3 studio.py render . --fast
-```
+## Key Features
+- **Expressive Acting Eyes**: Big white eyes on ink-black figures emote fear, shock, determination, sleepiness, or joy before body moves.
+- **Atmospheric Day & Night Rooms**: Day/night living room, kitchen, and hallway stages with warm figure glow (`glow: true`) on dark walls.
+- **Gold Step Cards**: Clean animated gold numbered cards marking survival steps and hacks.
+- **Word-Synced Captions**: Word-level subtitle highlights timed to neural voiceover.
+- **Fast Render Presets**: `--fast` (720p HD mobile default), `--turbo` (540p draft preview), `--1080p` (master quality).

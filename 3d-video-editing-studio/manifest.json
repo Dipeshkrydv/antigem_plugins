@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "3D Video Editing Part 1",
+  "name": "Stickman Video Editing Studio",
   "id": "3d-video-editing-part-1",
-  "version": "1.1.0",
-  "description": "Autonomous 3D Video Director & Production Engine (Part 1 - Faceless Shorts): Make narrated faceless YouTube Shorts / TikToks / Reels fully in code: free local AI voice (Kokoro), Whisper word-synced captions, animated 3D & 2D shots, sound and music, rendered to MP4. Six styles: Deep Dive 3D, Night File 3D, Inside Out, Stick Story, Paper Atlas, Tall Tale 3D. Anti-LMK Shield, High-Speed Render Presets (--fast, --turbo, --1080p). Zero external main.js dependencies, standalone studio.py execution. No API keys, no credits.",
+  "version": "1.2.0",
+  "description": "Autonomous Stickman Video Director & Production Engine (Stick Story): Make narrated stick figure YouTube Shorts / TikToks / Reels fully in code: free local AI voice (Kokoro), Whisper word-synced captions, animated stick figures with acting eyes, day/night rooms, gold step cards, sound and music, rendered to MP4. Anti-LMK Shield, High-Speed Render Presets (--fast, --turbo, --1080p). No API keys, no credits.",
   "author": "Dipesh Kr Yadav",
   "icon": "icon.png",
   "icons": {
@@ -25,7 +25,7 @@
   "mcp_tools": [
     {
       "name": "studio_3d_status",
-      "description": "Check 3D Video Editing Part 1 status, 6 flagship visual styles (Deep Dive 3D, Night File 3D, Tall Tale 3D, Inside Out, Stick Story, Paper Atlas), audio engine, and render presets.",
+      "description": "Check Stickman Video Editing Studio status, Stick Story engine, audio synthesis, and render presets.",
       "inputSchema": {
         "type": "object",
         "properties": {},
@@ -34,39 +34,30 @@
     },
     {
       "name": "studio_3d_list_styles",
-      "description": "List all 6 code-driven 3D & 2D styles, aesthetic descriptions, camera recipes, and sample running times.",
+      "description": "List the Stick Story stickman visual style, aesthetic descriptions, and production parameters.",
       "inputSchema": {
         "type": "object",
-        "properties": {
-          "style": {
-            "type": "string",
-            "description": "Optional specific style name to inspect (deep-dive, night-file, tall-tale, inside-out, stick-story, paper-atlas)."
-          }
-        },
+        "properties": {},
         "additionalProperties": false
       }
     },
     {
       "name": "studio_3d_plan_short",
-      "description": "Generate a shot plan and directorial breakdown for a 3D Faceless Short based on chosen style and script.",
+      "description": "Generate a shot plan and directorial breakdown for a Stick Story stickman short.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "topic": {
             "type": "string",
-            "description": "Topic or title of the 3D short."
+            "description": "Topic or title of the stickman short."
           },
           "style": {
             "type": "string",
             "enum": [
-              "deep-dive",
-              "night-file",
-              "tall-tale",
-              "inside-out",
-              "stick-story",
-              "paper-atlas"
+              "stick-story"
             ],
-            "description": "Visual style: deep-dive (Zack D. Films 3D), night-file (noir mystery), tall-tale (3D cartoon), inside-out (2D x-ray), stick-story (survival steps), or paper-atlas (cut paper map)."
+            "default": "stick-story",
+            "description": "Visual style: stick-story (tactical survival, stick figures with acting eyes)."
           },
           "lines": {
             "type": "array",
@@ -77,8 +68,7 @@
           }
         },
         "required": [
-          "topic",
-          "style"
+          "topic"
         ],
         "additionalProperties": false
       }
@@ -91,7 +81,7 @@
         "properties": {
           "project_dir": {
             "type": "string",
-            "description": "Path to the faceless short project directory."
+            "description": "Path to the stickman short project directory."
           },
           "preset": {
             "type": "string",

@@ -1,48 +1,54 @@
 ---
 name: 3d-video-editing-part-1
-description: Autonomous 3D Video Director & Production Engine (Part 1 - Faceless Shorts): 100% Code-Driven 3D & 2D (Three.js, SDF raymarching, Kokoro-82M neural TTS, Whisper alignment, NumPy/SciPy audio). 6 Styles: Deep Dive 3D (Zack D. Films style), Night File 3D (unsolved mystery), Inside Out, Stick Story, Paper Atlas, Tall Tale 3D. Anti-LMK Shield, High-Speed Render Presets (--fast, --turbo, --1080p), $0 Cost, Zero Generative AI Morphing, Zero Third-Party API Keys. No need to look up or request external main.js files; everything is fully self-contained.
-version: 1.1.0
+description: Autonomous Stickman Video Director & Production Engine (Stick Story): 100% Code-Driven 9:16 vertical stickman shorts (Canvas 2D + Three.js, Kokoro-82M neural TTS, Whisper alignment, NumPy/SciPy audio). Specializes in tactical survival steps, life hacks, dilemma decisions, and viral storytelling with ink-black stick figures with emotive acting eyes, day/night rooms, and gold numbered step cards. Anti-LMK Shield, High-Speed Render Presets (--fast, --turbo, --1080p), $0 Cost, Zero Third-Party API Keys. Self-contained execution via studio.py.
+version: 1.2.0
 ---
 
-# 🎬 3D Video Editing Studio (Part 1 — Faceless Shorts Engine) v1.1.0
+# 🏃 Stickman Video Editing Studio (Stick Story Engine) v1.2.0
 
-> 🚀 **Executive Director**: Senior 3D Motion Designer, Technical Director & Animation Engineer.
-> 💰 **100% Free & Code-Driven ($0)**: Generates complete vertical YouTube Shorts, Instagram Reels, and TikToks using Three.js, WebGL, Kokoro neural TTS, and Faster-Whisper.
+> 🚀 **Executive Persona**: Senior Stickman Video Director, Motion Designer & Technical Director.
+> 🎬 **Specialization**: 100% Focus on **Stickman Storytelling & Tactical Survival Explainers** (YouTube Shorts, Instagram Reels, TikTok).
+> 💰 **100% Free & Code-Driven ($0)**: Generates finished vertical shorts using Canvas 2D, Three.js, Kokoro neural TTS (`am_puck`), Faster-Whisper alignment, procedural sound, and FFmpeg.
 > 🛡️ **Anti-LMK / Zero Offline Shield**: Micro-yields and single-process headless Chrome rendering maintain RAM < 140MB with zero disconnects on Android (Termux) and Desktop.
-> ⚡ **Zero External Dependency Law**: Everything is self-contained. The agent NEVER asks the user for `@skills/faceless-shorts/styles/.../main.js`. The template provides `main.js` automatically.
+> ⚡ **Zero External Dependency Law**: Everything is self-contained. Scaffolding automatically attaches the complete kit, fonts, and audio libraries.
 
 ---
 
-## 🌟 The 6 Flagship Visual Styles
+## 🌟 Visual Language & Directorial Standards
 
-| Style | Aesthetic & Visual Language | Narrative Genre | Default Duration & Aspect |
-|---|---|---|---|
-| **Deep Dive 3D** (`deep-dive`) | **The Flagship (Zack D. Films style)**: Sculpted 3D people in warm sunlit sets, glowing cyan x-ray anatomy, macro blood vessel journeys, shallow focus, continuous camera movement. | Biology, medical, physiology, bodily "what happens if" | 30–45 s · 9:16 |
-| **Night File 3D** (`night-file`) | **Unsolved Mysteries & True Crime Noir**: Single-light chiaroscuro, glowing red subject spotlight, typewriter evidence dates, case files, retro polaroids. | True crime, unsolved mysteries, cold cases | 30–45 s · 9:16 |
-| **Tall Tale 3D** (`tall-tale`) | **Humorous & Quirky True Stories**: Expressive 2D cartoon characters emoting on every beat inside a warm, sunlit 3D miniature town, rapid 1-word captions. | Funny true stories, loopholes, bizarre cons | 40–60 s · 9:16 |
-| **Inside Out** (`inside-out`) | **Flat 2D Vector X-Ray**: Clean minimalist anatomy, bold 1-3 word captions, punchy cuts every 1.5–3s. | Fast 2D bodily & scientific explainers | 25–40 s · 9:16 |
-| **Stick Story** (`stick-story`) | **Tactical Survival & Life Hacks**: Ink-black stick figures with emotive eyes, day/night rooms, gold numbered step cards. | Survival protocols, emergency hacks | 30–45 s · 9:16 |
-| **Paper Atlas** (`paper-atlas`) | **Grand History in Cut Paper**: Tactile parchment maps, crimson routes, wax seals, gold ribbons, historical figures. | Historical events, battles, expeditions | 30–45 s · 9:16 |
+1. **Expressive Acting Eyes**:
+   - The characters are ink-black stick figures. Their big white acting eyes express emotion and intention (`calm`, `happy`, `worried`, `scared`, `determined`, `sleepy`).
+   - The eyes react first (direction of look, change in expression), followed immediately by the body reaction and arm poses.
+2. **Day / Night Staging & Warm Silhouette Glow**:
+   - Flat illustrated rooms (living room, kitchen, hallway) with modular furniture (sofa, fridge, window, lamp, plant).
+   - In night or dark scenes, figures receive a soft, warm silhouette glow (`glow: true`) so their crisp ink silhouettes pop clearly against dark wallpaper.
+3. **Gold Numbered Step Cards**:
+   - Tactical survival steps, life hacks, and rules are punctuated by bold gold numbered cards (`K.stepCard(n, 'LABEL', 540, 300, scale)`).
+   - Red warning crosses (`check / cross`) indicate hazardous mistakes; green checks indicate smart decisions.
+4. **Sentence-Case Gold-Highlight Captions**:
+   - Captions render on a dark rounded pill at `y: 1690`, 2–4 words per chunk, with the key active word highlighted in gold.
+5. **Dynamic 1.5s–3.0s Visual Pacing**:
+   - One distinct visual beat/picture per spoken clause. The voiceover flows smoothly while the visual setup cuts rapidly to maintain maximum viewer retention.
 
 ---
 
-## 🏎️ 1-Command Autopilot & High-Speed Presets
+## 🏎️ 1-Command Autopilot & Quickstart Workflow
 
 ```bash
 # 1-Command Autopilot Production:
-python3 studio.py autopilot ~/faceless-shorts/my-short --fast
+python3 studio.py autopilot ~/faceless-shorts/my-stick-short --fast
 
 # Or Step-by-Step Production:
-python3 studio.py new tall-tale ~/faceless-shorts/my-tall-tale
-cd ~/faceless-shorts/my-tall-tale
-python3 studio.py voice . --voice am_michael
+python3 studio.py new stick-story ~/faceless-shorts/my-stick-short
+cd ~/faceless-shorts/my-stick-short
+python3 studio.py voice . --voice am_puck
 python3 studio.py words .
 python3 studio.py mix .
 python3 studio.py sheet .
 python3 studio.py render . --fast
 ```
 
-### Rendering Presets:
-- `python3 studio.py render . --fast`: **720p HD mobile default (20–30 FPS)**, flat RAM < 140MB, zero offline server disconnection error.
-- `python3 studio.py render . --turbo`: **540p ultrafast draft (45–55 FPS)** for instant iterative previews.
+### High-Speed Rendering Presets:
+- `python3 studio.py render . --fast`: **720p HD mobile default (20–30 FPS)**, flat RAM < 140MB, safe against thermal throttling or Android Termux LMK kills.
+- `python3 studio.py render . --turbo`: **540p ultrafast draft (45–55 FPS)** for instant iterative shot previews.
 - `python3 studio.py render . --1080p`: Full 1080p HD broadcast master export.

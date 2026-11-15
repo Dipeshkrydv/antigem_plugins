@@ -20,9 +20,9 @@
     {
       "path": "3d-video-editing-studio",
       "id": "3d-video-editing-part-1",
-      "name": "3D Video Editing Part 1",
-      "version": "1.1.0",
-      "description": "Autonomous 3D Video Director & Production Engine (Part 1 - Faceless Shorts): 100% Code-Driven 3D & 2D (Three.js, SDF raymarching, Kokoro-82M neural TTS, Whisper alignment, NumPy/SciPy audio). 6 Styles: Deep Dive 3D (Zack D. Films style), Night File 3D (unsolved mystery), Inside Out, Stick Story, Paper Atlas, Tall Tale 3D. Anti-LMK Shield, High-Speed Render Presets (--fast, --turbo, --1080p), $0 Cost, Zero Generative AI Morphing, Zero Third-Party API Keys. Zero-reference standalone execution via studio.py.",
+      "name": "Stickman Video Editing Studio",
+      "version": "1.2.0",
+      "description": "Autonomous Stickman Video Director & Production Engine (Stick Story): 100% Code-Driven Stick Figure Storytelling & Tactical Survival Shorts. Ink-black stick figures with emotive acting eyes, day/night rooms, gold numbered step cards, Kokoro-82M neural TTS, Whisper alignment, NumPy/SciPy audio, Anti-LMK Shield, High-Speed Render Presets (--fast 720p HD mobile default, --turbo 540p ultrafast, --1080p full HD), $0 Cost, Zero Third-Party API Keys.",
       "icon": "icon.png"
     }
   ]

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Deepesh Mobile Studio — 3D Video Editing Part 1 (Faceless Shorts Engine)
+Deepesh Mobile Studio — Stickman Video Editing Studio (Stick Story Engine)
 Universal Autonomous Executive Studio & Production CLI
 
 Commands:
-  python studio.py new <style> <project_dir>   Scaffold a self-contained 3D project (zero external template dependencies)
+  python studio.py new [style] <project_dir>   Scaffold a self-contained Stick Story project
   python studio.py voice <project_dir>         Generate neural Kokoro voiceover (data/narration.wav)
   python studio.py words <project_dir>         Align word-level Whisper captions (data/words.json)
   python studio.py mix <project_dir>           Mix sound cues, foley, and background music (data/mix.wav)
@@ -27,19 +27,15 @@ STYLES_DIR = SKILL_DIR / "styles"
 SCRIPTS_DIR = SKILL_DIR / "scripts"
 
 STYLES = {
-    "deep-dive": "Deep Dive 3D (Zack D. Films style: sculpted 3D bodies, glowing x-ray anatomy, macro cameras)",
-    "night-file": "Night File 3D (Unsolved mysteries, true crime noir, single-light chiaroscuro)",
-    "tall-tale": "Tall Tale 3D (Humorous true stories, 2D cartoon characters emoting in sunny 3D towns)",
-    "inside-out": "Inside Out (Flat 2D vector x-ray, bodily & scientific explainers, punchy cuts)",
     "stick-story": "Stick Story (Tactical survival, stick figures with emotive eyes, day/night sets)",
-    "paper-atlas": "Paper Atlas (Grand history in cut paper, parchment maps, crimson routes, gold ribbons)"
+    "stickman": "Stickman Storytelling (Ink-black stick figures with emotive acting eyes, gold numbered step cards)"
 }
 
 def print_banner():
     print("""
 ========================================================================
- 🎬 3D VIDEO EDITING STUDIO (PART 1 — FACELESS SHORTS) v1.1.0
- 100% Code-Driven 3D & 2D | Three.js + Kokoro TTS + Whisper + Anti-LMK
+ 🏃 STICKMAN VIDEO EDITING STUDIO (STICK STORY ENGINE) v1.2.0
+ 100% Code-Driven Stick Figure Storytelling | Canvas + Kokoro TTS + Whisper
 ========================================================================
 """)
 
@@ -51,22 +47,26 @@ def get_python_bin():
     return sys.executable
 
 def cmd_new(style: str, target: str):
+    if style in ("stickman", "stick_story", "stick-man"):
+        style = "stick-story"
+
     if style not in STYLES:
-        print(f"❌ Unknown style '{style}'. Choose from:")
-        for k, v in STYLES.items():
-            print(f"   - {k}: {v}")
-        sys.exit(1)
+        print(f"⚠️ Defaulting to 'stick-story' (Stickman Storytelling)...")
+        style = "stick-story"
 
     example_dir = STYLES_DIR / style / "example"
     if not example_dir.exists():
-        print(f"❌ Style template not found at {example_dir}")
+        example_dir = STYLES_DIR / "stick-story" / "example"
+
+    if not example_dir.exists():
+        print(f"❌ Stick Story style template not found at {example_dir}")
         sys.exit(1)
 
     dest = Path(target).expanduser().resolve()
     if dest.exists():
         print(f"⚠️ Destination directory '{dest}' already exists. Using existing directory.")
     else:
-        print(f"📦 Scaffolding new '{style}' project at {dest}...")
+        print(f"📦 Scaffolding new Stickman Story project at {dest}...")
         shutil.copytree(example_dir, dest)
 
     # Ensure required runtime folders exist
@@ -98,81 +98,77 @@ def cmd_new(style: str, target: str):
     if fonts_src.exists():
         dest_fonts = dest / "fonts"
         dest_fonts.mkdir(parents=True, exist_ok=True)
-        for f in fonts_src.iterdir():
-            dst_f = dest_fonts / f.name
-            if not dst_f.exists():
+        for font_file in fonts_src.glob("*"):
+            dst_font = dest_fonts / font_file.name
+            if not dst_font.exists():
                 try:
-                    dst_f.symlink_to(f)
+                    dst_font.symlink_to(font_file)
                 except Exception:
-                    shutil.copy2(f, dst_f)
+                    shutil.copy(font_file, dst_font)
 
-    print(f"✅ Project ready at: {dest}")
-    print(f"💡 Next steps:")
-    print(f"   1. Edit {dest}/script.json (lines & narration)")
-    print(f"   2. Edit {dest}/src/shots.js (visual choreography)")
-    print(f"   3. Run: python3 studio.py voice \"{dest}\"")
-    print(f"   4. Run: python3 studio.py words \"{dest}\"")
-    print(f"   5. Run: python3 studio.py render \"{dest}\" --fast")
+    print(f"✅ Stickman Story project ready at: {dest}")
+    print("Next steps:")
+    print("  1. Edit script.json to adjust your spoken lines and step cards")
+    print(f"  2. python studio.py voice {dest} --voice am_puck")
+    print(f"  3. python studio.py words {dest}")
+    print(f"  4. python studio.py mix {dest}")
+    print(f"  5. python studio.py sheet {dest}")
+    print(f"  6. python studio.py render {dest} --fast")
 
-def cmd_voice(project_dir: str, voice: str = "am_michael"):
-    dest = Path(project_dir).expanduser().resolve()
-    script_path = dest / "script.json"
-    if not script_path.exists():
-        print(f"❌ script.json not found in {dest}")
-        sys.exit(1)
-
-    py_bin = get_python_bin()
+def cmd_voice(project_dir: str, voice: str = "am_puck"):
+    py = get_python_bin()
     voice_script = SCRIPTS_DIR / "voice.py"
-    print(f"🎙️ Synthesizing voice with Kokoro neural TTS (voice: {voice})...")
-    res = subprocess.run([py_bin, str(voice_script), str(dest), "--voice", voice])
-    if res.returncode != 0:
-        print("❌ Voice synthesis failed.")
-        sys.exit(res.returncode)
-    print("✅ Narration synthesized: data/narration.wav")
+    target = Path(project_dir).expanduser().resolve()
+    print(f"🎙️ Generating voiceover for {target} using voice '{voice}'...")
+    subprocess.run([py, str(voice_script), str(target), "--voice", voice], check=True)
 
 def cmd_words(project_dir: str):
-    dest = Path(project_dir).expanduser().resolve()
-    py_bin = get_python_bin()
+    py = get_python_bin()
     words_script = SCRIPTS_DIR / "words.py"
-    print("⏱️ Aligning words with Faster-Whisper...")
-    res = subprocess.run([py_bin, str(words_script), str(dest)])
-    if res.returncode != 0:
-        print("❌ Word alignment failed.")
-        sys.exit(res.returncode)
-    print("✅ Word timestamps aligned: data/words.json")
+    target = Path(project_dir).expanduser().resolve()
+    print(f"⚡ Aligning words via Faster-Whisper for {target}...")
+    subprocess.run([py, str(words_script), str(target)], check=True)
 
 def cmd_mix(project_dir: str):
-    dest = Path(project_dir).expanduser().resolve()
-    py_bin = get_python_bin()
-    mix_script = dest / "tools" / "mix.py"
+    py = get_python_bin()
+    target = Path(project_dir).expanduser().resolve()
+    mix_script = target / "tools" / "mix.py"
     if not mix_script.exists():
-        mix_script = SKILL_DIR / "styles" / "tall-tale" / "example" / "tools" / "mix.py"
+        mix_script = SCRIPTS_DIR / "mix.py"
+    print(f"🎚️ Mixing procedural audio and music for {target}...")
+    subprocess.run([py, str(mix_script), str(target)], check=True)
 
-    print("🎵 Mixing audio cues and BGM...")
-    res = subprocess.run([py_bin, str(mix_script), str(dest)])
-    if res.returncode != 0:
-        print("❌ Audio mix failed.")
-        sys.exit(res.returncode)
-    print("✅ Audio mix complete: data/mix.wav")
+def cmd_sheet(project_dir: str, interval: float = 0.5, cols: int = 10):
+    target = Path(project_dir).expanduser().resolve()
+    capture_tool = target / "tools" / "capture.mjs"
+    sheet_out = target / "review" / "all.jpg"
+    print(f"📸 Generating contact sheet QA at {sheet_out}...")
+    subprocess.run(["node", str(capture_tool), "sheet", str(sheet_out), str(interval), str(cols)], cwd=str(target), check=True)
+    print(f"✅ QA Sheet written to {sheet_out}")
 
-def cmd_sheet(project_dir: str):
-    dest = Path(project_dir).expanduser().resolve()
-    capture_script = dest / "tools" / "capture.mjs"
-    print("📸 Rendering visual contact sheet...")
-    subprocess.run(["node", str(capture_script), "check"], cwd=str(dest))
-    subprocess.run(["node", str(capture_script), "sheet", "review/all.jpg", "0.5", "10"], cwd=str(dest))
-    print(f"✅ Contact sheet generated at: {dest}/review/all.jpg")
+def cmd_render(project_dir: str, preset: str = "fast"):
+    target = Path(project_dir).expanduser().resolve()
+    capture_tool = target / "tools" / "capture.mjs"
+    out_mp4 = target / "renders" / "master.mp4"
 
-def cmd_render(project_dir: str, preset: str = "fast", output: str = "renders/master.mp4"):
-    dest = Path(project_dir).expanduser().resolve()
-    capture_script = dest / "tools" / "capture.mjs"
-    flag = f"--{preset}"
-    print(f"🚀 Rendering video (Preset: {preset}, Anti-LMK Shield active)...")
-    res = subprocess.run(["node", str(capture_script), "video", output, flag], cwd=str(dest))
-    if res.returncode != 0:
-        print("❌ Render failed.")
-        sys.exit(res.returncode)
-    print(f"🎉 Master video rendered successfully: {dest}/{output}")
+    scale_flag = []
+    fps_flag = []
+    if preset == "turbo":
+        print("🏎️ Rendering with --turbo preset (540p ultrafast draft, 45-55 FPS)...")
+        scale_flag = ["--scale", "0.5"]
+        fps_flag = ["--fps", "24"]
+    elif preset == "fast":
+        print("⚡ Rendering with --fast preset (720p HD mobile default, Anti-LMK protected)...")
+        scale_flag = ["--scale", "0.6667"]
+        fps_flag = ["--fps", "30"]
+    else:
+        print("🌟 Rendering with --1080p preset (Full HD master)...")
+        scale_flag = ["--scale", "1.0"]
+        fps_flag = ["--fps", "30"]
+
+    cmd = ["node", str(capture_tool), "video", str(out_mp4)] + scale_flag + fps_flag
+    subprocess.run(cmd, cwd=str(target), check=True)
+    print(f"🎉 Master render complete: {out_mp4}")
 
 def cmd_selftest():
     setup_script = SCRIPTS_DIR / "setup.sh"
@@ -190,14 +186,17 @@ def main():
 
     cmd = sys.argv[1].lower()
     if cmd == "new":
-        if len(sys.argv) < 4:
-            print("Usage: python studio.py new <style> <project_dir>")
+        if len(sys.argv) == 3:
+            cmd_new("stick-story", sys.argv[2])
+        elif len(sys.argv) >= 4:
+            cmd_new(sys.argv[2], sys.argv[3])
+        else:
+            print("Usage: python studio.py new [style] <project_dir>")
             print(f"Available styles: {', '.join(STYLES.keys())}")
             sys.exit(1)
-        cmd_new(sys.argv[2], sys.argv[3])
     elif cmd == "voice":
         p = sys.argv[2] if len(sys.argv) > 2 else "."
-        v = sys.argv[3] if len(sys.argv) > 3 else "am_michael"
+        v = sys.argv[3] if len(sys.argv) > 3 else "am_puck"
         cmd_voice(p, v)
     elif cmd == "words":
         p = sys.argv[2] if len(sys.argv) > 2 else "."
@@ -223,8 +222,8 @@ def main():
         for arg in sys.argv:
             if arg in ("--fast", "--turbo", "--1080p"):
                 preset = arg.lstrip("-")
-        print("⚡ Executing 3D Autopilot...")
-        cmd_voice(p)
+        print("⚡ Executing Stickman Autopilot...")
+        cmd_voice(p, "am_puck")
         cmd_words(p)
         cmd_mix(p)
         cmd_sheet(p)
