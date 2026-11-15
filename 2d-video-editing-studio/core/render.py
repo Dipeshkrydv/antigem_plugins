@@ -912,9 +912,9 @@ def render_scene(sc):
             cv.paste(leak_overlay, (0, 0), leak_overlay)
             
         pr.stdin.write(cv.tobytes())
-        if (f - f0) % 5 == 0:
-            time.sleep(0.002)  # Anti-offline heartbeat yield
-        if (f - f0) % 20 == 0:
+        if (fr - f0) % 10 == 0:
+            time.sleep(0.001)  # Anti-offline heartbeat yield
+        if (fr - f0) % 60 == 0:
             import gc
             gc.collect()
     pr.stdin.close()

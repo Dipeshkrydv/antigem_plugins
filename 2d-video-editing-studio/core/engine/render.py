@@ -396,11 +396,13 @@ class Item:
         are finished). Used by the frame cache: a scene whose items are all settled is composed once, not per frame."""
         if "_settled" not in self.__dict__:
             t0, d, k = self.t_in, self.d, self.type
-            tail = 1.2
+            tail = 0.65
             if k == "counter":
                 tail = d.get("dur", 1.4) + 0.3
             elif k in ("title", "quote"):
-                tail = 1.5
+                tail = 1.45
+            elif k in ("chart", "timeline", "list"):
+                tail = 1.6
             elif k == "highlight_sweep":
                 tail = 1.35
             elif k in OVERLAYS:
@@ -871,7 +873,7 @@ class Engine:
         key = (sc["bg"], sc["layout"], rect)
         if key in self._bg_cache:
             return self._bg_cache[key]
-        if len(self._bg_cache) > 5:
+        if len(self._bg_cache) > 24:
             self._bg_cache.pop(next(iter(self._bg_cache)))
         if sc["bg_is_image"]:
             im = Image.open(find_image(sc["bg"])).convert("RGB")
@@ -1398,11 +1400,11 @@ def _render_direct(e, f_start, f_end, out, preview, t_from, t_to, preset="fast",
         else:
             crf = 22 if e.look.get("grain") else 19
 
-    enc_preset = "ultrafast" if preset in ("draft", "turbo") else "veryfast"
+    enc_preset = "ultrafast" if preset in ("draft", "turbo", "fast") else "veryfast"
     if threads is None:
         threads = "2" if is_mobile() else str(min(os.cpu_count() or 4, 4))
 
-    cmd += ["-c:v", "libx264", "-preset", enc_preset, "-crf", str(crf),
+    cmd += ["-c:v", "libx264", "-preset", enc_preset, "-tune", "animation", "-crf", str(crf),
             "-pix_fmt", "yuv420p", "-threads", str(threads), "-movflags", "+faststart", out]
 
     total_frames = f_end - f_start
@@ -1423,11 +1425,11 @@ def _render_direct(e, f_start, f_end, out, preview, t_from, t_to, preset="fast",
             pr.stdin.write(prev)
 
             # Anti-LMK & Anti-Offline Heartbeat Shield:
-            # Yield every 5 frames to release Python GIL for WebSocket heartbeat,
-            # and trigger gc.collect() every 20 frames to keep RAM flat (< 140MB).
-            if idx % 5 == 0:
-                time.sleep(0.002)  # Keeps WebSocket / Termux server alive!
-            if idx % 20 == 0:
+            # Yield every 10 frames to release Python GIL for WebSocket heartbeat,
+            # and trigger gc.collect() every 60 frames to keep RAM flat (< 140MB).
+            if idx % 10 == 0:
+                time.sleep(0.001)  # Keeps WebSocket / Termux server alive!
+            if idx % 60 == 0:
                 gc.collect()
 
             now = time.time()
@@ -1660,22 +1662,24 @@ def main():
         preset = "turbo"
     elif a.fast:
         preset = "fast"
+    elif a.full_hd:
+        preset = "quality"
     elif preset is None:
-        preset = "fast" if mobile else "quality"
+        preset = "fast"  # High-definition 720p HD universal default for fast, smooth renders
 
     # Determine scale
     if a.scale is not None:
         scale = a.scale
-    elif a.full_hd:
+    elif a.full_hd or preset == "quality":
         scale = 1.0
     elif preset in ("draft", "turbo"):
         scale = 0.5
-    elif preset == "fast" and mobile:
+    elif preset == "fast":
         scale = 0.6667  # 720p HD (720x1280 vertical / 1280x720 landscape)
     elif a.cmd == "preview":
         scale = 0.5
     else:
-        scale = 0.6667 if mobile else 1.0
+        scale = 0.6667
 
     if a.cmd == "check":
         check(a.edit)

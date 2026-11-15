@@ -951,6 +951,7 @@ def squiggle(x0, x1, y, amp, seed=2):
 
 # ------------------------------------------------------------------ backgrounds
 PROC_BG = {"auto", "paper", "dark", "grid", "white", "crumple", "kraft", "mat", "chalk"}
+_PROC_BG_CACHE = {}
 
 def is_proc_bg(name):
     return name in PROC_BG
@@ -961,14 +962,32 @@ def procedural_bg(kind, W, H, look):
     import collage
     if kind == "auto" and look.get("bg_kind"):
         kind = look["bg_kind"]
+    
+    # Ultra-fast in-memory cache for procedural backgrounds:
+    cache_key = (
+        kind, W, H, look.get("bg_kind"),
+        tuple(look.get("bg", ())),
+        bool(look.get("paper")), bool(look.get("dots")), bool(look.get("grid")),
+        look.get("vig", 0.0), look.get("crumple_base")
+    )
+    if cache_key in _PROC_BG_CACHE:
+        return _PROC_BG_CACHE[cache_key].copy()
+
     if kind in collage.KINDS:
-        return collage.background(kind, W, H, look)
-    return _legacy_bg(kind, W, H, look)
+        res = collage.background(kind, W, H, look)
+    else:
+        res = _legacy_bg(kind, W, H, look)
+
+    if len(_PROC_BG_CACHE) >= 12:
+        _PROC_BG_CACHE.pop(next(iter(_PROC_BG_CACHE)))
+    _PROC_BG_CACHE[cache_key] = res
+    return res.copy()
 
 def _legacy_bg(kind, W, H, look):
     rng = np.random.default_rng(11)
-    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
-    r = np.hypot((xx - W / 2) / (W / 2), (yy - H / 2) / (H / 2))
+    xx = np.linspace(-1.0, 1.0, W, dtype=np.float32)[None, :]
+    yy = np.linspace(-1.0, 1.0, H, dtype=np.float32)[:, None]
+    r = np.hypot(xx, yy)
     base = np.array(look["bg"], np.float32)
     if kind in ("paper", "auto") and look.get("paper"):
         shade = 1 - 0.08 * np.clip(r - 0.35, 0, None)
@@ -976,13 +995,17 @@ def _legacy_bg(kind, W, H, look):
         img = base * shade[..., None] + fib[..., None]
         if look.get("dots"):   # subtle dot grid: gives sticker layouts a designed surface instead of blank paper
             step = int(min(W, H) / 18)
-            r = max(2, step // 16)
-            m = (((xx.astype(int) + step // 2) % step) < r) & (((yy.astype(int) + step // 2) % step) < r)
+            r_dot = max(2, step // 16)
+            xx_pix = np.arange(W, dtype=np.int32)[None, :]
+            yy_pix = np.arange(H, dtype=np.int32)[:, None]
+            m = (((xx_pix + step // 2) % step) < r_dot) & (((yy_pix + step // 2) % step) < r_dot)
             img = img - m[..., None] * 26
     elif kind in ("grid", "auto") and look.get("grid"):
         img = base * (1 - 0.15 * np.clip(r - 0.2, 0, None))[..., None]
         step = int(W / 32)
-        dots = ((xx.astype(int) % step < 2) & (yy.astype(int) % step < 2))
+        xx_pix = np.arange(W, dtype=np.int32)[None, :]
+        yy_pix = np.arange(H, dtype=np.int32)[:, None]
+        dots = ((xx_pix % step < 2) & (yy_pix % step < 2))
         img = img + dots[..., None] * 22
     else:  # dark / noir
         shade = 1.25 - 0.55 * np.clip(r, 0, 1.3)
