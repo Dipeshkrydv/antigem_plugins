@@ -50,6 +50,29 @@
         "stories",
         "scheduler"
       ]
+    },
+    {
+      "name": "meta-suite",
+      "source": "./facebook-automation",
+      "displayName": "Meta Suite & Social Autopilot",
+      "description": "Autonomous, production-grade social publishing & scheduling engine for Meta Business Suite (Motivational Docqueen), Facebook, Instagram, YouTube & TikTok with DeepX Google Flow bridge integration, human-like in-memory DataTransfer uploads, and 2M-20M viral recommendation algorithms.",
+      "version": "2.0.0",
+      "author": {
+        "name": "Dipesh Kr Yadav"
+      },
+      "homepage": "https://github.com/Dipeshkrydv/antigem_plugins",
+      "keywords": [
+        "meta",
+        "facebook",
+        "instagram",
+        "meta business suite",
+        "automation",
+        "deepx",
+        "google flow",
+        "reels",
+        "stories",
+        "scheduler"
+      ]
     }
   ]
 }

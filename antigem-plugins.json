@@ -16,6 +16,14 @@
       "version": "2.0.0",
       "description": "Pre-Trained Phone & Desktop Facebook Automation Engine (v2.0.0): Meta Business Suite scheduler for Motivational Docqueen, custom Reel covers & video thumbnails, DeepX Google Flow bridge integration, human-like in-memory DataTransfer uploads, and 2M-20M viral recommendation algorithms.",
       "icon": "icon.png"
+    },
+    {
+      "path": "facebook-automation",
+      "id": "meta-suite",
+      "name": "Meta Suite & Social Autopilot",
+      "version": "2.0.0",
+      "description": "Autonomous, production-grade social publishing & scheduling engine for Meta Business Suite (Motivational Docqueen), Facebook, Instagram, YouTube & TikTok with DeepX Google Flow bridge integration, human-like in-memory DataTransfer uploads, and 2M-20M viral recommendation algorithms.",
+      "icon": "icon.png"
     }
   ]
 }
