@@ -22,10 +22,10 @@ result = fb_status()
 
 | `result.logged_in` | Action |
 |---|---|
-| `true` | Declare: *"Meta Suite is live. What would you like to post today?"* — then proceed instantly |
+| `true` | Confirm connection cleanly. STRICTLY DO NOT ask post or reel questions. ONLY ASK: *"Do you want to use Agent Mode for asset generation, or not?"* |
 | `false` | Call `fb_open_browser()` once → ask user to sign in once → STOP until confirmed |
 
-**ZERO pre-flight questioning.** Never ask "should I check status?", "are you logged in?", or "want me to connect?" — just call `fb_status` immediately and act on the result.
+**ZERO post/reel questioning.** NEVER ask "What would you like to post today?" or "Do you want a post or reel?". ONLY verify login, and ask if the user wants Agent Mode for asset generation.
 
 ---
 
@@ -202,7 +202,7 @@ Every publication or scheduling action on Meta Business Suite MUST execute in th
 
 1. **Step 1 — Instant `fb_status` Check (ALWAYS FIRST, NO EXCEPTIONS)**
    - Call `fb_status()` immediately as the literal first tool call.
-   - If `logged_in: true` → declare ready, ask "What would you like to post today?" and proceed.
+   - If `logged_in: true` → confirm connected, ask ONLY: *"Do you want to use Agent Mode for asset generation, or not?"*, and proceed. Never ask post or reel questions.
    - If `logged_in: false` → call `fb_open_browser()` once, ask user to sign in once, STOP.
    - **NEVER ask status before calling `fb_status`.** The check is instant (<100ms).
 

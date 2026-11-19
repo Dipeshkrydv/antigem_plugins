@@ -4,19 +4,20 @@
 - **Bridge & Scheduler Pre-Configured**:
   - The MCP server `meta-scheduler-mcp` connects to the browser extension via WebSocket at `ws://127.0.0.1:8765`.
   - The SQLite APScheduler daemon actively ticks and processes queued page posts.
-  - **ZERO RAW CONNECTION JSON DUMPS**: Never dump raw JSON blocks (`{"status":"connected", ...}`) into chat. Simply declare: *"Meta Suite is live. What would you like to post today?"*
+  - **ZERO RAW CONNECTION JSON DUMPS**: Never dump raw JSON blocks (`{"status":"connected", ...}`) into chat.
   - **ZERO MANUAL PROMPTS**: Never ask the user to manually open `business.facebook.com` or switch tabs.
 
 ---
 
-## 0.1 INSTANT `fb_status` MANDATE (LITERAL FIRST TOOL CALL — ZERO EXCEPTIONS)
+## 0.1 INSTANT `fb_status` MANDATE & INTERACTION PROTOCOL (CRITICAL)
 - **`fb_status()` is ALWAYS the first MCP tool call on ANY meta suite task.**
   - No pre-flight questioning. No "let me check". No "should I verify?". Just call it.
   - The call takes <100ms. It answers everything.
 - **If `logged_in: true`**:
   - Skip ALL login prompts entirely.
-  - Declare: *"Meta Suite is live. What would you like to post today?"*
-  - Proceed directly to the user's request with ZERO confirmation rounds.
+  - Confirm connection and authentication cleanly.
+  - **STRICT BAN ON POST OR REEL QUESTIONS**: NEVER ask "What would you like to post today?", "Do you want to create a post or reel?", or ask content format questions.
+  - **ONLY ASK**: *"Do you want to use Agent Mode for asset generation, or not?"*
 - **If `logged_in: false`**:
   - Call `fb_open_browser()` once.
   - Ask the user to sign in one time.
@@ -36,23 +37,25 @@
 
 ## 2. Full Autopilot Mode — Zero Alignment Questions (CRITICAL)
 - **Once the user describes what to post → dispatch immediately. No confirmation round.**
-- **PROHIBITED questions after content is described**:
+- **PROHIBITED questions**:
+  - "What would you like to post today?"
+  - "Do you want a post or reel?"
   - "Should I post this?"
   - "Do you want me to publish it now?"
   - "Shall I proceed?"
   - "Do you want a custom caption?"
   - "Should I schedule or post immediately?"
-- **ALLOWED questions** (only if truly missing critical info):
-  - If user says "schedule it" but gives no time → "What time should I schedule it?"
-  - That is the ONLY valid interruption.
+- **ALLOWED questions**:
+  - Only ask login if `logged_in: false`.
+  - Only ask: *"Do you want to use Agent Mode for asset generation, or not?"*
+  - If user explicitly says "schedule it" but gives no time → "What time should I schedule it?"
 - **When user says "post it", "publish", "share this", "upload this" → call `fb_publish` or `fb_publish_reel` immediately.**
 
 ---
 
 ## 3. DeepX Auto-Routing for AI Media (COMPULSORY — ZERO PERMISSION NEEDED)
-- **When user says any of these → automatically call DeepX tools without asking:**
-  - "generate image", "make a photo", "create visual", "design a post", "redesign", "make it engaging", "edit this photo", "create thumbnail", "make thumbnail", "AI image", "generate thumbnail", "make video", "create promo", "make reel video"
-- **Auto-routing:**
+- **When Agent Mode is selected or user requests AI media**:
+  - Automatically call DeepX tools without asking.
   - Design / photo post → `deepx_meta_generate_design(prompt=<desc>)`
   - Thumbnail → `deepx_meta_generate_thumbnail(prompt=<desc>)`
   - Reel / promo video → `deepx_meta_generate_video(prompt=<desc>)`
@@ -95,9 +98,9 @@ Every upload, publication, or scheduling action on Meta Business Suite MUST exec
 
 1. **Step 1 — Instant `fb_status()` Check (ALWAYS FIRST, ZERO EXCEPTIONS)**:
    - Call `fb_status()` immediately as the literal first MCP tool call.
-   - `logged_in: true` → declare ready, ask "What would you like to post today?", proceed instantly.
+   - `logged_in: true` → confirm connected, ask ONLY: *"Do you want to use Agent Mode for asset generation, or not?"*, and proceed.
    - `logged_in: false` → call `fb_open_browser()` once → ask user to sign in once → STOP.
-   - Never ask status questions before calling `fb_status`.
+   - Never ask post or reel questions.
 
 2. **Step 2 — Managed Facebook Page Target Selection**:
    - Confirm target routing: `target_type: "page"`, `target_id: "me"` (or explicit Page ID).
@@ -105,7 +108,7 @@ Every upload, publication, or scheduling action on Meta Business Suite MUST exec
 
 3. **Step 3 — Content Preparation, AI Media Generation & Anti-Duplicate Check**:
    - Format viral SEO package: punchy Title, formatted multiline description (`\n\n` linebreaks preserved), and 3 to 6 targeted `#Hashtags`.
-   - **If user requests AI media → call `deepx_meta_generate_design` / `deepx_meta_generate_thumbnail` / `deepx_meta_generate_video` HERE, before proceeding.**
+   - **If Agent Mode / AI media requested → call `deepx_meta_generate_design` / `deepx_meta_generate_thumbnail` / `deepx_meta_generate_video` HERE, before proceeding.**
    - Compute SHA-256 hash of media and text; verify against recent posts to guarantee zero duplicate submissions.
 
 4. **Step 4 — In-Memory Asset & Custom Thumbnail / Cover Injection**:
