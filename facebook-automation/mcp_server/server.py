@@ -7,15 +7,34 @@ Scheduling, Re-Editing, Deleting, Anti-Duplicate Guard, and Viral SEO.
 """
 
 import asyncio
+import logging
 import os
 import sys
+import threading
 from typing import Optional, List, Dict, Any
-from mcp.server.fastmcp import FastMCP
+
+# Ensure stderr logging so stdout is dedicated 100% to MCP JSON-RPC protocol
+logging.basicConfig(
+    stream=sys.stderr,
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger("meta_suite.mcp_server")
+
+try:
+    from mcp.server.mcpserver import MCPServer as FastMCP
+except (ImportError, ModuleNotFoundError):
+    try:
+        from mcp.server.fastmcp import FastMCP
+    except (ImportError, ModuleNotFoundError):
+        from mcp.server import Server as FastMCP
 
 from .config import WS_HOST, WS_PORT, DB_PATH
 from .database import FacebookDatabase
 from .policy_guardian import PolicyGuardian
 from .fb_seo import FacebookSEO
+from .meta_viral_seo_engine import meta_viral_seo
+from .deepx_meta_bridge import deepx_meta
 from .bridge_server import FacebookBridgeServer
 from .facebook_controller import FacebookController
 from .scheduler import FacebookScheduler
@@ -26,7 +45,7 @@ db = FacebookDatabase()
 guardian = PolicyGuardian(db)
 bridge = FacebookBridgeServer(WS_HOST, WS_PORT)
 controller = FacebookController(db, guardian, bridge)
-scheduler = FacebookScheduler(db, controller)
+scheduler = FacebookScheduler(database=db, policy_guardian=guardian, fb=controller)
 
 
 @mcp.tool()
@@ -293,6 +312,81 @@ async def fb_audit_caption(caption: str, title: str = "") -> Dict[str, Any]:
 
 
 @mcp.tool()
+async def meta_viral_seo_generate(
+    topic: str,
+    video_type: str = "reel",
+    target_platform: str = "business_suite",
+    audience_persona: str = "ambitious_practitioner"
+) -> Dict[str, Any]:
+    """
+    Generate an elite 2M-20M view scale viral SEO package for Meta Business Suite, Facebook Reels, and Instagram Reels:
+    - High-CTR Pattern Interrupt Viral Title
+    - 3-Second Retention Hook (Line 1 before 'See More' cutoff)
+    - Anti-Book 1-2 line Micro-Takeaways with double whitespace
+    - Comment Warfare Debate Driver (triggers multi-turn reply threads)
+    - Share & Save Catalysts (12x Share and 6x Save algorithmic multipliers)
+    - 3-6 Diamond Cluster Hashtags
+    - Master AI Image Model Thumbnail Prompt (strictly compliant with Rule 8: AI Image Model ONLY, volumetric rim lighting, 3D gradient text)
+    - Multimodal Semantic Keywords for Meta V-JEPA indexer.
+    """
+    return meta_viral_seo.generate_20m_viral_package(
+        topic=topic,
+        video_type=video_type,
+        target_platform=target_platform,
+        audience_persona=audience_persona
+    )
+
+
+@mcp.tool()
+async def meta_viral_algorithm_audit(caption: str, title: str = "") -> Dict[str, Any]:
+    """
+    Rigorously audit any video or post caption against Meta's recommendation algorithm.
+    Checks 3-second retention, outbound link penalties, comment warfare prompts,
+    whitespace structure, and hashtag stuffing. Returns 0-100 score and viral reach tier.
+    """
+    return meta_viral_seo.audit_caption_for_20m_potential(caption, title=title)
+
+
+@mcp.tool()
+async def deepx_meta_status() -> Dict[str, Any]:
+    """Check connection status between Meta Suite and the latest DeepX Google Flow Extension."""
+    return deepx_meta.get_status()
+
+
+@mcp.tool()
+async def deepx_meta_generate_design(
+    prompt: str,
+    aspect_ratio: str = "4:5",
+    model: str = "gemini-nano-banana-2.1"
+) -> Dict[str, Any]:
+    """Generate high-converting social designs and photo cards on Google Flow via DeepX (🍌 Nano Banana 2.1)."""
+    return deepx_meta.generate_image(prompt=prompt, aspect_ratio=aspect_ratio, model=model)
+
+
+@mcp.tool()
+async def deepx_meta_generate_thumbnail(
+    topic: str,
+    aspect_ratio: str = "16:9"
+) -> Dict[str, Any]:
+    """
+    Generate an agency-grade high-CTR viral thumbnail for Facebook/Instagram via DeepX Google Flow.
+    Strictly follows Rule 8 (AI Image Model ONLY: volumetric rim lighting, 3D gradient text, translucent glass badge).
+    """
+    return deepx_meta.generate_viral_thumbnail(topic=topic, aspect_ratio=aspect_ratio)
+
+
+@mcp.tool()
+async def deepx_meta_generate_video(
+    prompt: str,
+    duration: int = 10,
+    aspect_ratio: str = "9:16",
+    model: str = "veo-3.1-lite"
+) -> Dict[str, Any]:
+    """Generate vertical Reels or video ads on Google Flow via Veo 3.1 & DeepX."""
+    return deepx_meta.generate_video(prompt=prompt, duration=duration, aspect_ratio=aspect_ratio, model=model)
+
+
+@mcp.tool()
 async def fb_comments(post_url_or_id: str, comment_text: str) -> Dict[str, Any]:
     """Post a first comment (such as a resource link) or reply on a Facebook post."""
     return await controller.add_comment(post_url_or_id, comment_text)
@@ -323,12 +417,53 @@ async def fb_doctor() -> Dict[str, Any]:
     }
 
 
-async def start_background_services():
-    await bridge.start()
+def check_platform_login_status(platform: str = "all") -> Dict[str, Any]:
+    """Synchronous helper to check platform login readiness against the active session store."""
+    active_sessions = db.list_active_sessions()
+    session_map = {s["platform"]: s for s in active_sessions}
+    platforms_to_check = ["facebook", "instagram", "business_suite", "youtube", "tiktok"]
+
+    if platform != "all":
+        sess = session_map.get(platform) or db.get_session(platform)
+        logged_in = bool(sess and sess.get("status") in ("online", "healthy") and sess.get("is_active", 1))
+        username = sess.get("username", "") if sess else ""
+        return {
+            "platform": platform,
+            "logged_in": logged_in,
+            "username": username,
+            "message": "Authenticated and active session verified." if logged_in else "Not logged in or session expired."
+        }
+
+    platforms_res = {}
+    for p in platforms_to_check:
+        sess = session_map.get(p)
+        logged_in = bool(sess and sess.get("status") in ("online", "healthy"))
+        username = sess.get("username", "") if sess else ""
+        platforms_res[p] = {
+            "logged_in": logged_in,
+            "username": username,
+            "account_id": sess.get("account_id") if sess else None,
+            "status": sess.get("status") if sess else "logged_out"
+        }
+
+    return {"platforms": platforms_res}
+
+
+def _run_background_loop():
+    bridge_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(bridge_loop)
+    bridge_loop.run_until_complete(bridge.start())
     scheduler.start()
+    logger.info("Background services (WebSocket bridge & APScheduler) permanently active on dedicated loop.")
+    bridge_loop.run_forever()
+
+
+def main():
+    """Main entrypoint for MCP server with isolated background thread for bridge & scheduler."""
+    t = threading.Thread(target=_run_background_loop, daemon=True)
+    t.start()
+    mcp.run()
 
 
 if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(start_background_services())
-    mcp.run()
+    main()

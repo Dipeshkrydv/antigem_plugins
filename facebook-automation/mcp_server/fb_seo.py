@@ -54,24 +54,80 @@ SENIOR_SMM_QUOTES = [
         "quote": "“Discipline is choosing between what you want now and what you want most.”",
         "bullets": [
             "🔹 Small daily moves compound into unstoppable momentum.",
-            "🔹 Protect your focus from noise—your results will speak for themselves."
-        ]
+            "🔹 Protect your focus from daily noise—your results will speak for themselves.",
+            "🔹 When everyone else gets tired, the disciplined keep walking."
+        ],
+        "cta": "👇 What is your #1 non-negotiable habit right now? Drop it below!"
     },
     {
         "title": "Build In Silence, Let Impact Speak",
-        "quote": "“Your direction is always more important than your speed.”",
+        "quote": "“Your direction is infinitely more important than your speed.”",
         "bullets": [
-            "🔹 Clarity beats hustle when everyone else is rushing blindly.",
-            "🔹 Master the fundamentals and the breakthroughs will follow."
-        ]
+            "🔹 Clarity beats frantic hustle when everyone else is rushing blindly.",
+            "🔹 Master the core fundamentals and the breakthroughs follow naturally.",
+            "🔹 Move with quiet certainty, not loud promises."
+        ],
+        "cta": "👇 Are you focusing on speed or direction this month? Tell me below!"
     },
     {
         "title": "The Mindset That Changes Everything",
-        "quote": "“Growth begins the exact moment you stop waiting for perfect conditions.”",
+        "quote": "“Growth begins the exact second you stop waiting for perfect conditions.”",
         "bullets": [
-            "🔹 Action cures fear faster than overthinking ever will.",
-            "🔹 Show up with intention every single day."
-        ]
+            "🔹 Decisive action cures hesitation faster than overthinking ever will.",
+            "🔹 Show up with fierce intention every single morning.",
+            "🔹 The friction you feel right now is strength being built."
+        ],
+        "cta": "👇 Drop a '🔥' if you're taking action today regardless of conditions!"
+    },
+    {
+        "title": "The 1% Rule Nobody Talks About",
+        "quote": "“You do not rise to the level of your goals. You fall to the level of your systems.”",
+        "bullets": [
+            "🔹 Goals set the direction, but daily rituals deliver the outcome.",
+            "🔹 Eliminate friction between your decision and your physical execution.",
+            "🔹 Win the morning hour and the entire day bends to your will."
+        ],
+        "cta": "👇 What system are you building to win this week? Share below!"
+    },
+    {
+        "title": "Overcome The Overthinking Trap",
+        "quote": "“Overthinking is the art of creating problems that weren't even there.”",
+        "bullets": [
+            "🔹 When in doubt, take the smallest possible forward step.",
+            "🔹 Momentum generates clarity; waiting only generates anxiety.",
+            "🔹 Execute first, calibrate second."
+        ],
+        "cta": "👇 Which area of your life needs immediate action over analysis? Comment below!"
+    },
+    {
+        "title": "Protect Your Energy & Standards",
+        "quote": "“What you tolerate in your daily routine becomes your permanent reality.”",
+        "bullets": [
+            "🔹 Raise the standard of what gets access to your attention.",
+            "🔹 Say no to good distractions so you can say yes to great outcomes.",
+            "🔹 Deep work in a shallow world is an absolute superpower."
+        ],
+        "cta": "👇 Agree or disagree? Drop your perspective in the comments below!"
+    },
+    {
+        "title": "Mastery Takes Time, Not Magic",
+        "quote": "“Nobody sees the quiet years of preparation before the overnight success.”",
+        "bullets": [
+            "🔹 Trust the boring, unglamorous reps done when nobody is watching.",
+            "🔹 Compounding is back-loaded—the biggest rewards come at the end.",
+            "🔹 Stay in the game long enough to let the math work for you."
+        ],
+        "cta": "👇 Drop a '100' if you're committed to the long-term journey!"
+    },
+    {
+        "title": "Rewire For Relentless Focus",
+        "quote": "“A distracted mind is easily defeated; an anchored mind is unstoppable.”",
+        "bullets": [
+            "🔹 Cut the endless dopamine loops that steal your creative fire.",
+            "🔹 Spend 90 uninterrupted minutes every day on your highest leverage craft.",
+            "🔹 Consistency is the ultimate competitive advantage."
+        ],
+        "cta": "👇 What’s your biggest distraction right now? Let's beat it together below!"
     }
 ]
 
@@ -142,7 +198,7 @@ class FacebookSEO:
                     "",
                     *preset["bullets"],
                     "",
-                    "👇 What’s one lesson this reminds you of today? Share your thoughts below!",
+                    preset.get("cta", "👇 What’s one lesson this reminds you of today? Share your thoughts below!"),
                 ]
             )
         elif len(raw_caption.split()) <= 8 and "\n" not in raw_caption:

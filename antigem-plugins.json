@@ -12,9 +12,9 @@
     {
       "path": "facebook-automation",
       "id": "facebook-automation",
-      "name": "Facebook Automation & SEO Studio",
-      "version": "1.6.0",
-      "description": "Pre-Trained Phone (Desktop-on-Phone www.facebook.com & Mobile Touch m.facebook.com) and Desktop Facebook Automation Engine (v1.6.0): Dedicated Feed Posts (Text/Photo/Carousel/Video), Anti-Comment Firewall (never posts into comments), Reels (/reels/create + automatic mobile fallback + video event dispatch), Stories (/stories/create Photo/Video with overlay story_text & Text Story), Real Video/Reel Thumbnail & Cover Uploader, Multiline Formatted Caption Engine (Title + Description + Bullets + CTA + 3-6 #Hashtags), and Zero-Overthinking 1-Call Dispatch.",
+      "name": "Facebook Automation & Meta Suite Studio",
+      "version": "2.0.0",
+      "description": "Pre-Trained Phone & Desktop Facebook Automation Engine (v2.0.0): Meta Business Suite scheduler for Motivational Docqueen, custom Reel covers & video thumbnails, DeepX Google Flow bridge integration, human-like in-memory DataTransfer uploads, and 2M-20M viral recommendation algorithms.",
       "icon": "icon.png"
     }
   ]

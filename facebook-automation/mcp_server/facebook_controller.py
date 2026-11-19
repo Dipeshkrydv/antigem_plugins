@@ -16,9 +16,9 @@ import mimetypes
 import logging
 from typing import Dict, Any, List, Optional
 from pathlib import Path
-from .database import FacebookDatabase
-from .policy_guardian import PolicyGuardian
-from .bridge_server import FacebookBridgeServer
+from .database import Database, db, FacebookDatabase
+from .policy_guardian import MetaPolicyGuardian, guardian, PolicyGuardian
+from .bridge_server import BridgeServer, bridge, FacebookBridgeServer
 from .fb_seo import FacebookSEO
 
 logger = logging.getLogger("FacebookController")
@@ -106,10 +106,15 @@ def resolve_media_path(raw_path: str, prefer_video: bool = False) -> str:
 
 
 class FacebookController:
-    def __init__(self, db: FacebookDatabase, guardian: PolicyGuardian, bridge: FacebookBridgeServer):
-        self.db = db
-        self.guardian = guardian
-        self.bridge = bridge
+    def __init__(
+        self,
+        db: Optional[Database] = None,
+        guardian: Optional[MetaPolicyGuardian] = None,
+        bridge: Optional[BridgeServer] = None
+    ):
+        self.db = db if db is not None else globals().get("db")
+        self.guardian = guardian if guardian is not None else globals().get("guardian")
+        self.bridge = bridge if bridge is not None else globals().get("bridge")
         self.pending_task: Optional[Dict[str, Any]] = None
 
     async def get_login_status(self, target_url: Optional[str] = None) -> Dict[str, Any]:
@@ -202,7 +207,8 @@ class FacebookController:
         title: Optional[str] = None,
         hashtags: Optional[List[str]] = None,
         thumbnail_path: Optional[str] = None,
-        story_text: Optional[str] = None
+        story_text: Optional[str] = None,
+        job_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Senior Social Media Manager Publisher:
@@ -251,7 +257,7 @@ class FacebookController:
             resolved_thumbnail = rt
 
         # 1. Anti-Duplicate Check
-        is_dup, dup_reason = self.db.check_duplicate(media_paths=resolved_paths, caption=final_caption)
+        is_dup, dup_reason = self.db.check_duplicate(media_paths=resolved_paths, caption=final_caption, exclude_job_id=job_id)
         if is_dup:
             logger.warning("Duplicate post blocked: %s", dup_reason)
             return {"success": False, "error": dup_reason, "duplicate_detected": True, "stop_loop": True}
@@ -477,3 +483,103 @@ class FacebookController:
             timeout=30.0
         )
         return res
+
+    def publish_or_schedule(
+        self,
+        target_type: str = "profile",
+        target_id: Optional[str] = "me",
+        content_type: str = "photo",
+        media_paths: Optional[List[str]] = None,
+        description: str = "",
+        title: Optional[str] = None,
+        hashtags: Optional[List[str]] = None,
+        bypass_spacing: bool = False,
+        schedule_time_iso: Optional[str] = None,
+        first_comment: Optional[str] = None,
+        thumbnail_path: Optional[str] = None,
+        story_text: Optional[str] = None,
+        job_id: Optional[int] = None,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """Synchronous publish or schedule entrypoint for CLI & scripts."""
+        if schedule_time_iso:
+            try:
+                from datetime import datetime, timezone
+                target_dt = datetime.fromisoformat(schedule_time_iso.replace("Z", "+00:00"))
+                now = datetime.now(timezone.utc)
+                if (target_dt - now).total_seconds() > 30:
+                    from .scheduler_engine import scheduler
+                    payload = {
+                        "media_paths": media_paths or [],
+                        "title": title,
+                        "description": description,
+                        "caption": description,
+                        "hashtags": hashtags or [],
+                        "thumbnail_path": thumbnail_path,
+                        "story_text": story_text,
+                        "auto_publish": True,
+                        "bypass_spacing": bypass_spacing,
+                        **kwargs
+                    }
+                    return scheduler.schedule_job(
+                        platform="facebook",
+                        target_type=target_type,
+                        target_id=target_id,
+                        content_type=content_type,
+                        payload=payload,
+                        schedule_time_iso=schedule_time_iso
+                    )
+            except Exception as e:
+                logger.warning("Failed scheduling future post (%s), executing immediately: %s", schedule_time_iso, e)
+
+        import asyncio
+        coro = self.publish_post(
+            caption=description,
+            media_paths=media_paths,
+            post_type=content_type,
+            target_type=target_type,
+            target_id=target_id,
+            first_comment=first_comment,
+            title=title,
+            hashtags=hashtags,
+            thumbnail_path=thumbnail_path,
+            story_text=story_text,
+            job_id=job_id
+        )
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+                    return ex.submit(asyncio.run, coro).result()
+            return loop.run_until_complete(coro)
+        except RuntimeError:
+            return asyncio.run(coro)
+
+    def publish_reel(
+        self,
+        video_path: str,
+        caption: str,
+        target_type: str = "profile",
+        target_id: str = "61592442011195",
+        bypass_spacing: bool = False,
+        thumbnail_path: Optional[str] = None,
+        title: Optional[str] = None,
+        hashtags: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """Synchronous Reel publisher for CLI & scripts."""
+        return self.publish_or_schedule(
+            target_type=target_type,
+            target_id=target_id,
+            content_type="reel",
+            media_paths=[video_path],
+            description=caption,
+            title=title,
+            hashtags=hashtags,
+            bypass_spacing=bypass_spacing
+        )
+
+
+# Global singleton instance
+fb_controller = FacebookController()
+
