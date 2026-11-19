@@ -4,9 +4,24 @@
 - **Bridge & Scheduler Pre-Configured**:
   - The MCP server `meta-scheduler-mcp` connects to the browser extension via WebSocket at `ws://127.0.0.1:8765`.
   - The SQLite APScheduler daemon actively ticks and processes queued page posts.
-  - **ONE-TIME CONNECTION CHECK**: Call `bridge_status_and_sync` at most ONCE per session. Never poll status in loops.
-  - **ZERO RAW CONNECTION JSON DUMPS**: Never dump raw JSON blocks (`{"status":"connected", ...}`) into chat. Simply declare: *"Connected! Meta Business Suite Page Management is ready."*
+  - **ZERO RAW CONNECTION JSON DUMPS**: Never dump raw JSON blocks (`{"status":"connected", ...}`) into chat. Simply declare: *"Meta Suite is live. What would you like to post today?"*
   - **ZERO MANUAL PROMPTS**: Never ask the user to manually open `business.facebook.com` or switch tabs.
+
+---
+
+## 0.1 INSTANT `fb_status` MANDATE (LITERAL FIRST TOOL CALL — ZERO EXCEPTIONS)
+- **`fb_status()` is ALWAYS the first MCP tool call on ANY meta suite task.**
+  - No pre-flight questioning. No "let me check". No "should I verify?". Just call it.
+  - The call takes <100ms. It answers everything.
+- **If `logged_in: true`**:
+  - Skip ALL login prompts entirely.
+  - Declare: *"Meta Suite is live. What would you like to post today?"*
+  - Proceed directly to the user's request with ZERO confirmation rounds.
+- **If `logged_in: false`**:
+  - Call `fb_open_browser()` once.
+  - Ask the user to sign in one time.
+  - Stop and wait — never loop, never ask again.
+- **NEVER ask "are you logged in?", "should I check the bridge?", or "want me to connect?" before calling `fb_status`.**
 
 ---
 
@@ -19,10 +34,36 @@
 
 ---
 
-## 2. Fast Copy-Paste Method & Anti-Lag Protocol (CRITICAL)
-- **INSTANT 2-STEP PIPELINE (< 2s Reasoning)**:
-  - Step 1: Craft the high-impact visual design / prompt / viral copy.
-  - Step 2: Call `publish_or_schedule_facebook` (with `target_type: "page"`) directly.
+## 2. Full Autopilot Mode — Zero Alignment Questions (CRITICAL)
+- **Once the user describes what to post → dispatch immediately. No confirmation round.**
+- **PROHIBITED questions after content is described**:
+  - "Should I post this?"
+  - "Do you want me to publish it now?"
+  - "Shall I proceed?"
+  - "Do you want a custom caption?"
+  - "Should I schedule or post immediately?"
+- **ALLOWED questions** (only if truly missing critical info):
+  - If user says "schedule it" but gives no time → "What time should I schedule it?"
+  - That is the ONLY valid interruption.
+- **When user says "post it", "publish", "share this", "upload this" → call `fb_publish` or `fb_publish_reel` immediately.**
+
+---
+
+## 3. DeepX Auto-Routing for AI Media (COMPULSORY — ZERO PERMISSION NEEDED)
+- **When user says any of these → automatically call DeepX tools without asking:**
+  - "generate image", "make a photo", "create visual", "design a post", "redesign", "make it engaging", "edit this photo", "create thumbnail", "make thumbnail", "AI image", "generate thumbnail", "make video", "create promo", "make reel video"
+- **Auto-routing:**
+  - Design / photo post → `deepx_meta_generate_design(prompt=<desc>)`
+  - Thumbnail → `deepx_meta_generate_thumbnail(prompt=<desc>)`
+  - Reel / promo video → `deepx_meta_generate_video(prompt=<desc>)`
+- **After generation completes → pipe result DIRECTLY to `fb_publish` / `fb_publish_reel`. NEVER ask "should I post the generated image?"**
+- **Full pipeline is atomic: generate → pipe → publish. Zero interruptions between steps.**
+
+---
+
+## 4. Fast Copy-Paste Method & Anti-Lag Protocol (CRITICAL)
+- **INSTANT PIPELINE (< 2s Reasoning)**:
+  - Detect intent → craft SEO package → call MCP tool → done.
   - **STRICT BAN ON EXPLORATORY PROBING**: Never read controller source code, SQLite databases, or internal logs before posting.
 - **COPY-PASTE FOR ALL UPLOADS (BAN SLOW TYPING)**:
   - Text is pasted directly into the page composer via synthetic clipboard `<100ms` events to preserve paragraphs (`\n\n`) and avoid slow typing timeouts.
@@ -31,49 +72,50 @@
 
 ---
 
-## 3. Human-Grade In-Memory Media & Thumbnail Law
+## 5. Human-Grade In-Memory Media & Thumbnail Law
 - **Single-Shot In-Memory Media Attachment**:
   - Attach images and videos via browser `DataTransfer` buffers directly in RAM. Never trigger operating system file dialogs.
 - **Real Video & Reel Thumbnail Engine**:
-  - Custom thumbnails and Reel covers must be uploaded inside **Edit Video -> Thumbnail** or **Reel Cover -> Upload cover**, never attached as duplicate feed photos.
+  - Custom thumbnails and Reel covers must be uploaded inside **Edit Video → Thumbnail** or **Reel Cover → Upload cover**, never attached as duplicate feed photos.
 - **Mandatory Title & Hashtags**:
   - Every page post, reel, and video must have a punchy viral **Title** and **3 to 6 targeted `#Hashtags`**.
 - **AI Image Model ONLY for Thumbnails**:
-  - Never render thumbnails with Python `PIL`/`OpenCV`. Use DeepX Google Flow / AI Image Model with 3D gradient text, volumetric lighting, and translucent glass cards.
+  - Never render thumbnails with Python `PIL`/`OpenCV`. Use `deepx_meta_generate_thumbnail` with 3D gradient text, volumetric lighting, and translucent glass cards.
 
 ---
 
-## 4. DeepX Google Flow Integration (100% Script Fidelity)
-- **DeepX Bridge Active on `ws://127.0.0.1:8792/ws`**:
-  - When image design or video generation is needed, route through DeepX Google Flow (`deepx-flow`).
-  - Strict fidelity to user story, characters, and data. Maintain protagonist reference cards across all scenes.
-
----
-
-## 5. Anti-Ad Organic Shield & Anti-Duplicate Protection
+## 6. Anti-Ad Organic Shield & Anti-Duplicate Protection
 - **Pure Organic Placement**: In Meta Business Suite, ensure the "Make this an ad post" switch is strictly OFF.
 - **Anti-Duplicate Shield**: Automatically check SHA-256 hash and recent posts to prevent duplicate uploads on managed pages.
 
 ---
 
-## 6. Mandatory Sequential Execution Order Rule (STRICT WORKFLOW PIPELINE)
+## 7. Mandatory Sequential Execution Order Rule (STRICT WORKFLOW PIPELINE)
 Every upload, publication, or scheduling action on Meta Business Suite MUST execute in this exact, immutable order:
 
-1. **Step 1: Meta Business Suite Login & Session Verification (FIRST STEP)**:
-   - Check and verify active login session on `business.facebook.com`.
-   - If not logged in, trigger one-time browser login, prompt the user once to sign in inside the open tab, and halt further posting actions until verified. Never loop login checks.
-2. **Step 2: Managed Facebook Page Target Selection**:
+1. **Step 1 — Instant `fb_status()` Check (ALWAYS FIRST, ZERO EXCEPTIONS)**:
+   - Call `fb_status()` immediately as the literal first MCP tool call.
+   - `logged_in: true` → declare ready, ask "What would you like to post today?", proceed instantly.
+   - `logged_in: false` → call `fb_open_browser()` once → ask user to sign in once → STOP.
+   - Never ask status questions before calling `fb_status`.
+
+2. **Step 2 — Managed Facebook Page Target Selection**:
    - Confirm target routing: `target_type: "page"`, `target_id: "me"` (or explicit Page ID).
    - Ensure the automation targets the managed Page's composer dialog, never a personal feed.
-3. **Step 3: Content Preparation & Anti-Duplicate Check**:
+
+3. **Step 3 — Content Preparation, AI Media Generation & Anti-Duplicate Check**:
    - Format viral SEO package: punchy Title, formatted multiline description (`\n\n` linebreaks preserved), and 3 to 6 targeted `#Hashtags`.
+   - **If user requests AI media → call `deepx_meta_generate_design` / `deepx_meta_generate_thumbnail` / `deepx_meta_generate_video` HERE, before proceeding.**
    - Compute SHA-256 hash of media and text; verify against recent posts to guarantee zero duplicate submissions.
-4. **Step 4: In-Memory Asset & Custom Thumbnail / Cover Injection**:
+
+4. **Step 4 — In-Memory Asset & Custom Thumbnail / Cover Injection**:
    - Ingest media files via in-memory `DataTransfer` buffer directly in RAM (<400ms), suppressing OS file dialogs.
-   - For Video/Reel: Open **Edit Video -> Thumbnail** or **Reel Cover -> Upload cover** and upload custom thumbnail (strictly never attach as a second post photo).
-5. **Step 5: Anti-Ad Organic Shield Verification**:
+   - For Video/Reel: Open **Edit Video → Thumbnail** or **Reel Cover → Upload cover** and upload custom thumbnail (strictly never attach as a second post photo).
+
+5. **Step 5 — Anti-Ad Organic Shield Verification**:
    - Inspect and confirm that the "Make this an ad post" switch is strictly **OFF** for 100% organic algorithmic distribution.
-6. **Step 6: Synthetic Paste & Final Publish or Schedule**:
+
+6. **Step 6 — Synthetic Paste & Final Publish or Schedule**:
    - Paste formatted text into the Page Create Post dialog using synthetic clipboard paste (<100ms). Strictly avoid feed comment boxes.
    - **Immediate Post**: Click the native **"Publish"** button.
    - **Scheduled Post**: Toggle the native **"Set date and time"** switch, configure the scheduled date/time, and click **"Schedule"**.

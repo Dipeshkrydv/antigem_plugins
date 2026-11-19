@@ -4,13 +4,29 @@ description: >-
   Autonomous Meta Business Suite Page Management Autopilot. Use when the user requests to post, publish, or schedule anything (photos, reels, videos, stories, announcements, text posts) to managed Facebook Pages via Meta Business Suite, or mentions 'manage page', 'page scheduler', 'meta suite', 'schedule post to page', 'meta bridge', 'page automation', or 'handle my facebook page'. Enforces permanent one-time setup, zero-tab prompts (never ask the user to open tabs, switch windows, or click UI buttons), automatic media generation for zero-friction posts, authentic page grounding via Meta Business Suite (target_type: "page", target_id: "me" or explicit page ID), viral SEO hooks and hashtags, and continuous background dispatch via SQLite WAL and WebSocket bridge.
 ---
 
-# Meta Business Suite Page Autopilot
+# Meta Business Suite Page Autopilot (v2.1.0)
 
 This skill governs the high-speed, zero-interruption execution pipeline between Antigravity, local SQLite scheduler, and the Chrome Extension bridge (`ws://127.0.0.1:8765`) to manage connected **Facebook Pages via Meta Business Suite** autonomously in the background.
 
 ---
 
-## 0. Zero Setup Overhead & Autonomous Background Mandate (CRITICAL)
+## 0. CRITICAL BOOT MANDATE — `fb_status` IS ALWAYS LITERAL FIRST TOOL CALL
+
+**No pre-flight questions. No status checks in prose. No "let me verify connection" text. Just call `fb_status()` immediately.**
+
+```python
+result = fb_status()   # <-- first tool call, every time, no exceptions
+```
+
+**Result routing:**
+- `logged_in: true` → Say: *"Meta Suite ready. What would you like to post today?"* → proceed instantly
+- `logged_in: false` → Call `fb_open_browser()` once → ask user to sign in once → wait, do not loop
+
+**NEVER ask "are you logged in?", "want me to check?", or "should I connect first?" — `fb_status` answers all of that in <100ms.**
+
+---
+
+## 1. Zero Setup Overhead & Autonomous Background Mandate (CRITICAL)
 
 - **ONE-TIME SETUP IS ALREADY ACTIVE & RUNNING**:
   - The WebSocket bridge is active at `ws://127.0.0.1:8765`.
@@ -18,14 +34,14 @@ This skill governs the high-speed, zero-interruption execution pipeline between 
   - The background scheduler daemon (`cli.py bridge`) actively processes jobs every 30 seconds.
 - **ZERO DUMMY QUESTIONS & ZERO TAB PROMPTS MANDATE**:
   - Antigravity MUST **NEVER** ask the user to open `business.facebook.com` or switch Chrome tabs.
-  - Antigravity MUST **NEVER** ask the user to open the Chrome Extension popup or side panel.
+  - Antigravity MUST **NEVER** ask the user to open the Chrome Extension popup.
   - Antigravity MUST **NEVER** pause generation to ask the user to switch windows or click UI buttons.
   - Antigravity MUST **NEVER** dump raw JSON session dumps into the chat.
   - Every page posting or scheduling request MUST proceed straight to execution in the background.
 
 ---
 
-## 1. Managed Facebook Page Routing & Discovery
+## 2. Managed Facebook Page Routing & Discovery
 
 Antigravity operates with authentic, dynamically discovered Facebook Pages:
 - **Target Surface**: Meta Business Suite (`https://business.facebook.com/`)
@@ -37,16 +53,27 @@ Antigravity operates with authentic, dynamically discovered Facebook Pages:
 
 ---
 
-## 2. Instant Zero-Friction Media Synthesis
+## 3. Instant Zero-Friction Media Synthesis
 
 - **Page Media Ingestion**:
   - If user provides video or image: Upload via RAM `DataTransfer` buffer without triggering OS file dialogs.
-  - If user requests creative media: Generate high-impact visuals via DeepX Google Flow bridge (`ws://127.0.0.1:8792/ws`).
+  - If user requests creative media (generate / redesign / make engaging): **Automatically route to DeepX** without asking permission.
   - Text announcements: Format cleanly with title, formatted multiline description, and CTA.
+
+### DeepX Auto-Routing Decision Table
+
+| User Says | Auto-Call | Then |
+|---|---|---|
+| "generate image", "make a photo", "design a post", "create visual" | `deepx_meta_generate_design(...)` | Pipe result directly to `fb_publish` |
+| "make thumbnail", "create thumbnail", "thumbnail for this" | `deepx_meta_generate_thumbnail(...)` | Attach as `thumbnail_path` to publish call |
+| "make video", "promo reel", "generate reel video" | `deepx_meta_generate_video(...)` | Pipe result directly to `fb_publish_reel` |
+| "redesign", "make it more engaging", "edit this photo" | `deepx_meta_generate_design(...)` | Pipe result directly to `fb_publish` |
+
+**NEVER pause after generation to ask "should I post it?" — pipe directly to publish.**
 
 ---
 
-## 3. Viral SEO & Engagement Architecture
+## 4. Viral SEO & Engagement Architecture
 
 When formatting any post caption:
 1. **Hook (Line 1)**: High-impact 3-second retention hook (emoji + question or bold claim).
@@ -55,91 +82,76 @@ When formatting any post caption:
 4. **Targeted Hashtags**: 3 to 10 relevant niche hashtags placed cleanly at the bottom.
 5. **No Wall of Text**: Never generate dull, unstructured paragraphs.
 
----
-
-## 4. Execution Workflow (Step-by-Step Order Rule)
-
-Every publication or scheduling action on Meta Business Suite MUST execute in this exact, immutable order:
-
-### Step 1: Meta Business Suite Login & Session Verification (FIRST STEP)
-- Check and verify active login session on `business.facebook.com`.
-- If unauthenticated, open the browser for one-time login verification and wait for user completion. Never spam login checks or proceed with unauthenticated tabs.
-
-### Step 2: Managed Facebook Page Target Selection
-- Confirm target routing: `target_type: "page"`, `target_id: "me"` (or user-specified numerical Facebook Page ID).
-- All posting via Meta Suite Autopilot routes directly into the managed Page composer in Meta Business Suite.
-
-### Step 3: Content Preparation & Anti-Duplicate Check
-- Structure viral SEO package: punchy Title, formatted description (`\n\n` linebreaks preserved), and 3 to 6 targeted `#Hashtags`.
-- Compute SHA-256 hash of media and text; verify against recent posts to guarantee zero duplicate submissions.
-
-### Step 4: In-Memory Asset & Custom Thumbnail / Cover Injection
-- If media is supplied (e.g. `/path/to/video.mp4`): Ingest via in-memory `DataTransfer` buffer directly in RAM (<400ms).
-- If creative media requested: Generate high-impact visuals via DeepX Google Flow bridge (`ws://127.0.0.1:8792/ws`).
-- For Video/Reel: Open **Edit Video -> Thumbnail** or **Reel Cover -> Upload cover** and upload custom thumbnail (strictly never attach as a second post photo).
-
-### Step 5: Anti-Ad Organic Shield Verification
-- Inspect and confirm that the "Make this an ad post" switch is strictly **OFF** for 100% organic algorithmic distribution.
-
-### Step 6: Synthetic Paste & Final Publish or Schedule
-- Paste formatted text into the Page Create Post dialog using synthetic clipboard paste (<100ms). Strictly avoid feed comment boxes.
-- **Immediate Post**: Call `fb_publish(target_type="page", ...)` or click the native **"Publish"** button.
-- **Scheduled Post**: Call `fb_schedule(target_type="page", ...)` with `schedule_time_iso` or toggle the native **"Set date and time"** switch, configure timestamp, and click **"Schedule"**.
+Auto-generate via:
+```python
+fb_seo_generate(topic="<user_topic>")
+meta_viral_seo_generate(topic="<user_topic>", format="<post_type>")
+```
 
 ---
 
-## 5. Background Daemon & Fail-Safe Architecture
+## 5. Autopilot Execution Workflow (Step-by-Step Order Rule)
 
-- The system uses SQLite WAL (`meta_suite.db`) as the persistent event bus.
-- If direct WebSocket connection is held by another process (e.g. background daemon `task-1459`), posting calls automatically enqueue to `scheduled_jobs` with `schedule_time_iso = now()`, which the background daemon executes in Chrome within 10 seconds.
-- Antigravity never fails with a connection error when accounts are synced.
+**Immutable. Every step must complete before the next. No shortcuts, no skips.**
+
+### Step 1 — `fb_status()` → Session Gate (ALWAYS FIRST)
+```python
+result = fb_status()
+if result.logged_in:
+    # Declare ready, ask "What would you like to post today?"
+    proceed()
+else:
+    fb_open_browser()
+    # Ask user to sign in once → halt until confirmed
+    stop()
+```
+
+### Step 2 — Page Targeting
+```
+target_type = "page"
+target_id = "me"  # or explicit page_id
+```
+
+### Step 3 — Content Package Preparation
+- Build viral SEO package: Title + formatted caption + hashtags
+- If AI media needed → call DeepX NOW (before step 4)
+- SHA-256 duplicate check against published and queued posts
+
+### Step 4 — Asset Injection (In-Memory)
+- In-memory `DataTransfer` for all media (<400ms)
+- Video/Reel thumbnails → Edit Video → Thumbnail dialog (never as second photo)
+
+### Step 5 — Anti-Ad Shield
+- Verify "Make this an ad post" = **OFF**
+
+### Step 6 — Publish or Schedule
+- Immediate: `fb_publish(...)` → click Publish
+- Scheduled: `fb_schedule(..., run_at_timestamp=<utc_epoch>)` → click Schedule
 
 ---
 
-## 6. Meta Dev Knowledge Engine Integration
+## 6. Quick-Schedule Reference
 
-- When encountering any Meta API error during execution:
-  - Call `diagnose_meta_error(error_code, subcode)` or `python3 cli.py error <code>` to determine immediate remediation.
-  - If error is #190 subcode 463: Promptly run token exchange via `python3 cli.py tokens --type never_expiring_page`.
-  - If error is rate limit (#4, #17, #341, #613, #80004): Automatically apply exponential backoff or user pacing.
-- When generating visual assets or captions:
-  - Employ the 3-second retention hooks and 7 Nano Banana visual archetypes from `metaKnowledgeData`.
+| Command | `run_at_timestamp` Offset |
+|---|---|
+| "post in 15 minutes" | `now + 900` |
+| "post in 1 hour" | `now + 3600` |
+| "post in 3 hours" | `now + 10800` |
+| "post tomorrow morning" | `tomorrow_09:00_local_utc` |
+| "post tonight at 8pm" | `today_20:00_local_utc` |
 
----
-
-## 7. Master Creative Social Media Manager Persona & Execution Standards (MANDATORY AGENT LAW)
-
-Antigravity operates as an **Executive Creative Social Media Manager & Visual Brand Director**:
-1. **Creative Vision & Aesthetic Excellence**:
-   - Focus 90% of creative energy on pristine visual composition, exquisite typography, and emotionally resonant storytelling.
-   - For festivals (Dussehra, Diwali, Dhanteras, Chhath), craft majestic, warm golden, sacred lighting with rich cultural motifs and clean modern minimalist layouts.
-2. **Exact Festive Phrase & Wish Fidelity**:
-   - Whenever the user specifies a greeting or text (e.g. *"Happy Dussehra to you all and your family"*), Antigravity MUST prominently feature this EXACT greeting as the core opening hook. Never drop, truncate, or forget user-requested wishes!
-3. **Strict Single-Media Integrity (Zero Accidental Multi-Photo Uploads)**:
-   - Every single-photo post must attach EXACTLY ONE designated creative image.
-   - The engine must proactively purge any auto-saved or residual composer draft photos before attaching the new creative asset. Never upload double/multi photos by accident.
-4. **Strict Verified Caption Delivery (Zero Blank Posts, Zero Duplication)**:
-   - A professional social media manager NEVER allows a post to be published without its caption.
-   - The posting bridge verifies DOM text content length after media attachment before publishing. If text is not registered, it re-inserts and verifies.
-   - Strict single-insertion prevents duplicated text.
-5. **Anti-Book, High-Retention Social Formatting**:
-   - 1-2 line punchy micro-bites with generous spacing.
-   - Meaningful philosophical/cultural quote.
-   - Sincere warm blessings and clean, targeted hashtags.
+Always convert local time to UTC epoch automatically. Never ask the user for UTC time.
 
 ---
 
-## 8. Instant User-Media Direct Upload & Anti-Duplicate Law (Zero Deliberation Mandate)
+## 7. Zero-Interruption Guarantee
 
-1. **Instant Upload on User-Supplied Photo (Zero Thinking Time)**:
-   - When the user provides a photo or says *"upload this photo / post this image"*:
-     * **SKIP ALL AI IMAGE GENERATION** steps completely.
-     * **ZERO OVERTHINKING**: Deliberation time must be under 3 seconds. Never run exploratory schemas, file searches, or DB probes.
-     * Immediately ingest the supplied file path or newest user uploaded artifact.
-     * Synthesize a high-impact, 1-2 line caption + 4-6 hashtags.
-     * Execute direct publication immediately in ONE single step.
-2. **Strict Anti-Duplicate & Anti-Repeat Protection**:
-   - **Zero Duplicate Posts**: Never re-upload previously published images or duplicated text.
-   - Validate content hash and media SHA-256 before publishing to ensure every post is completely unique and published exactly once.
-
-
+| Prohibited Action | Replacement |
+|---|---|
+| "Are you logged in?" | Call `fb_status()` immediately |
+| "Should I connect first?" | Call `fb_status()` immediately |
+| "Want me to generate a visual?" | Detect intent → call DeepX → pipe to publish |
+| "Should I post the generated image?" | Never ask — pipe directly to `fb_publish` |
+| "Do you want to schedule this?" | If user says "schedule" or time given → schedule it |
+| "Please open business.facebook.com" | Never — the bridge handles it |
+| Dump raw JSON to chat | Never — human-readable declarations only |
