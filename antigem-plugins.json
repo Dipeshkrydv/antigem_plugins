@@ -23,10 +23,11 @@
       "path": "meta-suite-automation",
       "id": "meta-suite-automation",
       "name": "Meta Suite Page Management",
-      "version": "2.1.1",
+      "version": "2.1.2",
       "description": "Master Autonomous Meta Suite Production Engine (v2.1.1): Enterprise Meta Business Suite Facebook Page management, 6-Step Sequential Order Execution Rule, dual-mode native & local queue scheduler, custom Reel covers & video thumbnails, DeepX Google Flow AI bridge, anti-ad organic shield, and 2M-20M viral recommendation algorithms.",
       "icon": "icon.png",
-      "logo": "assets/logo.png"
+      "logo": "assets/logo.png",
+      "toolCount": 24
     }
   ]
 }

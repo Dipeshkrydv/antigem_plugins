@@ -419,6 +419,56 @@ async def meta_viral_algorithm_audit(caption: str, title: str = "") -> Dict[str,
 
 
 @mcp.tool()
+async def fb_trend_search(
+    keywords: Optional[str] = None,
+    sources: str = "all",
+    limit: int = 5
+) -> Dict[str, Any]:
+    """
+    Real-Time Multi-Platform Viral Topic & Trend Search Engine:
+    Scans YouTube / Google Trends, Twitter/X breaking topics, and Reddit in real time.
+    Returns:
+    - Ranked viral trends with Virality Momentum Scores (0-100)
+    - 5-Stage High-Retention Script Blueprint (Golden Hook -> Disrupt Assumptions -> Unveil Insider Secrets -> Ultimate Truth -> Elevation & Discussion)
+    - Google Flow character and asset visual generation prompt
+    """
+    try:
+        from core.trends import scan_all, scan_youtube, scan_twitter, scan_reddit, format_sticker_concept
+        src_lower = (sources or "all").lower()
+        results = {}
+        if src_lower == "all":
+            results = scan_all(limit=limit)
+        else:
+            if "youtube" in src_lower:
+                results["youtube"] = scan_youtube(limit=limit)
+            if "twitter" in src_lower or "x" in src_lower:
+                results["twitter"] = scan_twitter(limit=limit)
+            if "reddit" in src_lower:
+                results["reddit"] = scan_reddit(limit_per_sub=max(2, limit // 2))
+
+        all_items = []
+        for p, items in results.items():
+            all_items.extend(items)
+        all_items.sort(key=lambda x: x.get("score", 0), reverse=True)
+
+        top_concept = None
+        if all_items:
+            top_concept = format_sticker_concept(all_items[0])
+
+        return {
+            "success": True,
+            "total_trends": len(all_items),
+            "sources_scanned": list(results.keys()),
+            "top_trend": all_items[0] if all_items else None,
+            "recommended_blueprint": top_concept,
+            "trends": all_items[:limit * 2]
+        }
+    except Exception as e:
+        logger.error("Error in fb_trend_search: %s", e)
+        return {"success": False, "error": str(e)}
+
+
+@mcp.tool()
 async def deepx_meta_status() -> Dict[str, Any]:
     """Check connection status between Meta Suite and the latest DeepX Google Flow Extension."""
     return deepx_meta.get_status()

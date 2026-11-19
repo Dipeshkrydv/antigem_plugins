@@ -1097,12 +1097,12 @@ async function handleDomAction(action, params) {
         try {
           if (!fileInput) {
             const addPhotoBtn = Array.from(document.querySelectorAll('div[role="button"], button')).find(b =>
-              /add\s*photo|add\s*video|photo\/video|media/i.test(b.textContent || b.getAttribute('aria-label') || '')
+              /add\s*photo|add\s*video|photo\/video|upload|media|तस्बिर\s*थप्नुहोस्/i.test(b.textContent || b.getAttribute('aria-label') || '')
             );
             if (addPhotoBtn) {
               await humanClick(addPhotoBtn.closest('div[role="button"]') || addPhotoBtn, true);
-              for (let fp = 0; fp < 25; fp++) {
-                await sleep(80);
+              for (let fp = 0; fp < 30; fp++) {
+                await sleep(100);
                 fileInput = capturedInput || document.querySelector('input[type="file"]') || document.querySelector('input[accept*="image"]');
                 if (fileInput) break;
               }
@@ -1152,9 +1152,14 @@ async function handleDomAction(action, params) {
         // 3. Custom Thumbnail / Video Cover Ingestion in Meta Business Suite
         if (params.thumbnail_base64 && params.is_video) {
           try {
-            const thumbBtn = Array.from(document.querySelectorAll('button, div[role="button"]')).find(b =>
-              /video\s*options|thumbnail|edit\s*video|cover/i.test(b.textContent || b.getAttribute('aria-label') || '')
-            );
+            let thumbBtn = null;
+            for (let t_attempt = 0; t_attempt < 8; t_attempt++) {
+              thumbBtn = Array.from(document.querySelectorAll('button, div[role="button"]')).find(b =>
+                /video\s*options|thumbnail|edit\s*video|cover|विकल्प/i.test(b.textContent || b.getAttribute('aria-label') || '')
+              );
+              if (thumbBtn) break;
+              await sleep(500);
+            }
             if (thumbBtn) {
               await humanClick(thumbBtn);
               await sleep(800);

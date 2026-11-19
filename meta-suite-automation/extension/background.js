@@ -942,7 +942,7 @@ async function executeDomInstruction(instruction, params) {
           const alreadyOnBizComposer = activeTab.url && activeTab.url.includes("business.facebook.com/latest/composer") && hasMatchingAsset;
 
           if ((!isFbPost || !alreadyOnFb) && (!isBizPost || !alreadyOnBizComposer)) {
-            const destUrl = (isBizPost && params.target_id) ? `https://business.facebook.com/latest/composer?asset_id=${params.target_id}` : defaultUrl;
+            const destUrl = (isBizPost && params.target_id && params.target_id !== "me") ? `https://business.facebook.com/latest/composer?asset_id=${params.target_id}` : (isBizPost ? "https://business.facebook.com/latest/composer" : defaultUrl);
             if (destUrl && (!activeTab.url || !activeTab.url.startsWith(destUrl.replace(/\/$/, "")))) {
               await chrome.tabs.update(targetTabId, { url: destUrl, active: true });
               await new Promise((r) => setTimeout(r, 600));

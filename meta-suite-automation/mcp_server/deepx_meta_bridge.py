@@ -99,7 +99,17 @@ class DeepXMetaBridge:
             "wait_for_render": wait_for_render
         }
         logger.info("Dispatching image generation to Google Flow (%s in %s)...", model, aspect_ratio)
-        res = self.execute_command("generateImage", payload, timeout_seconds=90.0)
+        try:
+            res = self.execute_command("generateImage", payload, timeout_seconds=90.0)
+        except Exception as e:
+            logger.error("generate_image failed: %s", e)
+            return {
+                "success": False,
+                "error": str(e),
+                "model": model,
+                "aspect_ratio": aspect_ratio,
+                "prompt": prompt
+            }
 
         # If base64 or download URL returned, save to assets
         saved_path = None
@@ -182,7 +192,18 @@ class DeepXMetaBridge:
             "wait_for_render": wait_for_render
         }
         logger.info("Dispatching video generation to Google Flow (%s, %ds, %s)...", model, duration, aspect_ratio)
-        res = self.execute_command("generateVideo", payload, timeout_seconds=240.0)
+        try:
+            res = self.execute_command("generateVideo", payload, timeout_seconds=240.0)
+        except Exception as e:
+            logger.error("generate_video failed: %s", e)
+            return {
+                "success": False,
+                "error": str(e),
+                "model": model,
+                "duration": duration,
+                "aspect_ratio": aspect_ratio,
+                "prompt": prompt
+            }
 
         saved_path = None
         if isinstance(res, dict):

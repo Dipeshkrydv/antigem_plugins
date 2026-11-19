@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "id": "meta-suite-automation",
   "name": "Meta Suite Page Management",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "Master Autonomous Meta Suite Production Engine (v2.1.1): Enterprise Meta Business Suite Facebook Page management, 6-Step Sequential Order Execution Rule, dual-mode native & local queue scheduler, custom Reel covers & video thumbnails, DeepX Google Flow AI bridge, anti-ad organic shield, and 2M-20M viral recommendation algorithms.",
   "author": "Dipesh Kr Yadav",
   "icon": "icon.png",
@@ -35,7 +35,7 @@
   "mcp_tools": [
     {
       "name": "fb_status",
-      "description": "Check Meta Suite and Facebook Automation status, verify bridge connectivity, and active login session.\nMANDATORY LITERAL FIRST TOOL CALL on any Meta Suite or Facebook task (<100ms).\nReturns ready status, logged_in state, active accounts, discovered pages, and queued jobs.",
+      "description": "\n    Check Meta Suite and Facebook Automation status, verify bridge connectivity, and active login session.\n    MANDATORY LITERAL FIRST TOOL CALL on any Meta Suite or Facebook task (<100ms).\n    Returns ready status, logged_in state, active accounts, discovered pages, and queued jobs.\n    ",
       "inputSchema": {
         "properties": {
           "open_browser": {
@@ -68,6 +68,11 @@
       "description": "\n    Explicitly open and focus Facebook in the browser (feed, reels, stories, page, or business_suite)\n    and check one-time login readiness.\n    ",
       "inputSchema": {
         "properties": {
+          "view": {
+            "default": "feed",
+            "title": "View",
+            "type": "string"
+          },
           "target_id": {
             "anyOf": [
               {
@@ -79,11 +84,6 @@
             ],
             "default": null,
             "title": "Target Id"
-          },
-          "view": {
-            "default": "feed",
-            "title": "View",
-            "type": "string"
           }
         },
         "title": "fb_open_browserArguments",
@@ -100,7 +100,7 @@
             "title": "Caption",
             "type": "string"
           },
-          "first_comment": {
+          "title": {
             "anyOf": [
               {
                 "type": "string"
@@ -110,7 +110,7 @@
               }
             ],
             "default": null,
-            "title": "First Comment"
+            "title": "Title"
           },
           "hashtags": {
             "anyOf": [
@@ -126,6 +126,18 @@
             ],
             "default": null,
             "title": "Hashtags"
+          },
+          "thumbnail_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Thumbnail Path"
           },
           "media_paths": {
             "anyOf": [
@@ -147,17 +159,10 @@
             "title": "Post Type",
             "type": "string"
           },
-          "story_text": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Story Text"
+          "target_type": {
+            "default": "page",
+            "title": "Target Type",
+            "type": "string"
           },
           "target_id": {
             "anyOf": [
@@ -171,12 +176,7 @@
             "default": "me",
             "title": "Target Id"
           },
-          "target_type": {
-            "default": "page",
-            "title": "Target Type",
-            "type": "string"
-          },
-          "thumbnail_path": {
+          "first_comment": {
             "anyOf": [
               {
                 "type": "string"
@@ -186,7 +186,39 @@
               }
             ],
             "default": null,
-            "title": "Thumbnail Path"
+            "title": "First Comment"
+          },
+          "story_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Story Text"
+          }
+        },
+        "title": "fb_publishArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "fb_publish_reel",
+      "description": "\n    DEDICATED META BUSINESS SUITE PAGE REELS PUBLISHER:\n    Uploads a vertical 9:16 video as a Facebook Page Reel in Meta Business Suite:\n    - Custom Cover / Thumbnail (`thumbnail_path`): automatically uploaded in Reel Cover panel.\n    - Viral `title` + formatted multiline `caption` (`\n\n` spacing preserved) + 3-6 `#Hashtags`.\n    - Supports `video_path=\"latest\"` to pick the newest vertical video automatically.\n    ",
+      "inputSchema": {
+        "properties": {
+          "video_path": {
+            "default": "latest",
+            "title": "Video Path",
+            "type": "string"
+          },
+          "caption": {
+            "default": "",
+            "title": "Caption",
+            "type": "string"
           },
           "title": {
             "anyOf": [
@@ -199,21 +231,6 @@
             ],
             "default": null,
             "title": "Title"
-          }
-        },
-        "title": "fb_publishArguments",
-        "type": "object"
-      }
-    },
-    {
-      "name": "fb_publish_reel",
-      "description": "\n    DEDICATED META BUSINESS SUITE PAGE REELS PUBLISHER:\n    Uploads a vertical 9:16 video as a Facebook Page Reel in Meta Business Suite:\n    - Custom Cover / Thumbnail (`thumbnail_path`): automatically uploaded in Reel Cover panel.\n    - Viral `title` + formatted multiline `caption` (`\n\n` spacing preserved) + 3-6 `#Hashtags`.\n    - Supports `video_path=\"latest\"` to pick the newest vertical video automatically.\n    ",
-      "inputSchema": {
-        "properties": {
-          "caption": {
-            "default": "",
-            "title": "Caption",
-            "type": "string"
           },
           "hashtags": {
             "anyOf": [
@@ -230,23 +247,6 @@
             "default": null,
             "title": "Hashtags"
           },
-          "target_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": "me",
-            "title": "Target Id"
-          },
-          "target_type": {
-            "default": "page",
-            "title": "Target Type",
-            "type": "string"
-          },
           "thumbnail_path": {
             "anyOf": [
               {
@@ -259,7 +259,12 @@
             "default": null,
             "title": "Thumbnail Path"
           },
-          "title": {
+          "target_type": {
+            "default": "page",
+            "title": "Target Type",
+            "type": "string"
+          },
+          "target_id": {
             "anyOf": [
               {
                 "type": "string"
@@ -268,13 +273,8 @@
                 "type": "null"
               }
             ],
-            "default": null,
-            "title": "Title"
-          },
-          "video_path": {
-            "default": "latest",
-            "title": "Video Path",
-            "type": "string"
+            "default": "me",
+            "title": "Target Id"
           }
         },
         "title": "fb_publish_reelArguments",
@@ -286,11 +286,6 @@
       "description": "\n    DEDICATED META BUSINESS SUITE PAGE STORIES PUBLISHER:\n    Publishes a Photo/Video Page Story (with optional short overlay `story_text`) or a Text Story.\n    ",
       "inputSchema": {
         "properties": {
-          "caption": {
-            "default": "",
-            "title": "Caption",
-            "type": "string"
-          },
           "media_path": {
             "anyOf": [
               {
@@ -315,6 +310,16 @@
             "default": null,
             "title": "Story Text"
           },
+          "caption": {
+            "default": "",
+            "title": "Caption",
+            "type": "string"
+          },
+          "target_type": {
+            "default": "page",
+            "title": "Target Type",
+            "type": "string"
+          },
           "target_id": {
             "anyOf": [
               {
@@ -326,11 +331,6 @@
             ],
             "default": "me",
             "title": "Target Id"
-          },
-          "target_type": {
-            "default": "page",
-            "title": "Target Type",
-            "type": "string"
           }
         },
         "title": "fb_publish_storyArguments",
@@ -351,46 +351,6 @@
       "description": "\n    Schedule a Facebook Page post, reel, or story for future publication in Meta Business Suite.\n    Enqueues the job into the SQLite APScheduler queue (or native Meta Business Suite scheduler).\n    Accepts either `schedule_time_iso` (e.g. '2026-11-19T10:00:00Z') or `run_at_timestamp` (epoch float).\n    Always enforces a viral Title (`title`), formatted multiline Description, and 3-6 `#Hashtags` (`hashtags`) for posts/videos/reels, or clean `story_text` for Stories.\n    ",
       "inputSchema": {
         "properties": {
-          "caption": {
-            "default": "",
-            "title": "Caption",
-            "type": "string"
-          },
-          "hashtags": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Hashtags"
-          },
-          "media_paths": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Media Paths"
-          },
-          "post_type": {
-            "default": "text",
-            "title": "Post Type",
-            "type": "string"
-          },
           "run_at_timestamp": {
             "anyOf": [
               {
@@ -415,46 +375,10 @@
             "default": null,
             "title": "Schedule Time Iso"
           },
-          "story_text": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Story Text"
-          },
-          "target_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": "me",
-            "title": "Target Id"
-          },
-          "target_type": {
-            "default": "page",
-            "title": "Target Type",
+          "caption": {
+            "default": "",
+            "title": "Caption",
             "type": "string"
-          },
-          "thumbnail_path": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Thumbnail Path"
           },
           "title": {
             "anyOf": [
@@ -468,6 +392,82 @@
             "default": null,
             "title": "Title"
           },
+          "hashtags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Hashtags"
+          },
+          "thumbnail_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Thumbnail Path"
+          },
+          "media_paths": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Media Paths"
+          },
+          "post_type": {
+            "default": "text",
+            "title": "Post Type",
+            "type": "string"
+          },
+          "target_type": {
+            "default": "page",
+            "title": "Target Type",
+            "type": "string"
+          },
+          "target_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "me",
+            "title": "Target Id"
+          },
+          "story_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Story Text"
+          },
           "use_native_meta_scheduler": {
             "default": true,
             "title": "Use Native Meta Scheduler",
@@ -480,12 +480,11 @@
     },
     {
       "name": "fb_manage_queue",
-      "description": "Controls and inspects the local SQLite APScheduler post queue for Meta Business Suite & Facebook:\n- action=\"list\": Lists upcoming and pending scheduled posts.\n- action=\"cancel\": Cancels a scheduled job by job_id.\n- action=\"reschedule\": Changes scheduled time for job_id to new_schedule_time_iso.\n- action=\"pause_all\": Emergency pauses all upcoming jobs in queue.\n- action=\"resume_all\": Resumes paused jobs in queue.",
+      "description": "\n    Controls and inspects the local SQLite APScheduler post queue for Meta Business Suite & Facebook:\n    - action='list': Lists upcoming and pending scheduled posts.\n    - action='cancel': Cancels a scheduled job by `job_id`.\n    - action='reschedule': Changes scheduled time for `job_id` to `new_schedule_time_iso`.\n    - action='pause_all': Emergency pauses all upcoming jobs in queue.\n    - action='resume_all': Resumes paused jobs in queue.\n    ",
       "inputSchema": {
         "properties": {
           "action": {
             "default": "list",
-            "description": "Action to perform: 'list', 'cancel', 'reschedule', 'pause_all', or 'resume_all'",
             "title": "Action",
             "type": "string"
           },
@@ -499,14 +498,7 @@
               }
             ],
             "default": null,
-            "description": "Scheduled job ID to cancel or reschedule",
             "title": "Job Id"
-          },
-          "limit": {
-            "default": 20,
-            "description": "Maximum number of queued jobs to return for list action",
-            "title": "Limit",
-            "type": "integer"
           },
           "new_schedule_time_iso": {
             "anyOf": [
@@ -518,8 +510,12 @@
               }
             ],
             "default": null,
-            "description": "Target UTC ISO timestamp for rescheduling (e.g. '2026-11-19T14:30:00Z')",
             "title": "New Schedule Time Iso"
+          },
+          "limit": {
+            "default": 20,
+            "title": "Limit",
+            "type": "integer"
           }
         },
         "title": "fb_manage_queueArguments",
@@ -531,12 +527,12 @@
       "description": "Re-edit an existing Facebook post's caption via DOM automation.",
       "inputSchema": {
         "properties": {
-          "new_caption": {
-            "title": "New Caption",
-            "type": "string"
-          },
           "post_url_or_id": {
             "title": "Post Url Or Id",
+            "type": "string"
+          },
+          "new_caption": {
+            "title": "New Caption",
             "type": "string"
           }
         },
@@ -597,9 +593,8 @@
       "description": "\n    Generate an algorithm-optimized viral Facebook post with:\n    - Mandatory Viral Title (`title`)\n    - 1-line retention hook & deep quote\n    - 3-4 punchy micro-bullets\n    - Engagement CTA\n    - 3-6 targeted `#Hashtags` (`hashtags`)\n    - AI Image Model Thumbnail Prompt (`ai_thumbnail_prompt`)\n    - First-comment link recommendation (protects organic reach)\n    ",
       "inputSchema": {
         "properties": {
-          "aspect_ratio": {
-            "default": "16:9",
-            "title": "Aspect Ratio",
+          "topic": {
+            "title": "Topic",
             "type": "string"
           },
           "key_takeaways": {
@@ -629,8 +624,9 @@
             "default": null,
             "title": "Link Url"
           },
-          "topic": {
-            "title": "Topic",
+          "aspect_ratio": {
+            "default": "16:9",
+            "title": "Aspect Ratio",
             "type": "string"
           }
         },
@@ -646,27 +642,9 @@
       "description": "\n    Craft a hyper-detailed, creative Master Art Direction prompt for generating a viral video/reel/post thumbnail\n    using an AI Image Model (Nano Banana Pro / `image-generator` / Google Flow / Imagen 3).\n    STRICT MANDATE: NEVER use Python (PIL, Pillow, OpenCV, ThumbnailEngine, or FreeMediaEngine) to generate thumbnails!\n    ",
       "inputSchema": {
         "properties": {
-          "archetype": {
-            "default": "classical_fusion",
-            "title": "Archetype",
+          "topic": {
+            "title": "Topic",
             "type": "string"
-          },
-          "aspect_ratio": {
-            "default": "16:9",
-            "title": "Aspect Ratio",
-            "type": "string"
-          },
-          "subtitle": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Subtitle"
           },
           "title_hook": {
             "anyOf": [
@@ -680,8 +658,26 @@
             "default": null,
             "title": "Title Hook"
           },
-          "topic": {
-            "title": "Topic",
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subtitle"
+          },
+          "archetype": {
+            "default": "classical_fusion",
+            "title": "Archetype",
+            "type": "string"
+          },
+          "aspect_ratio": {
+            "default": "16:9",
+            "title": "Aspect Ratio",
             "type": "string"
           }
         },
@@ -719,16 +715,6 @@
       "description": "\n    Generate an elite 2M-20M view scale viral SEO package for Meta Business Suite, Facebook Reels, and Instagram Reels:\n    - High-CTR Pattern Interrupt Viral Title\n    - 3-Second Retention Hook (Line 1 before 'See More' cutoff)\n    - Anti-Book 1-2 line Micro-Takeaways with double whitespace\n    - Comment Warfare Debate Driver (triggers multi-turn reply threads)\n    - Share & Save Catalysts (12x Share and 6x Save algorithmic multipliers)\n    - 3-6 Diamond Cluster Hashtags\n    - Master AI Image Model Thumbnail Prompt (strictly compliant with Rule 8: AI Image Model ONLY, volumetric rim lighting, 3D gradient text)\n    - Multimodal Semantic Keywords for Meta V-JEPA indexer.\n    ",
       "inputSchema": {
         "properties": {
-          "audience_persona": {
-            "default": "ambitious_practitioner",
-            "title": "Audience Persona",
-            "type": "string"
-          },
-          "target_platform": {
-            "default": "business_suite",
-            "title": "Target Platform",
-            "type": "string"
-          },
           "topic": {
             "title": "Topic",
             "type": "string"
@@ -736,6 +722,16 @@
           "video_type": {
             "default": "reel",
             "title": "Video Type",
+            "type": "string"
+          },
+          "target_platform": {
+            "default": "business_suite",
+            "title": "Target Platform",
+            "type": "string"
+          },
+          "audience_persona": {
+            "default": "ambitious_practitioner",
+            "title": "Audience Persona",
             "type": "string"
           }
         },
@@ -769,6 +765,38 @@
       }
     },
     {
+      "name": "fb_trend_search",
+      "description": "\n    Real-Time Multi-Platform Viral Topic & Trend Search Engine:\n    Scans YouTube / Google Trends, Twitter/X breaking topics, and Reddit in real time.\n    Returns:\n    - Ranked viral trends with Virality Momentum Scores (0-100)\n    - 5-Stage High-Retention Script Blueprint (Golden Hook -> Disrupt Assumptions -> Unveil Insider Secrets -> Ultimate Truth -> Elevation & Discussion)\n    - Google Flow character and asset visual generation prompt\n    ",
+      "inputSchema": {
+        "properties": {
+          "keywords": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Keywords"
+          },
+          "sources": {
+            "default": "all",
+            "title": "Sources",
+            "type": "string"
+          },
+          "limit": {
+            "default": 5,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "title": "fb_trend_searchArguments",
+        "type": "object"
+      }
+    },
+    {
       "name": "deepx_meta_status",
       "description": "Check connection status between Meta Suite and the latest DeepX Google Flow Extension.",
       "inputSchema": {
@@ -779,9 +807,13 @@
     },
     {
       "name": "deepx_meta_generate_design",
-      "description": "Generate high-converting social designs and photo cards on Google Flow via DeepX (\ud83c\udf4c Nano Banana 2.1).",
+      "description": "Generate high-converting social designs and photo cards on Google Flow via DeepX (🍌 Nano Banana 2.1).",
       "inputSchema": {
         "properties": {
+          "prompt": {
+            "title": "Prompt",
+            "type": "string"
+          },
           "aspect_ratio": {
             "default": "4:5",
             "title": "Aspect Ratio",
@@ -790,10 +822,6 @@
           "model": {
             "default": "gemini-nano-banana-2.1",
             "title": "Model",
-            "type": "string"
-          },
-          "prompt": {
-            "title": "Prompt",
             "type": "string"
           }
         },
@@ -809,13 +837,13 @@
       "description": "\n    Generate an agency-grade high-CTR viral thumbnail for Facebook/Instagram via DeepX Google Flow.\n    Strictly follows Rule 8 (AI Image Model ONLY: volumetric rim lighting, 3D gradient text, translucent glass badge).\n    ",
       "inputSchema": {
         "properties": {
+          "topic": {
+            "title": "Topic",
+            "type": "string"
+          },
           "aspect_ratio": {
             "default": "16:9",
             "title": "Aspect Ratio",
-            "type": "string"
-          },
-          "topic": {
-            "title": "Topic",
             "type": "string"
           }
         },
@@ -831,9 +859,8 @@
       "description": "Generate vertical Reels or video ads on Google Flow via Veo 3.1 & DeepX.",
       "inputSchema": {
         "properties": {
-          "aspect_ratio": {
-            "default": "9:16",
-            "title": "Aspect Ratio",
+          "prompt": {
+            "title": "Prompt",
             "type": "string"
           },
           "duration": {
@@ -841,13 +868,14 @@
             "title": "Duration",
             "type": "integer"
           },
+          "aspect_ratio": {
+            "default": "9:16",
+            "title": "Aspect Ratio",
+            "type": "string"
+          },
           "model": {
             "default": "veo-3.1-lite",
             "title": "Model",
-            "type": "string"
-          },
-          "prompt": {
-            "title": "Prompt",
             "type": "string"
           }
         },
@@ -863,12 +891,12 @@
       "description": "Post a first comment (such as a resource link) or reply on a Facebook post.",
       "inputSchema": {
         "properties": {
-          "comment_text": {
-            "title": "Comment Text",
-            "type": "string"
-          },
           "post_url_or_id": {
             "title": "Post Url Or Id",
+            "type": "string"
+          },
+          "comment_text": {
+            "title": "Comment Text",
             "type": "string"
           }
         },
@@ -903,5 +931,6 @@
     "scheduler",
     "reels",
     "video thumbnail"
-  ]
+  ],
+  "tool_count": 24
 }
