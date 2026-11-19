@@ -1352,7 +1352,7 @@ def cmd_doctor(args):
     # Check 6: Extension Files Integrity
     total_checks += 1
     ext_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "extension")
-    req_ext_files = ["manifest.json", "background.js", "content_bridge.js", "sidepanel.html", "sidepanel.js", "popup.html", "popup.js"]
+    req_ext_files = ["manifest.json", "background.js", "content_bridge.js", "popup.html", "popup.js"]
     missing_ext = [f for f in req_ext_files if not os.path.exists(os.path.join(ext_dir, f))]
     if not missing_ext:
         print("  [✓] Extension: All core Manifest V3 scripts present.")

@@ -10,12 +10,8 @@
     "activeTab",
     "storage",
     "webNavigation",
-    "alarms",
-    "sidePanel"
+    "alarms"
   ],
-  "side_panel": {
-    "default_path": "sidepanel.html"
-  },
   "host_permissions": [
     "*://facebook.com/*",
     "*://*.facebook.com/*",

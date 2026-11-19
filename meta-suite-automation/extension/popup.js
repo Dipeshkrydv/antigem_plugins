@@ -117,46 +117,6 @@ function initPopup() {
     }
   });
 
-  // Button: Open Side Panel (direct MV3 user gesture call)
-  const btnOpenSidePanel = document.getElementById("btnOpenSidePanel");
-  if (btnOpenSidePanel) {
-    btnOpenSidePanel.addEventListener("click", async () => {
-      try {
-        const win = await chrome.windows.getCurrent();
-        if (chrome.sidePanel && chrome.sidePanel.open && win && win.id) {
-          await chrome.sidePanel.open({ windowId: win.id });
-          window.close();
-          return;
-        }
-      } catch (err) {
-        console.warn("[MetaBridge] Direct sidePanel.open notice:", err);
-      }
-      chrome.runtime.sendMessage({ type: "OPEN_SIDE_PANEL" }, () => {
-        window.close();
-      });
-    });
-  }
-
-  // Button: Quick Trend Radar Open
-  const btnPopupTrendRadar = document.getElementById("btnPopupTrendRadar");
-  if (btnPopupTrendRadar) {
-    btnPopupTrendRadar.addEventListener("click", async () => {
-      try {
-        const win = await chrome.windows.getCurrent();
-        if (chrome.sidePanel && chrome.sidePanel.open && win && win.id) {
-          await chrome.sidePanel.open({ windowId: win.id });
-          window.close();
-          return;
-        }
-      } catch (err) {
-        console.warn("[MetaBridge] Direct sidePanel.open notice:", err);
-      }
-      chrome.runtime.sendMessage({ type: "OPEN_SIDE_PANEL" }, () => {
-        window.close();
-      });
-    });
-  }
-
   // Button: Reload Extension Bridge Code
   const btnReload = document.getElementById("btnReload");
   if (btnReload) {

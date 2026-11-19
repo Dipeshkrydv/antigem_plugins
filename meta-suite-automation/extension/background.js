@@ -1214,33 +1214,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     })();
     return true;
   }
-  if (msg.type === "OPEN_SIDE_PANEL") {
-    if (chrome.sidePanel && chrome.sidePanel.open) {
-      chrome.windows.getCurrent((win) => {
-        if (win && win.id) {
-          chrome.sidePanel.open({ windowId: win.id }).then(() => {
-            sendResponse({ status: "ok" });
-          }).catch((err) => {
-            sendResponse({ status: "error", error: err.message });
-          });
-        } else {
-          sendResponse({ status: "error", error: "No active window" });
-        }
-      });
-      return true;
-    }
-  }
 });
-
-// Configure Side Panel behavior (opens side panel when action icon is clicked if supported)
-try {
-  if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
-    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
-      .catch((err) => console.warn("[MetaBridge] sidePanel behavior notice:", err));
-  }
-} catch (e) {
-  console.warn("[MetaBridge] Could not initialize sidePanel behavior:", e);
-}
 
 // Listen for keepalive connections from active FB/IG tabs
 chrome.runtime.onConnect.addListener((port) => {
