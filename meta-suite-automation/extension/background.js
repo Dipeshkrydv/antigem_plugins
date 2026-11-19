@@ -847,6 +847,7 @@ async function executeDomInstruction(instruction, params) {
         updates.businessSuiteHasNoPages = true;
         updates.businessSuiteStatus = "offline";
         updates.businessSuiteStatusLabel = "Offline";
+        hasAutoOpenedBizSuite = false;
         chrome.storage.local.remove(["cachedPages", "discoveredPages"]);
       }
       if (platform === "youtube" || platform === "all") {
@@ -1033,31 +1034,88 @@ async function sendToContentScriptWithAutoInject(tabId, message) {
 }
 
 // -------------------------------------------------------------
-// 3. Cookie and Tab Event Listeners (One-Time Continuous Sync)
+// 3. Cookie and Tab Event Listeners (One-Time Continuous Sync & Auto-Open)
 // -------------------------------------------------------------
 let cookieDebounceTimer = null;
 let isLoggingOut = false;
+let hasAutoOpenedBizSuite = false;
+
+async function autoOpenMetaBusinessSuite() {
+  if (hasAutoOpenedBizSuite) {
+    return;
+  }
+
+  try {
+    const fbCookies = await getCookiesForDomain(".facebook.com");
+    if (!fbCookies["c_user"] || !fbCookies["xs"]) return;
+
+    // Check if Meta Business Suite tab is already open
+    const existing = await chrome.tabs.query({ url: "*://business.facebook.com/*" });
+    if (existing && existing.length > 0) {
+      hasAutoOpenedBizSuite = true;
+      console.log("[MetaBridge] Meta Business Suite tab already exists:", existing[0].id);
+      syncBusinessSuiteSession();
+      return;
+    }
+
+    // Determine target URL: prefer composer with known page ID, fallback to latest/home
+    const stored = await new Promise(r => chrome.storage.local.get(["cachedPages"], res => r(res.cachedPages || [])));
+    let targetUrl = "https://business.facebook.com/latest/home";
+    if (stored && stored.length > 0 && stored[0].id && stored[0].id !== "me") {
+      targetUrl = `https://business.facebook.com/latest/composer?asset_id=${stored[0].id}`;
+    }
+
+    hasAutoOpenedBizSuite = true;
+    console.log("[MetaBridge] Auto-opening Meta Business Suite after Facebook login:", targetUrl);
+    
+    // Auto-open Meta Business Suite in Chrome
+    await chrome.tabs.create({ url: targetUrl, active: true });
+
+    // Ensure MCP WebSocket is connected
+    connectWebSocket();
+
+    // Sync all sessions after canvas loads
+    setTimeout(() => {
+      syncAllSessions();
+    }, 3500);
+  } catch (err) {
+    console.warn("[MetaBridge] autoOpenMetaBusinessSuite error:", err);
+  }
+}
 
 chrome.cookies.onChanged.addListener((changeInfo) => {
-  // CRITICAL: Ignore cookie removal events or ongoing logout so session is never resurrected!
-  if (changeInfo.removed || isLoggingOut) return;
+  // CRITICAL: Reset auto-open flag on logout or cookie removal
+  if (changeInfo.removed) {
+    if (changeInfo.cookie && changeInfo.cookie.name === "c_user") {
+      hasAutoOpenedBizSuite = false;
+    }
+    return;
+  }
+  if (isLoggingOut) return;
 
   const { domain, name } = changeInfo.cookie;
   if (domain.includes("instagram.com") && ["sessionid", "ds_user_id", "csrftoken"].includes(name)) {
     if (cookieDebounceTimer) clearTimeout(cookieDebounceTimer);
-    cookieDebounceTimer = setTimeout(() => syncInstagramSession(), 3000);
+    cookieDebounceTimer = setTimeout(() => syncInstagramSession(), 2000);
   }
   if (domain.includes("facebook.com") && ["c_user", "xs"].includes(name)) {
     if (cookieDebounceTimer) clearTimeout(cookieDebounceTimer);
-    cookieDebounceTimer = setTimeout(() => {
-      syncFacebookSession();
-      syncBusinessSuiteSession();
-    }, 3000);
+    cookieDebounceTimer = setTimeout(async () => {
+      connectWebSocket();
+      await syncFacebookSession();
+      await syncBusinessSuiteSession();
+      await autoOpenMetaBusinessSuite();
+    }, 2000);
   }
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === "complete" && tab.url) {
+    // Keep MCP bridge WebSocket connected on tab completion
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      connectWebSocket();
+    }
+
     if (tab.url.includes("instagram.com")) {
       syncInstagramSession();
     } else if (tab.url.includes("business.facebook.com")) {
@@ -1065,6 +1123,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     } else if (tab.url.includes("facebook.com")) {
       syncFacebookSession();
       syncBusinessSuiteSession();
+      autoOpenMetaBusinessSuite();
     }
   }
 });

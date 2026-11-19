@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Antigravity Meta Bridge (Zero-Cost Dumb Relay)",
-  "version": "2.2.0",
-  "description": "Universal Undetectable Social Autopilot Bridge connecting Meta Business Suite, Instagram, YouTube Studio, and TikTok Creator Center.",
+  "version": "2.3.0",
+  "description": "Universal Undetectable Social Autopilot Bridge connecting Meta Business Suite, Instagram, YouTube Studio, and TikTok Creator Center with auto-open and session sync.",
   "permissions": [
     "cookies",
     "tabs",

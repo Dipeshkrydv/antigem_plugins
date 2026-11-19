@@ -1,7 +1,7 @@
 {
   "name": "antigem-plugins",
   "displayName": "Antigem Official Plugins",
-  "description": "Official Antigem plugins repository: 2D Video Editing Studio (v3.3.1), Facebook Automation & SEO Studio (v1.7.0), and Meta Suite Page Management (v2.1.0).",
+  "description": "Official Antigem plugins repository: 2D Video Editing Studio (v3.3.1), Facebook Automation & SEO Studio (v1.7.0), and Meta Suite Page Management (v2.3.0).",
   "owner": {
     "name": "Dipesh Kr Yadav",
     "url": "https://github.com/Dipeshkrydv"
@@ -59,8 +59,8 @@
       "name": "meta-suite-automation",
       "source": "./meta-suite-automation",
       "displayName": "Meta Suite Page Management",
-      "description": "Master Autonomous Meta Suite Production Engine (v2.1.0): Enterprise Meta Business Suite Facebook Page management, 6-Step Sequential Order Execution Rule, dual-mode native & local queue scheduler, custom Reel covers & video thumbnails, DeepX Google Flow AI bridge (ws://127.0.0.1:8792/ws), human-like in-memory DataTransfer uploads, anti-ad organic shield, and 2M-20M viral recommendation algorithms.",
-      "version": "2.2.0",
+      "description": "Master Autonomous Meta Suite Production Engine (v2.3.0): Enterprise Meta Business Suite Facebook Page management, auto-open Meta Business Suite on login, persistent bridge background thread, embedded multi-platform trend radar, 1-click publishing & scheduling of Page Reels, Long Videos, Photos, Stories with in-memory DataTransfer injection, synthetic clipboard paste, anti-ad organic shield, and Google Flow AI media generation.",
+      "version": "2.3.0",
       "logo": "assets/logo.png",
       "icon": "icon.png",
       "author": {

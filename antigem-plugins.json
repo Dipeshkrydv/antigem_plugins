@@ -23,8 +23,8 @@
       "path": "meta-suite-automation",
       "id": "meta-suite-automation",
       "name": "Meta Suite Page Management",
-      "version": "2.2.0",
-      "description": "Master Autonomous Meta Suite Production Engine (v2.2.0): Enterprise Meta Business Suite Facebook Page management, embedded multi-platform trend radar, 1-click publishing & scheduling of Page Reels, Long Videos, Photos, Stories with in-memory DataTransfer injection, synthetic clipboard paste, anti-ad organic shield, and Google Flow AI media generation.",
+      "version": "2.3.0",
+      "description": "Master Autonomous Meta Suite Production Engine (v2.3.0): Enterprise Meta Business Suite Facebook Page management, auto-open Meta Business Suite on login, persistent bridge background thread, embedded multi-platform trend radar, 1-click publishing & scheduling of Page Reels, Long Videos, Photos, Stories with in-memory DataTransfer injection, synthetic clipboard paste, anti-ad organic shield, and Google Flow AI media generation.",
       "icon": "icon.png",
       "logo": "assets/logo.png",
       "toolCount": 24

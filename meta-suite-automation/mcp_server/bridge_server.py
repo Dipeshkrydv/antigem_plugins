@@ -56,6 +56,29 @@ class BridgeServer:
         self._is_running = True
         logger.info("Bridge WebSocket server listening on ws://%s:%d", self.host, self.port)
 
+    def start_background_thread(self):
+        """Starts the WebSocket server in a dedicated background daemon thread with its own event loop."""
+        if self._is_running:
+            return
+        import threading
+        ready_evt = threading.Event()
+
+        def _run():
+            new_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(new_loop)
+            self.loop = new_loop
+            try:
+                new_loop.run_until_complete(self.start())
+                ready_evt.set()
+                new_loop.run_forever()
+            except Exception as e:
+                logger.error("Bridge WebSocket server error in background thread: %s", e)
+                ready_evt.set()
+
+        t = threading.Thread(target=_run, daemon=True, name="MetaBridgeWSThread")
+        t.start()
+        ready_evt.wait(timeout=5.0)
+
     async def stop(self):
         """Stops the WebSocket server and cancels pending futures."""
         if not self._is_running:
@@ -81,9 +104,12 @@ class BridgeServer:
             return True
         if any(_is_ws_open(c) and c not in self.relay_clients for c in self.clients):
             return True
+        # Only probe external socket if this instance is NOT the server hosting it!
+        if self.server is not None and getattr(self.server, "is_serving", lambda: False)():
+            return False
         import socket
         try:
-            with socket.create_connection(("127.0.0.1", 8765), timeout=0.5):
+            with socket.create_connection(("127.0.0.1", 8765), timeout=0.2):
                 return True
         except (OSError, ConnectionRefusedError):
             return False
@@ -963,34 +989,73 @@ class BridgeServer:
 
         elif cmd_upper in ("CHECK_SESSION", "CHECK_LOGIN"):
             target_url = payload.get("target_url", "")
-            is_mbs = "business.facebook.com" in target_url
-            sess_key = "business_suite" if is_mbs else "facebook"
-            session = self.db.get_session(sess_key)
-            if not session and is_mbs:
-                session = self.db.get_session("facebook")
-            pages_list = self.discovered_pages or (session.get("tokens", {}).get("pages", []) if session else [])
+            is_mbs = "business.facebook.com" in target_url or payload.get("is_business_suite", True)
+            
+            # Fetch both business_suite and facebook sessions
+            bs_session = self.db.get_session("business_suite")
+            fb_session = self.db.get_session("facebook")
+            
+            # In Meta Suite Automation, prefer business_suite session
+            session = bs_session if (bs_session and bs_session.get("is_active")) else (fb_session or bs_session)
+
+            # Collect and deduplicate all discovered pages
+            pages_list = []
+            seen_ids = set()
+            for p in (self.discovered_pages or []):
+                p_id = str(p.get("id"))
+                if p_id and p_id not in seen_ids:
+                    seen_ids.add(p_id)
+                    pages_list.append(p)
+
+            for sess in (bs_session, fb_session):
+                if sess and isinstance(sess.get("tokens"), dict):
+                    raw_pages = sess["tokens"].get("pages", [])
+                    if isinstance(raw_pages, list):
+                        for p in raw_pages:
+                            p_id = str(p.get("id"))
+                            if p_id and p_id not in seen_ids:
+                                seen_ids.add(p_id)
+                                pages_list.append(p)
+
+            # If target_url provided and extension connected, open/focus tab
+            if target_url and any(_is_ws_open(c) for c in self.extension_clients):
+                try:
+                    asyncio.create_task(self.dispatch_dom_action("OPEN_OR_FOCUS_TAB", {
+                        "url": target_url,
+                        "platform": "business_suite" if "business.facebook.com" in target_url else "facebook"
+                    }))
+                except Exception:
+                    pass
+
             if session and session.get("account_id"):
+                primary_name = str(session.get("username") or session.get("name") or "Meta Account")
+                primary_id = str(session.get("account_id"))
+                if pages_list:
+                    # Prefer named managed page
+                    primary_name = pages_list[0].get("name", primary_name)
+                    primary_id = pages_list[0].get("id", primary_id)
+
                 return {
                     "success": True,
                     "logged_in": True,
                     "data": {
                         "logged_in": True,
-                        "id": str(session.get("account_id")),
-                        "name": str(session.get("name") or "Meta Account"),
-                        "type": "page" if is_mbs else "profile",
+                        "id": primary_id,
+                        "name": primary_name,
+                        "type": "page" if (is_mbs or pages_list) else "profile",
                         "url": target_url or ("https://business.facebook.com/" if is_mbs else "https://www.facebook.com/"),
                         "pages": pages_list
                     }
                 }
             return {
                 "success": True,
-                "logged_in": True,
+                "logged_in": bool(pages_list),
                 "data": {
-                    "logged_in": True,
-                    "id": "me",
-                    "name": "Facebook User",
-                    "type": "profile",
-                    "url": "https://www.facebook.com/",
+                    "logged_in": bool(pages_list),
+                    "id": pages_list[0]["id"] if pages_list else "me",
+                    "name": pages_list[0]["name"] if pages_list else "Facebook User",
+                    "type": "page" if pages_list else "profile",
+                    "url": "https://business.facebook.com/" if pages_list else "https://www.facebook.com/",
                     "pages": pages_list
                 }
             }

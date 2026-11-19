@@ -123,14 +123,38 @@ class FacebookController:
         If not logged in, returns action_required='ONE_TIME_LOGIN_REQUIRED' and stop_loop=True.
         """
         if not self.bridge.is_connected():
+            # Check if persistent database has active verified sessions
+            bs_session = self.db.get_session("business_suite")
+            fb_session = self.db.get_session("facebook")
+            sess = bs_session if (bs_session and bs_session.get("is_active")) else fb_session
+            if sess and sess.get("account_id") and sess.get("status") in ("online", "healthy"):
+                pages = []
+                if bs_session and bs_session.get("tokens", {}).get("pages"):
+                    pages = bs_session["tokens"]["pages"]
+                primary_name = pages[0]["name"] if pages else str(sess.get("username", "Meta Account"))
+                primary_id = pages[0]["id"] if pages else str(sess.get("account_id"))
+                return {
+                    "success": True,
+                    "logged_in": True,
+                    "one_time_login_verified": True,
+                    "bridge_connected": False,
+                    "browser_opened": False,
+                    "account_name": primary_name,
+                    "account_id": primary_id,
+                    "account_type": "page" if pages else "profile",
+                    "active_tab_url": "https://business.facebook.com/" if pages else "https://www.facebook.com/",
+                    "pages": pages,
+                    "note": "Session verified from persistent database store."
+                }
+
             return {
                 "success": False,
                 "logged_in": False,
                 "bridge_connected": False,
                 "stop_loop": True,
                 "error": (
-                    "Browser extension not connected to WebSocket bridge (ws://127.0.0.1:8766). "
-                    "On AntiGem Mobile, tools run natively via worker.js in the AntiGem browser."
+                    "Browser extension not connected to WebSocket bridge (ws://127.0.0.1:8765). "
+                    "Make sure the extension is active in Chrome."
                 )
             }
 
@@ -180,19 +204,41 @@ class FacebookController:
             "error": res.get("error", "Failed to query Facebook session.")
         }
 
-    async def open_browser(self, view: str = "feed", target_id: Optional[str] = None) -> Dict[str, Any]:
-        """Opens the requested Facebook section in the browser and verifies one-time login."""
-        url = "https://www.facebook.com/"
+    async def open_browser(self, view: str = "business_suite", target_id: Optional[str] = None) -> Dict[str, Any]:
+        """Opens the requested Facebook/Meta Business Suite section in the browser and verifies one-time login."""
+        url = "https://business.facebook.com/latest/home"
         if view == "reels":
             url = "https://www.facebook.com/reels/create"
         elif view == "stories":
             url = "https://www.facebook.com/stories/create"
+        elif view == "feed":
+            url = "https://www.facebook.com/"
         elif view == "business_suite":
-            url = "https://business.facebook.com/"
+            if target_id and target_id != "me":
+                url = f"https://business.facebook.com/latest/composer?asset_id={target_id}"
+            else:
+                url = "https://business.facebook.com/latest/home"
         elif view == "page" and target_id:
-            url = target_id if target_id.startswith("http") else f"https://www.facebook.com/{target_id}"
+            url = target_id if target_id.startswith("http") else f"https://business.facebook.com/latest/composer?asset_id={target_id}"
         elif target_id and target_id.startswith("http"):
             url = target_id
+
+        # 1. Dispatch tab open/focus via WebSocket bridge if connected
+        if self.bridge and self.bridge.is_connected():
+            try:
+                await self.bridge.dispatch_dom_action("OPEN_OR_FOCUS_TAB", {
+                    "url": url,
+                    "platform": "business_suite" if "business.facebook.com" in url else "facebook"
+                })
+            except Exception as e:
+                logger.warning("Could not dispatch OPEN_OR_FOCUS_TAB via bridge: %s", e)
+        else:
+            # Fallback: Launch default browser directly
+            try:
+                import webbrowser
+                webbrowser.open(url)
+            except Exception as e:
+                logger.warning("webbrowser.open failed: %s", e)
 
         return await self.get_login_status(target_url=url)
 

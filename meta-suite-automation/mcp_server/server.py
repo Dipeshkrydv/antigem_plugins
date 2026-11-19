@@ -58,9 +58,10 @@ async def fb_status(open_browser: bool = True) -> Dict[str, Any]:
     connected = bridge.is_connected()
     due_jobs = db.list_upcoming_jobs() if hasattr(db, "list_upcoming_jobs") else []
     recent = db.list_posts(limit=5)
-    login_info = await controller.get_login_status() if (connected and open_browser) else {"logged_in": False}
+    login_info = await controller.get_login_status(target_url="https://business.facebook.com/latest/home" if open_browser else None)
+    is_ready = bool(login_info.get("logged_in"))
     return {
-        "status": "ready" if login_info.get("logged_in") else ("awaiting_one_time_login" if connected else "bridge_offline"),
+        "status": "ready" if is_ready else ("awaiting_one_time_login" if connected else "bridge_offline"),
         "bridge_connected": connected,
         **login_info,
         "websocket_url": f"ws://{WS_HOST}:{WS_PORT}",
@@ -570,19 +571,22 @@ def check_platform_login_status(platform: str = "all") -> Dict[str, Any]:
     return {"platforms": platforms_res}
 
 
-def _run_background_loop():
-    bridge_loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(bridge_loop)
-    bridge_loop.run_until_complete(bridge.start())
-    scheduler.start()
-    logger.info("Background services (WebSocket bridge & APScheduler) permanently active on dedicated loop.")
-    bridge_loop.run_forever()
+def ensure_background_services():
+    """Ensure bridge WebSocket server and APScheduler are active in persistent daemon threads."""
+    bridge.start_background_thread()
+    if not getattr(scheduler, "_is_running", False):
+        try:
+            scheduler.start()
+        except Exception:
+            pass
+
+
+ensure_background_services()
 
 
 def main():
     """Main entrypoint for MCP server with isolated background thread for bridge & scheduler."""
-    t = threading.Thread(target=_run_background_loop, daemon=True)
-    t.start()
+    ensure_background_services()
     mcp.run()
 
 
