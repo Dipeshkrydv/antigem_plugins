@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "id": "facebook-automation",
-  "name": "Facebook Automation & Meta Suite Studio",
-  "version": "2.0.0",
-  "description": "Pre-Trained Phone (Desktop-on-Phone www.facebook.com & Mobile Touch m.facebook.com) and Desktop Facebook Automation Engine (v1.6.0): Dedicated Feed Posts (Text/Photo/Carousel/Video), Anti-Comment Firewall (never posts into comments), Reels (/reels/create + automatic mobile fallback + video event dispatch), Stories (/stories/create Photo/Video with overlay story_text & Text Story), Real Video/Reel Thumbnail & Cover Uploader, Multiline Formatted Caption Engine (Title + Description + Bullets + CTA + 3-6 #Hashtags), and Zero-Overthinking 1-Call Dispatch.",
+  "name": "Facebook Automation & SEO Studio",
+  "version": "1.7.0",
+  "description": "Pre-Trained Phone (Desktop-on-Phone www.facebook.com & Mobile Touch m.facebook.com) and Desktop Facebook Automation Engine (v1.7.0): Dedicated Feed Posts (Text/Photo/Carousel/Video), Anti-Comment Firewall (strictly never posts into comments), Reels (/reels/create + automatic mobile fallback + video event dispatch), Stories (/stories/create Photo/Video with overlay story_text & Text Story), Real Video/Reel Thumbnail & Cover Uploader, Multiline Formatted Caption Engine (Title + Description + Bullets + CTA + 3-6 #Hashtags), and Zero-Overthinking 1-Call Dispatch.",
   "author": "Dipesh Kr Yadav",
   "icon": "icon.png",
   "icons": {
@@ -36,7 +36,7 @@
   "mcp_tools": [
     {
       "name": "fb_status",
-      "description": "Check Facebook Automation status, automatically open Facebook in the AntiGem browser if not open, and verify one-time login state. NOTE: Do NOT call fb_status before fb_publish—call fb_publish directly in 1 step! If logged_in is false (action_required='ONE_TIME_LOGIN_REQUIRED'), tell the user once to sign in to Facebook in the open AntiGem browser tab and STOP immediately.",
+      "description": "Check Facebook Automation status, automatically open Facebook in the AntiGem browser if not open, and verify one-time login state. NOTE: Do NOT call fb_status before fb_publish\u2014call fb_publish directly in 1 step! If logged_in is false (action_required='ONE_TIME_LOGIN_REQUIRED'), tell the user once to sign in to Facebook in the open AntiGem browser tab and STOP immediately.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -50,7 +50,7 @@
     },
     {
       "name": "fb_login_status",
-      "description": "Open Facebook (https://www.facebook.com/) in the AntiGem browser if not open, verify active login session (cookies + DOM), and persist one-time login state. IMPORTANT: If logged_in is false, Facebook is already open on the login screen in the AntiGem browser—ask the user once for their one-time login and STOP immediately (do not loop).",
+      "description": "Open Facebook (https://www.facebook.com/) in the AntiGem browser if not open, verify active login session (cookies + DOM), and persist one-time login state. IMPORTANT: If logged_in is false, Facebook is already open on the login screen in the AntiGem browser\u2014ask the user once for their one-time login and STOP immediately (do not loop).",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -90,7 +90,7 @@
     },
     {
       "name": "fb_publish",
-      "description": "1-STEP FEED PUBLISHER (Text, Photo, Carousel, Feed Video — also routes Reel/Story if post_type specifies). NOTE: Prefer `fb_publish_reel` for Facebook Reels and `fb_publish_story` for Facebook Stories! ALWAYS include `title`, formatted multiline `caption` (Title -> blank line -> Description/Quote -> Bullets -> CTA, keeping \\n\\n line breaks), and 3-6 `hashtags`. For Feed Videos (`post_type=\"video\"`), pass `thumbnail_path` and it will be uploaded inside Edit Video -> Thumbnail (NEVER attached as a second feed photo). For Photos (`post_type=\"photo\"`), combine `media_paths` + deep `caption` + `title` + 3-6 `hashtags` in ONE call.",
+      "description": "1-STEP FEED PUBLISHER (Text, Photo, Carousel, Feed Video \u2014 also routes Reel/Story if post_type specifies). NOTE: Prefer `fb_publish_reel` for Facebook Reels and `fb_publish_story` for Facebook Stories! ALWAYS include `title`, formatted multiline `caption` (Title -> blank line -> Description/Quote -> Bullets -> CTA, keeping \\n\\n line breaks), and 3-6 `hashtags`. For Feed Videos (`post_type=\"video\"`), pass `thumbnail_path` and it will be uploaded inside Edit Video -> Thumbnail (NEVER attached as a second feed photo). For Photos (`post_type=\"photo\"`), combine `media_paths` + deep `caption` + `title` + 3-6 `hashtags` in ONE call.",
       "inputSchema": {
         "type": "object",
         "properties": {
