@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "id": "meta-suite-automation",
   "name": "Meta Suite Page Management",
-  "version": "2.1.2",
-  "description": "Master Autonomous Meta Suite Production Engine (v2.1.1): Enterprise Meta Business Suite Facebook Page management, 6-Step Sequential Order Execution Rule, dual-mode native & local queue scheduler, custom Reel covers & video thumbnails, DeepX Google Flow AI bridge, anti-ad organic shield, and 2M-20M viral recommendation algorithms.",
+  "version": "2.2.0",
+  "description": "Master Autonomous Meta Suite Production Engine (v2.2.0): Enterprise Meta Business Suite Facebook Page management, embedded multi-platform trend radar, 1-click publishing & scheduling of Page Reels, Long Videos, Photos, Stories with in-memory DataTransfer injection, synthetic clipboard paste, anti-ad organic shield, and Google Flow AI media generation.",
   "author": "Dipesh Kr Yadav",
   "icon": "icon.png",
   "icons": {

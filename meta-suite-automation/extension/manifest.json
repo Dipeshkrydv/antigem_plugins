@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Antigravity Meta Bridge (Zero-Cost Dumb Relay)",
-  "version": "1.0.0",
+  "version": "2.2.0",
   "description": "Universal Undetectable Social Autopilot Bridge connecting Meta Business Suite, Instagram, YouTube Studio, and TikTok Creator Center.",
   "permissions": [
     "cookies",
@@ -47,7 +47,10 @@
         "*://business.facebook.com/*",
         "*://*.business.facebook.com/*"
       ],
-      "js": ["stealth_engine.js", "content_bridge.js"],
+      "js": [
+        "stealth_engine.js",
+        "content_bridge.js"
+      ],
       "run_at": "document_idle"
     },
     {
@@ -55,7 +58,10 @@
         "*://studio.youtube.com/*",
         "*://*.youtube.com/*"
       ],
-      "js": ["stealth_engine.js", "youtube_driver.js"],
+      "js": [
+        "stealth_engine.js",
+        "youtube_driver.js"
+      ],
       "run_at": "document_idle"
     },
     {
@@ -63,7 +69,10 @@
         "*://tiktok.com/*",
         "*://*.tiktok.com/*"
       ],
-      "js": ["stealth_engine.js", "tiktok_driver.js"],
+      "js": [
+        "stealth_engine.js",
+        "tiktok_driver.js"
+      ],
       "run_at": "document_idle"
     }
   ],
