@@ -561,7 +561,7 @@ class FacebookController:
         video_path: str,
         caption: str,
         target_type: str = "profile",
-        target_id: str = "61592442011195",
+        target_id: str = "me",
         bypass_spacing: bool = False,
         thumbnail_path: Optional[str] = None,
         title: Optional[str] = None,

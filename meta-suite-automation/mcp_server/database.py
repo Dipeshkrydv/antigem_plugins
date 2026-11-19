@@ -159,7 +159,7 @@ class Database:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 rule_name TEXT NOT NULL,
                 platform TEXT DEFAULT 'facebook',
-                target_page_id TEXT DEFAULT '1409644015561854',
+                target_page_id TEXT DEFAULT 'me',
                 keywords_json TEXT NOT NULL,          -- JSON array of trigger words/phrases
                 match_mode TEXT DEFAULT 'specific',   -- 'all', 'specific', 'both'
                 reply_templates_json TEXT NOT NULL,   -- JSON array of response variations
@@ -179,7 +179,7 @@ class Database:
                 slot_time TEXT NOT NULL UNIQUE,       -- '08:00', '13:00', '17:30', '20:45'
                 slot_label TEXT,                      -- 'Morning Prime', 'Midday Break', etc.
                 platform TEXT DEFAULT 'facebook',
-                target_id TEXT DEFAULT '1409644015561854',
+                target_id TEXT DEFAULT 'me',
                 is_active INTEGER DEFAULT 1,
                 created_at TEXT NOT NULL
             );
@@ -934,7 +934,7 @@ class Database:
         keywords: List[str],
         reply_templates: List[str],
         platform: str = "facebook",
-        target_page_id: str = "1409644015561854",
+        target_page_id: str = "me",
         match_mode: str = "specific",
         send_private_dm: bool = False,
         dm_template: Optional[str] = None,
@@ -1011,8 +1011,8 @@ class Database:
         comment_text: str,
         commenter_name: str = "Friend",
         platform: str = "facebook",
-        target_page_id: str = "1409644015561854",
-        page_name: str = "Motivational Docqueen"
+        target_page_id: str = "me",
+        page_name: str = "Facebook Page"
     ) -> Optional[Dict[str, Any]]:
         """
         Matches comment against active keyword rules using the 3 modes from fb-autoreply-pro:
@@ -1104,7 +1104,7 @@ class Database:
                 ],
                 match_mode="specific",
                 send_private_dm=True,
-                dm_template="Hi {name}! Here is the complete information and access link from {page_name}: https://facebook.com/1409644015561854",
+                dm_template="Hi {name}! Here is the complete information and access link from {page_name}: https://facebook.com/me",
                 toxic_filter=["scam", "fraud", "fake", "bad", "cheat", "bastard"]
             )
             self.create_keyword_rule(
@@ -1136,7 +1136,7 @@ class Database:
     # ---------------------------------------------------------
     # Cron Time Slots & Stale Recovery (Dashboard Engine)
     # ---------------------------------------------------------
-    def save_cron_time_slot(self, slot_time: str, slot_label: str = "Engagement Slot", platform: str = "facebook", target_id: str = "1409644015561854") -> int:
+    def save_cron_time_slot(self, slot_time: str, slot_label: str = "Engagement Slot", platform: str = "facebook", target_id: str = "me") -> int:
         now_iso = datetime.now(timezone.utc).isoformat()
         with self.get_connection() as conn:
             cursor = conn.cursor()

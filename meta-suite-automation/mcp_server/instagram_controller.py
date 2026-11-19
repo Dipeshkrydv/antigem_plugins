@@ -252,7 +252,7 @@ class InstagramController:
             job = scheduler.schedule_job(
                 platform="instagram",
                 target_type="profile",
-                target_id="43599208749",
+                target_id="me",
                 content_type="reel",
                 payload=payload,
                 schedule_time_iso=schedule_time_iso

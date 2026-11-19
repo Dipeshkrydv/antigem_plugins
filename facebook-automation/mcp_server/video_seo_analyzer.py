@@ -6,7 +6,7 @@ Synthesizes architectures from:
 3. keyword-mixer (Cartesian product combinatorial tags, deduplication, length ceilings)
 4. tiktok-hashtags-api (3-tier viral hashtag hierarchy: discovery, niche, hyper-specific)
 5. InstagramOSINT (3-tier hashtag ladders, engagement metrics, Anti-Book copywriting)
-6. Meta Business Suite Page (Motivational Docqueen - ID: 1409644015561854 authority format)
+6. Meta Business Suite Page (Facebook Page - ID: me authority format)
 """
 
 import os
@@ -47,7 +47,7 @@ class NicheIntelligence:
             "thumbnail_text": "CRITICAL FLAW",
             "thumbnail_colors": "Deep Charcoal (#0D1117) + Electric Canary Yellow (#FFEA00) + Crimson (#FF1E27)",
             "sound_vibe": "Cyberpunk synthwave or low-frequency digital pulse",
-            "default_brand": "Renuka Yadav"
+            "default_brand": "Facebook User"
         },
         "motivation_mindset": {
             "keywords": [
@@ -67,7 +67,7 @@ class NicheIntelligence:
             "thumbnail_text": "STOP WAITING",
             "thumbnail_colors": "Deep Obsidian (#121212) + Pure Sunlight Gold (#FFD700) + Clean White (#FFFFFF)",
             "sound_vibe": "Ambient cinematic piano build-up or atmospheric lo-fi pulse",
-            "default_brand": "Motivational Docqueen"
+            "default_brand": "Facebook Page"
         },
         "finance_business": {
             "keywords": [
@@ -86,7 +86,7 @@ class NicheIntelligence:
             "thumbnail_text": "THE TRAP",
             "thumbnail_colors": "Matte Black (#101010) + Emerald Green (#00E676) + Crisp Gold (#FFC107)",
             "sound_vibe": "Sophisticated tech-house or crisp modern beat",
-            "default_brand": "Renuka Yadav"
+            "default_brand": "Facebook User"
         },
         "fitness_health": {
             "keywords": [
@@ -104,7 +104,7 @@ class NicheIntelligence:
             "thumbnail_text": "FIX THIS",
             "thumbnail_colors": "Charcoal Black (#1A1A1A) + High-Voltage Orange (#FF6D00) + Ice Blue (#00E5FF)",
             "sound_vibe": "High-octane gym motivation phonk or rhythmic bass drive",
-            "default_brand": "Motivational Docqueen"
+            "default_brand": "Facebook Page"
         },
         "creator_ai": {
             "keywords": [
@@ -123,7 +123,7 @@ class NicheIntelligence:
             "thumbnail_text": "10x FASTER",
             "thumbnail_colors": "Deep Violet (#180033) + Cyber Magenta (#FF007F) + Neon Cyan (#00F0FF)",
             "sound_vibe": "Futuristic fast-tempo hyper-pop or subtle electronic drift",
-            "default_brand": "Renuka Yadav"
+            "default_brand": "Facebook User"
         }
     }
 
@@ -323,7 +323,7 @@ class KeywordMixer:
         cls,
         topic: str,
         related_entities: Optional[List[str]] = None,
-        brand: str = "Renuka Yadav",
+        brand: str = "Facebook User",
         is_short: bool = False,
         max_chars: int = 500
     ) -> List[str]:
@@ -489,7 +489,7 @@ class YouTubeSEOEngine:
         video_info: Dict[str, Any],
         topic: str,
         target_audience: str = "general",
-        channel_name: str = "Renuka Yadav",
+        channel_name: str = "Facebook User",
         channel_id: str = "UC-VcJRiM87_NxDFe6rBx6YQ",
         video_id: Optional[str] = None
     ) -> Dict[str, Any]:
@@ -728,13 +728,13 @@ class YouTubeSEOEngine:
 class MetaBusinessSuiteSEOEngine:
     """
     Dedicated SEO & Engagement engine for Meta Business Suite Page:
-    Target: 'Motivational Docqueen' (Asset ID: 1409644015561854)
+    Target: 'Facebook Page' (Asset ID: me)
     Formats authority posts with comment-to-DM hooks, generous vertical spacing,
     and link-in-first-comment guarantee.
     """
 
-    PAGE_NAME = "Motivational Docqueen"
-    PAGE_ID = "1409644015561854"
+    PAGE_NAME = "Facebook Page"
+    PAGE_ID = "me"
 
     @classmethod
     def generate_seo_package(cls, video_info: Dict[str, Any], topic: str) -> Dict[str, Any]:
@@ -754,7 +754,7 @@ class MetaBusinessSuiteSEOEngine:
         comment_link_directive = f"🔗 Resource link and community discussion are in the first pinned comment below 👇"
 
         tags = [
-            "MotivationalDocqueen",
+            "FacebookPage",
             "DailyMotivation",
             "MindsetShift",
             "Discipline",
@@ -945,7 +945,7 @@ class VideoSEOAnalyzer:
         media_path: str,
         topic_hint: Optional[str] = None,
         target_audience: str = "general",
-        channel_name: str = "Renuka Yadav"
+        channel_name: str = "Facebook User"
     ) -> Dict[str, Any]:
         """Ingests a video file, inspects duration & specs, and produces SEO metadata for all platforms."""
         video_info = self.inspector.inspect(media_path)

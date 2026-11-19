@@ -223,7 +223,7 @@ function initSidePanel() {
     const s = latestBridgeState || {};
 
     if (plat === "facebook") {
-      const uName = s.fbUser || "Renuka Yadav";
+      const uName = s.fbUser || "Facebook User";
       const pages = s.businessSuitePages || [];
       let pageOpts = "";
       if (pages.length > 0) {
@@ -286,9 +286,9 @@ function initSidePanel() {
       if (state.fbLoggedIn) {
         fbStatusPill.className = "status-pill pill-online";
         fbStatusPill.textContent = "Online";
-        const fbName = state.fbUser || "Renuka Yadav";
+        const fbName = state.fbUser || "Facebook User";
         fbAccountName.textContent = fbName;
-        const fbId = state.fbId || "61592442011195";
+        const fbId = state.fbId || "me";
         if (fbAccountId) {
           fbAccountId.innerHTML = `Profile ID: <span class="copyable-badge" data-copy="${fbId}" title="Click to copy Profile ID">${fbId} 📋</span>`;
         }
@@ -305,9 +305,9 @@ function initSidePanel() {
       if (state.igLoggedIn) {
         igStatusPill.className = "status-pill pill-online";
         igStatusPill.textContent = "Online";
-        const handle = state.igUser ? (state.igUser.startsWith("@") ? state.igUser : `@${state.igUser}`) : "@renukayadav";
+        const handle = state.igUser ? (state.igUser.startsWith("@") ? state.igUser : `@${state.igUser}`) : "@creator";
         igAccountName.textContent = handle;
-        const igId = state.igId || "43599208749";
+        const igId = state.igId || "me";
         if (igAccountId) {
           igAccountId.innerHTML = `User ID: <span class="copyable-badge" data-copy="${igId}" title="Click to copy User ID">${igId} 📋</span>`;
         }
@@ -332,7 +332,7 @@ function initSidePanel() {
         bizStatusPill.textContent = "Online";
         bizAccountName.textContent = "Meta Business Suite";
         const p = state.businessSuitePages[0];
-        const pageName = p.name || "Motivational Docqueen";
+        const pageName = p.name || "Facebook Page";
         bizAccountId.innerHTML = `Page: <b style="color: #e2e8f0;">${escapeHtml(pageName)}</b> • <span class="copyable-badge" data-copy="${p.id}" title="Click to copy Page ID">${p.id} 📋</span>`;
         if (bizNoticeBox) bizNoticeBox.style.display = "none";
       } else if (state.businessSuiteStatus === "no_pages" || state.businessSuiteHasNoPages || (state.fbLoggedIn && (!state.businessSuitePages || state.businessSuitePages.length === 0))) {
@@ -340,7 +340,7 @@ function initSidePanel() {
         bizStatusPill.className = "status-pill pill-warning";
         bizStatusPill.textContent = "No Pages Linked";
         bizAccountName.textContent = "Meta Business Suite";
-        const owner = state.fbUser || "Renuka Yadav";
+        const owner = state.fbUser || "Facebook User";
         bizAccountId.textContent = `Personal Profile (${owner}) • No Pages`;
         if (bizNoticeBox) bizNoticeBox.style.display = "block";
         if (bizOwnerName) bizOwnerName.textContent = owner;
@@ -2154,7 +2154,7 @@ function initSidePanel() {
           keywords: ["price", "cost", "koto", "dam", "fees"],
           reply_templates: ["Hey {name}, thanks for asking! Direct message sent with the complete breakdown 🚀"],
           send_private_dm: 1,
-          dm_template: "Hi {name}! Here is the complete information and access link: https://facebook.com/1409644015561854"
+          dm_template: "Hi {name}! Here is the complete information and access link: https://facebook.com/me"
         },
         {
           id: 2,
@@ -2164,7 +2164,7 @@ function initSidePanel() {
           keywords: ["pdf", "solution", "answer", "notes", "shits"],
           reply_templates: ["Great question {name}! Sent the full PDF solution directly to your Messenger 📥"],
           send_private_dm: 1,
-          dm_template: "Here is your full study guide and exam solution from Motivational Docqueen."
+          dm_template: "Here is your full study guide and exam solution from Facebook Page."
         },
         {
           id: 3,
@@ -2241,7 +2241,7 @@ function initSidePanel() {
               matched_keyword: "price",
               public_reply: `Hey ${user}, thanks for asking! Direct message sent with the complete breakdown 🚀`,
               send_private_dm: true,
-              private_dm_text: `Hi ${user}! Here is the complete information and access link: https://facebook.com/1409644015561854`
+              private_dm_text: `Hi ${user}! Here is the complete information and access link: https://facebook.com/me`
             });
           } else if (lower.includes("pdf") || lower.includes("solution")) {
             renderAutoReplyTestResult({
@@ -2289,14 +2289,14 @@ function initSidePanel() {
     if (btnRunAutoreplyCycle) {
       btnRunAutoreplyCycle.addEventListener("click", () => {
         showToast("Running auto-reply scan cycle...", "info");
-        if (autoreplyCycleStatus) autoreplyCycleStatus.innerHTML = "<span style='color: #60a5fa;'>⏳ Scanning recent posts & comments on Motivational Docqueen...</span>";
+        if (autoreplyCycleStatus) autoreplyCycleStatus.innerHTML = "<span style='color: #60a5fa;'>⏳ Scanning recent posts & comments on Facebook Page...</span>";
         chrome.runtime.sendMessage({
           type: "WS_SEND",
           payload: {
             type: "RUN_AUTOREPLY_CYCLE",
             id: `cycle_${Date.now()}`,
             platform: "facebook",
-            page_id: "1409644015561854",
+            page_id: "me",
             limit_posts: 5,
             max_replies: 15,
             dry_run: false

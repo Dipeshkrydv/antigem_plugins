@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "project": "Meta Suite & Social Autopilot",
-  "version": "2.0.0",
+  "project": "Facebook Automation & SEO Studio",
+  "version": "1.6.0",
   "status": "ready",
   "connection": {
     "server": "meta-scheduler-mcp",
@@ -18,17 +18,10 @@
     "status": "ready"
   },
   "accounts": {
-    "businessSuitePage": {
-      "name": "Motivational Docqueen",
-      "id": "1409644015561854"
-    },
-    "facebookProfile": {
-      "name": "Renuka Yadav",
-      "id": "61592442011195"
-    },
-    "instagram": {
-      "handle": "@renukayadav",
-      "id": "43599208749"
+    "target": "user_profile",
+    "discovery": "auto_detect",
+    "facebook": {
+      "url": "https://www.facebook.com/"
     }
   },
   "antigravityDirectives": {

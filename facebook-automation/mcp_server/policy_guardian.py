@@ -61,7 +61,7 @@ class MetaPolicyGuardian:
         """Compatibility alias for validate_publish_action."""
         if self.blocked_mode:
             return False, "Sentinel checkpoint active. Clear block before publishing."
-        acc_id = account_id or "61592442011195"
+        acc_id = account_id or "me"
         try:
             return self.validate_publish_action(platform=platform, account_id=acc_id, bypass_spacing=bypass_spacing)
         except Exception as e:
@@ -125,10 +125,10 @@ class MetaPolicyGuardian:
             if row and row["status"] in ("cooldown_24h", "temporarily_blocked"):
                 return False, (
                     f"Account {account_id} on {platform} is in a mandatory 24-hour protection cooldown to clear Meta Action Block ('going too fast'). "
-                    f"All actions on this account are paused. Use Meta Business Suite Page (Motivational Docqueen) for safe automated posting."
+                    f"All actions on this account are paused. Use Meta Business Suite Page (Facebook Page) for safe automated posting."
                 )
 
-        is_personal_profile = (platform == "facebook" and account_id == "61592442011195")
+        is_personal_profile = (platform == "facebook" and account_id == "me")
         is_youtube = (platform == "youtube")
         is_tiktok = (platform == "tiktok")
 

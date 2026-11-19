@@ -1,12 +1,12 @@
 ---
 name: meta-autopilot
 description: >-
-  Autonomous Meta (Instagram & Facebook) Production Autopilot. Use when the user requests to post, publish, or schedule anything (photos, reels, videos, stories, study routines, text posts) to Facebook, Instagram, or Meta Business Suite, or mentions 'post to facebook', 'post to insta', 'schedule post', 'manage social', 'renuka yadav', 'meta bridge', 'social automation', or 'handle my facebook/instagram'. Enforces permanent one-time setup, zero-tab prompts (never ask the user to open tabs, switch windows, or click UI buttons), automatic media generation for zero-friction posts, authentic account grounding (Renuka Yadav ID: 61592442011195 for Facebook personal feed, @renukayadav ID: 43599208749 for Instagram), viral SEO hooks and hashtags, and continuous background dispatch via SQLite WAL and WebSocket bridge.
+  Autonomous Meta Business Suite Page Management Autopilot. Use when the user requests to post, publish, or schedule anything (photos, reels, videos, stories, announcements, text posts) to managed Facebook Pages via Meta Business Suite, or mentions 'manage page', 'page scheduler', 'meta suite', 'schedule post to page', 'meta bridge', 'page automation', or 'handle my facebook page'. Enforces permanent one-time setup, zero-tab prompts (never ask the user to open tabs, switch windows, or click UI buttons), automatic media generation for zero-friction posts, authentic page grounding via Meta Business Suite (target_type: "page", target_id: "me" or explicit page ID), viral SEO hooks and hashtags, and continuous background dispatch via SQLite WAL and WebSocket bridge.
 ---
 
-# Meta Autonomous Social Autopilot (Instagram & Facebook)
+# Meta Business Suite Page Autopilot
 
-This skill governs the high-speed, zero-interruption execution pipeline between Antigravity, local SQLite scheduler, and the Chrome Extension bridge (`ws://127.0.0.1:8765`) to manage Facebook and Instagram autonomously in the background.
+This skill governs the high-speed, zero-interruption execution pipeline between Antigravity, local SQLite scheduler, and the Chrome Extension bridge (`ws://127.0.0.1:8765`) to manage connected **Facebook Pages via Meta Business Suite** autonomously in the background.
 
 ---
 
@@ -14,45 +14,35 @@ This skill governs the high-speed, zero-interruption execution pipeline between 
 
 - **ONE-TIME SETUP IS ALREADY ACTIVE & RUNNING**:
   - The WebSocket bridge is active at `ws://127.0.0.1:8765`.
-  - The Chrome Extension (`meta-bridge-ext`) is loaded and continuously syncs cookies and tokens.
-  - The background scheduler daemon (`cli.py bridge`) actively processes jobs every 10 seconds.
+  - The Chrome Extension is loaded and continuously syncs active business page sessions.
+  - The background scheduler daemon (`cli.py bridge`) actively processes jobs every 30 seconds.
 - **ZERO DUMMY QUESTIONS & ZERO TAB PROMPTS MANDATE**:
-  - Antigravity MUST **NEVER** ask the user to open `facebook.com`, `instagram.com`, or `business.facebook.com`.
+  - Antigravity MUST **NEVER** ask the user to open `business.facebook.com` or switch Chrome tabs.
   - Antigravity MUST **NEVER** ask the user to open the Chrome Extension popup or side panel.
   - Antigravity MUST **NEVER** pause generation to ask the user to switch windows or click UI buttons.
   - Antigravity MUST **NEVER** dump raw JSON session dumps into the chat.
-  - Every posting or scheduling request MUST proceed straight to execution in the background.
+  - Every page posting or scheduling request MUST proceed straight to execution in the background.
 
 ---
 
-## 1. Grounded User Credentials & Account Routing (STRICT TRUTH)
+## 1. Managed Facebook Page Routing & Discovery
 
-Antigravity operates with authentic, strictly grounded account data:
-- **Facebook Personal Profile**:
-  - Name: **`Renuka Yadav`**
-  - Profile ID: **`61592442011195`**
-  - Status: Active & healthy.
-- **Instagram Account**:
-  - Handle: **`@renukayadav`** (`renukaydv624`)
-  - User ID: **`43599208749`**
-  - Status: Synced.
-- **Meta Business Suite Status**:
-  - Status: **`No Pages Linked`** (Personal account only).
-  - **CRITICAL ROUTING RULE**: Because Renuka Yadav does not have a linked Facebook Page in Business Suite, all Facebook posting commands MUST route to:
-    `target_type: "profile"` and `target_id: "61592442011195"` (or `"me"`).
-    This posts directly to Renuka Yadav's personal feed, preventing Business Suite redirect failures.
+Antigravity operates with authentic, dynamically discovered Facebook Pages:
+- **Target Surface**: Meta Business Suite (`https://business.facebook.com/`)
+- **Routing Protocol**:
+  - `target_type`: `"page"`
+  - `target_id`: `"me"` (targets primary active page, or specify explicit `page_id`)
+- **Direct Page Publishing**:
+  - Directs posts, videos, reels, and stories into the managed Page composer, preserving organic reach and anti-ad settings.
 
 ---
 
 ## 2. Instant Zero-Friction Media Synthesis
 
-- **Instagram Rule**: Instagram requires a media file (JPEG photo or MP4 video) for all feed posts and reels.
-  - If the user asks to post a text idea, study routine, quote, or plan to Instagram without providing a media file:
-    1. Call `render_free_media_asset(asset_type="image", overlay_title="...", aspect_ratio="4:5")` or generate a visual with Nano Banana.
-    2. Immediately proceed to publish or schedule to Instagram with the generated media asset.
-- **Facebook Rule**: Facebook natively supports direct text posts as well as photo, album, video, and reel posts.
-  - If media is provided or requested: Attach media.
-  - If text-only: Post directly as `content_type: "text"`.
+- **Page Media Ingestion**:
+  - If user provides video or image: Upload via RAM `DataTransfer` buffer without triggering OS file dialogs.
+  - If user requests creative media: Generate high-impact visuals via DeepX Google Flow bridge (`ws://127.0.0.1:8792/ws`).
+  - Text announcements: Format cleanly with title, formatted multiline description, and CTA.
 
 ---
 
@@ -73,9 +63,9 @@ When the user says "Post X to Facebook" or "Post this to Instagram" or "Schedule
 
 ### Step 1: Detect Platform & Target
 - If user mentions **Facebook**:
-  - Target: `target_type="profile"`, `target_id="61592442011195"`.
+  - Target: `target_type="profile"`, `target_id="me"`.
 - If user mentions **Instagram**:
-  - Target: Instagram feed or reel (`@renukayadav`).
+  - Target: Instagram feed or reel (`@creator`).
 - If user says **"Both"** or doesn't specify:
   - Dispatch to Facebook Personal Profile AND Instagram.
 
@@ -88,7 +78,7 @@ When the user says "Post X to Facebook" or "Post this to Instagram" or "Schedule
 
 ### Step 4: Dispatch Post in Background
 - For Facebook:
-  - Call MCP tool `publish_or_schedule_facebook` OR run `python3 cli.py post --platform facebook --target profile --target-id 61592442011195 --caption "..." --force`.
+  - Call MCP tool `publish_or_schedule_facebook` OR run `python3 cli.py post --platform facebook --target profile --target-id me --caption "..." --force`.
 - For Instagram:
   - Call MCP tool `publish_or_schedule_instagram` OR run `python3 cli.py post --platform instagram --type photo --media "..." --caption "..." --force`.
 - For Scheduling:
@@ -96,7 +86,7 @@ When the user says "Post X to Facebook" or "Post this to Instagram" or "Schedule
 
 ### Step 5: Report Clean Confirmation
 - Report clean, human-friendly confirmation:
-  - Platform (`Facebook (Renuka Yadav)` / `Instagram (@renukayadav)`)
+  - Platform (`Facebook (Facebook User)` / `Instagram (@creator)`)
   - Content summary and hashtags
   - Immediate publication status or scheduled date/time
   - Job ID or published link (if available)

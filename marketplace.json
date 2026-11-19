@@ -54,8 +54,8 @@
     {
       "name": "meta-suite-automation",
       "source": "./meta-suite-automation",
-      "displayName": "Meta Suite & Social Autopilot",
-      "description": "Master Autonomous Meta Suite Production Engine (v2.0.0): Meta Business Suite scheduler for Motivational Docqueen (1409644015561854), Instagram (@renukayadav: 43599208749), custom Reel covers & video thumbnails, DeepX Google Flow AI bridge (ws://127.0.0.1:8792/ws), human-like in-memory DataTransfer uploads, and 2M-20M viral recommendation algorithms.",
+      "displayName": "Meta Suite Page Management",
+      "description": "Master Autonomous Meta Suite Production Engine (v2.0.0): Enterprise Meta Business Suite Facebook Page management, dual-mode native & local queue scheduler, custom Reel covers & video thumbnails, DeepX Google Flow AI bridge (ws://127.0.0.1:8792/ws), human-like in-memory DataTransfer uploads, anti-ad organic shield, and 2M-20M viral recommendation algorithms.",
       "version": "2.0.0",
       "author": {
         "name": "Dipesh Kr Yadav"
@@ -64,7 +64,8 @@
       "keywords": [
         "meta",
         "meta business suite",
-        "instagram",
+        "facebook pages",
+        "page management",
         "social automation",
         "deepx",
         "google flow",

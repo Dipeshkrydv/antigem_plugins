@@ -252,8 +252,8 @@ def cmd_batch(args):
             t, cap = topics[i % len(topics)]
             posts.append({
                 "title": f"[{i + 1}/{count}] {t}",
-                "caption": f"🚨 {t}\n\n{cap}\n\n📌 Save & Share for revision!\n\n#LoksewaNepal #CivilService #StudyBatch #RenukaYadav",
-                "hashtags": ["LoksewaNepal", "CivilService", "LoksewaPreparation", "RenukaYadav"]
+                "caption": f"🚨 {t}\n\n{cap}\n\n📌 Save & Share for revision!\n\n#LoksewaNepal #CivilService #StudyBatch #Creator",
+                "hashtags": ["LoksewaNepal", "CivilService", "LoksewaPreparation", "Creator"]
             })
 
     if not posts:
@@ -537,7 +537,7 @@ def cmd_seo_analyze(args):
     res = seo_analyzer.analyze_and_generate_all(
         media_path=args.media,
         topic_hint=args.topic,
-        channel_name="Renuka Yadav"
+        channel_name="Facebook User"
     )
 
     info = res["video_info"]
@@ -602,7 +602,7 @@ def cmd_seo_analyze(args):
     if platform in ("instagram", "all"):
         ig = res["instagram"]
         print("\n" + "─" * 65)
-        print("📸 INSTAGRAM ANTI-BOOK POST (@renukayadav & Rule #5)")
+        print("📸 INSTAGRAM ANTI-BOOK POST (@creator & Rule #5)")
         print("─" * 65)
         print(f"🎵 Sound Vibe: {ig.get('sound_recommendation', 'Trending audio')}")
         print("📌 3-TIER HASHTAG LADDER (from InstagramOSINT):")
@@ -709,7 +709,7 @@ def cmd_publish_video(args):
             video_path=args.media,
             caption=caption,
             target_type="profile",
-            target_id="61592442011195",
+            target_id="me",
             bypass_spacing=args.bypass_spacing
         )
         print(f"✅ Published to Facebook Profile: {res}")
@@ -719,12 +719,12 @@ def cmd_publish_video(args):
         from mcp_server.video_seo_analyzer import seo_analyzer
         seo_data = seo_analyzer.analyze_and_generate_all(args.media, topic_hint=topic)
         caption = seo_data["meta_business_suite"]["full_post_text"]
-        print(f"\n[Publishing to Meta Business Suite Page: Motivational Docqueen] Media: {args.media}")
+        print(f"\n[Publishing to Meta Business Suite Page: Facebook Page] Media: {args.media}")
         res = fb_controller.publish_reel(
             video_path=args.media,
             caption=caption,
             target_type="page",
-            target_id="1409644015561854",
+            target_id="me",
             bypass_spacing=args.bypass_spacing
         )
         print(f"✅ Published to Meta Business Suite Page: {res}")
@@ -756,7 +756,7 @@ def cmd_pipeline(args):
         print("  1. youtube")
         print("  2. instagram")
         print("  3. facebook (profile)")
-        print("  4. meta_business_suite (page: Motivational Docqueen)")
+        print("  4. meta_business_suite (page: Facebook Page)")
         print("  5. tiktok")
         choice = input("Enter platform number or name [1-5]: ").strip().lower()
         mapping = {
@@ -965,7 +965,7 @@ def cmd_deep_research(args):
             for opt in tw.get("engagement_poll", {}).get("options", []):
                 print(f"  • {opt}")
             print(f"\n[🔁 Retweet CTA]: {tw.get('retweet_cta')}")
-        print("\n[Facebook Profile Ready (Renuka Yadav)]:")
+        print("\n[Facebook Profile Ready (Facebook User)]:")
         print(p["facebook_post"])
         print("\n" + "-" * 70 + "\n")
 
@@ -1192,8 +1192,8 @@ def cmd_autoreply(args):
             comment_text=comment,
             commenter_name=args.user or "Ahmed",
             platform=args.platform,
-            target_page_id="1409644015561854",
-            page_name="Motivational Docqueen"
+            target_page_id="me",
+            page_name="Facebook Page"
         )
         print("=" * 60)
         print(f"  KEYWORD AUTO-REPLY TEST")
@@ -1215,7 +1215,7 @@ def cmd_autoreply(args):
         print("Running autonomous comment scan-and-reply cycle...")
         res = autoreply_engine.run_auto_reply_cycle(
             platform=args.platform,
-            page_id=args.page_id or "1409644015561854",
+            page_id=args.page_id or "me",
             limit_posts=args.limit_posts,
             max_replies_per_cycle=args.max_replies,
             dry_run=args.dry_run
@@ -1542,7 +1542,7 @@ def cmd_flow_post(args):
             print("\nPublishing post to Meta...")
             pub_res = fb_controller.publish_or_schedule(
                 target_type="page" if args.platform == "business_suite" else "profile",
-                target_id="1409644015561854" if args.platform == "business_suite" else "61592442011195",
+                target_id="me" if args.platform == "business_suite" else "me",
                 content_type=args.type,
                 media_paths=[pkg["media_path"]] if pkg.get("media_path") else None,
                 thumbnail_path=pkg.get("thumbnail_path"),
@@ -1652,7 +1652,7 @@ def main_cli():
     p_batch.add_argument("--platform", choices=["instagram", "facebook"], default="facebook", help="Platform")
     p_batch.add_argument("--type", choices=["photo", "reel", "text", "story"], default="photo", help="Content type")
     p_batch.add_argument("--target", default="profile", help="Target type: 'profile', 'feed', 'page', 'group'")
-    p_batch.add_argument("--target-id", default="61592442011195", help="Target ID (Default: Renuka Yadav profile)")
+    p_batch.add_argument("--target-id", default="me", help="Target ID (Default: Facebook User profile)")
     p_batch.add_argument("--file", type=str, default=None, help="JSON file containing array of post objects")
     p_batch.add_argument("--sample", type=int, default=15, help="Number of sample study/Loksewa posts to generate & schedule (Default: 15)")
     p_batch.add_argument("--min-gap", type=int, default=40, help="Minimum spacing in minutes (Default: 40)")
@@ -1848,7 +1848,7 @@ def main_cli():
     p_autoreply.add_argument("--toxic", type=str, default=None, help="Comma-separated toxic keywords (for add)")
     p_autoreply.add_argument("--comment", type=str, default=None, help="Comment text to test (for test)")
     p_autoreply.add_argument("--user", type=str, default="Ahmed", help="Commenter name (for test)")
-    p_autoreply.add_argument("--page-id", type=str, default="1409644015561854", help="Meta Business Suite Page ID (for run)")
+    p_autoreply.add_argument("--page-id", type=str, default="me", help="Meta Business Suite Page ID (for run)")
     p_autoreply.add_argument("--limit-posts", type=int, default=5, help="Number of recent posts to scan (for run)")
     p_autoreply.add_argument("--max-replies", type=int, default=20, help="Max replies per cycle (for run)")
     p_autoreply.add_argument("--dry-run", action="store_true", help="Simulate replies without posting")

@@ -70,14 +70,7 @@ function extractFacebookTokens() {
   let detectedPageId = assetIdFromUrl;
 
   if (isBizSuite) {
-    // A. Check for "Motivational Docqueen" in DOM / Composer / Preview / Switcher
-    const bodyText = document.body ? (document.body.innerText || "") : "";
-    if (/Motivational\s*Docqueen/i.test(bodyText) || /Motivational\s*Docqueen/i.test(html)) {
-      detectedPageName = "Motivational Docqueen";
-      if (!detectedPageId) detectedPageId = "1409644015561854";
-    }
-
-    // B. Check Composer "Post to" container or header text
+    // A. Check Composer "Post to" container or header text
     if (!detectedPageName) {
       const composerTitles = Array.from(document.querySelectorAll('div[aria-label*="preview" i] strong, div[aria-label*="Post to" i] span, div[role="combobox"] span, div[role="dialog"] h2, div[role="dialog"] h3'));
       for (const el of composerTitles) {
@@ -115,8 +108,8 @@ function extractFacebookTokens() {
 
     // E. Assemble discovered Business Suite Page
     if (detectedPageId || detectedPageName) {
-      const pId = detectedPageId || "1409644015561854";
-      const pName = detectedPageName || (pId === "1409644015561854" ? "Motivational Docqueen" : "Facebook Page");
+      const pId = detectedPageId || "me";
+      const pName = detectedPageName || (pId === "me" ? "Facebook Page" : "Facebook Page");
       pages.push({
         id: pId,
         name: pName,
@@ -125,11 +118,11 @@ function extractFacebookTokens() {
       hasNoPages = false;
     }
   } else {
-    // On regular www.facebook.com tabs, check if Motivational Docqueen / page ID is present
-    if (html.includes("Motivational Docqueen") || html.includes("1409644015561854")) {
+    // On regular www.facebook.com tabs, check if Facebook Page / page ID is present
+    if (html.includes("Facebook Page") || html.includes("me")) {
       pages.push({
-        id: "1409644015561854",
-        name: "Motivational Docqueen",
+        id: "me",
+        name: "Facebook Page",
         category: "Facebook Page"
       });
       hasNoPages = false;

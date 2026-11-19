@@ -190,8 +190,8 @@ class MetaViralSEOEngine:
             f"#{tag_base}" if tag_base else "#MindsetShift",
             "#DailyDiscipline",
             "#HighPerformance",
-            "#RenukaYadav",
-            "#MotivationalDocqueen"
+            "#Creator",
+            "#FacebookPage"
         ]
         # Clean & limit to max 5-6 tags
         final_hashtags = primary_hashtags[:5]

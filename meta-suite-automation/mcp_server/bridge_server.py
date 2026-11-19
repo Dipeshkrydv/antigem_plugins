@@ -172,7 +172,7 @@ class BridgeServer:
         # 3b. Supervisor Hard Lock triggered by Meta Block screen
         elif msg_type == "SUPERVISOR_HARD_LOCK":
             phrase = data.get("phrase", "Meta restriction screen")
-            acc_id = data.get("account_id", "61592442011195")
+            acc_id = data.get("account_id", "me")
             logger.critical("SUPERVISOR HARD LOCK received from extension! Reason: %s (Account: %s)", phrase, acc_id)
             self.db.set_all_jobs_pause_state(True)
             with self.db.get_connection() as conn:
@@ -601,8 +601,8 @@ class BridgeServer:
                 comment_text=comment,
                 commenter_name=user,
                 platform=platform,
-                target_page_id="1409644015561854",
-                page_name="Motivational Docqueen"
+                target_page_id="me",
+                page_name="Facebook Page"
             )
             await websocket.send(json.dumps({
                 "type": "AUTOREPLY_TEST_RESULT",
@@ -615,7 +615,7 @@ class BridgeServer:
             from mcp_server.autoreply_engine import autoreply_engine
             res = autoreply_engine.run_auto_reply_cycle(
                 platform=data.get("platform", "facebook"),
-                page_id=data.get("page_id", "1409644015561854"),
+                page_id=data.get("page_id", "me"),
                 limit_posts=data.get("limit_posts", 5),
                 max_replies_per_cycle=data.get("max_replies", 20),
                 dry_run=data.get("dry_run", True)
@@ -871,7 +871,7 @@ class BridgeServer:
             target_type = payload.get("target_type", "profile")
             target_id = payload.get("target_id")
             # If target_type is page or MBS, route to Meta Business Suite
-            is_mbs = target_type in ("page", "business_suite", "meta_business_suite") or (target_id and str(target_id) in ("1409644015561854", "1410480472148071"))
+            is_mbs = target_type in ("page", "business_suite", "meta_business_suite") or (target_id and str(target_id) in ("me", "me"))
             instruction = "AUTONOMOUS_BUSINESS_SUITE_POST" if is_mbs else "AUTONOMOUS_FACEBOOK_POST"
 
             post_type = payload.get("post_type", "photo")
@@ -957,8 +957,8 @@ class BridgeServer:
                 "logged_in": True,
                 "data": {
                     "logged_in": True,
-                    "id": "61592442011195",
-                    "name": "Renuka Yadav",
+                    "id": "me",
+                    "name": "Facebook User",
                     "type": "profile",
                     "url": "https://www.facebook.com/"
                 }

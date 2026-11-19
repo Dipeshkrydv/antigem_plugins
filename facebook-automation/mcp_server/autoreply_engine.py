@@ -39,8 +39,8 @@ class AutoReplyEngine:
         commenter_name: str,
         comment_text: str,
         platform: str = "facebook",
-        page_id: str = "1409644015561854",
-        page_name: str = "Motivational Docqueen",
+        page_id: str = "me",
+        page_name: str = "Facebook Page",
         dry_run: bool = False
     ) -> Dict[str, Any]:
         """
@@ -151,7 +151,7 @@ class AutoReplyEngine:
     def run_auto_reply_cycle(
         self,
         platform: str = "facebook",
-        page_id: str = "1409644015561854",
+        page_id: str = "me",
         limit_posts: int = 5,
         max_replies_per_cycle: int = 10,
         dry_run: bool = False

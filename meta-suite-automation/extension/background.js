@@ -335,11 +335,11 @@ async function syncBusinessSuiteSession() {
     // 1. Query active Business Suite tab(s)
     const tabs = await chrome.tabs.query({ url: "*://business.facebook.com/*" });
     for (const tab of tabs) {
-      // Direct URL Asset ID extraction (e.g. composer?asset_id=1409644015561854)
+      // Direct URL Asset ID extraction (e.g. composer?asset_id=me)
       const assetMatch = tab.url && tab.url.match(/[?&](?:asset_id|page_id)=(\d+)/);
       if (assetMatch) {
         const aId = assetMatch[1];
-        const pName = aId === "1409644015561854" ? "Motivational Docqueen" : (tab.title && !tab.title.includes("Meta") ? tab.title.split("|")[0].trim() : "Facebook Page");
+        const pName = aId === "me" ? "Facebook Page" : (tab.title && !tab.title.includes("Meta") ? tab.title.split("|")[0].trim() : "Facebook Page");
         if (!pages.some(p => p.id === aId)) {
           pages.unshift({ id: aId, name: pName, category: "Facebook Page" });
         }
@@ -383,11 +383,11 @@ async function syncBusinessSuiteSession() {
       }
     }
 
-    // 3. Grounded Fallback: User's verified Facebook Page "Motivational Docqueen"
-    if (pages.length === 0 && (cUser === "61592442011195" || String(cUser).length >= 10)) {
+    // 3. Grounded Fallback: User's verified Facebook Page "Facebook Page"
+    if (pages.length === 0 && (cUser === "me" || String(cUser).length >= 10)) {
       pages.push({
-        id: "1409644015561854",
-        name: "Motivational Docqueen",
+        id: "me",
+        name: "Facebook Page",
         category: "Facebook Page"
       });
     }
@@ -402,7 +402,7 @@ async function syncBusinessSuiteSession() {
     const businessSuiteStatus = effectiveHasPages ? "online" : "no_pages";
     const statusLabel = effectiveHasPages ? "Online" : "No Pages Linked";
     const userDisplay = effectiveHasPages
-      ? (pages[0].name || "Motivational Docqueen")
+      ? (pages[0].name || "Facebook Page")
       : "Personal Account (No Pages)";
 
     const payload = {
@@ -480,11 +480,11 @@ async function syncInstagramSession() {
       if (stored.igUser && stored.igUser !== dsUserId && !/^\d+$/.test(stored.igUser)) {
         realHandle = stored.igUser;
       } else {
-        realHandle = "renukayadav";
+        realHandle = "creator";
       }
     }
 
-    const finalHandle = (realHandle || "renukayadav").replace(/^@/, "");
+    const finalHandle = (realHandle || "creator").replace(/^@/, "");
 
     const payload = {
       type: "SESSION_SYNC",
@@ -557,12 +557,12 @@ async function syncFacebookSession() {
       const stored = await new Promise(r => chrome.storage.local.get(["bridgeState"], res => r(res.bridgeState || {})));
       if (stored.fbUser && stored.fbUser !== cUser && !/^\d+$/.test(stored.fbUser)) {
         realName = stored.fbUser;
-      } else if (cUser === "61592442011195") {
-        realName = "Renuka Yadav";
+      } else if (cUser === "me") {
+        realName = "Facebook User";
       }
     }
 
-    const finalName = realName || "Renuka Yadav";
+    const finalName = realName || "Facebook User";
 
     const payload = {
       type: "SESSION_SYNC",
@@ -1083,7 +1083,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         type: "SUPERVISOR_HARD_LOCK",
         phrase: msg.phrase,
         url: msg.url,
-        account_id: "61592442011195",
+        account_id: "me",
         platform: "facebook"
       }));
     }

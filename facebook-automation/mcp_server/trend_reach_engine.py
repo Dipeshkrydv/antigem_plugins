@@ -2363,7 +2363,7 @@ class DeepGlobalTrendEngine:
             punchline = PUNCHLINES[(idx - 1) % len(PUNCHLINES)]
             hashtags = f"#{tag_base} #AIGrowth #TechTrends #FutureOfWork #MetaSuite"
 
-            # Facebook post format (Renuka Yadav profile feed)
+            # Facebook post format (Facebook User profile feed)
             fb_text = (
                 f"{hook}\n\n"
                 f"{t1}\n\n"
@@ -2375,7 +2375,7 @@ class DeepGlobalTrendEngine:
                 f"{hashtags}"
             )
 
-            # Instagram caption format (@renukayadav)
+            # Instagram caption format (@creator)
             ig_text = (
                 f"⚡ {hook}\n\n"
                 f"📌 Key Takeaways:\n"

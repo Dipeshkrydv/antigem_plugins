@@ -40,8 +40,8 @@ function initPopup() {
       if (state.fbLoggedIn) {
         fbStatus.className = "account-status status-online";
         fbStatus.textContent = "Online";
-        const fbName = state.fbUser || "Renuka Yadav";
-        const fbId = state.fbId || "61592442011195";
+        const fbName = state.fbUser || "Facebook User";
+        const fbId = state.fbId || "me";
         if (popupFbName) popupFbName.textContent = fbName;
         if (popupFbSub) popupFbSub.textContent = `Profile ID: ${fbId}`;
       } else {
@@ -57,8 +57,8 @@ function initPopup() {
       if (state.igLoggedIn) {
         igStatus.className = "account-status status-online";
         igStatus.textContent = "Online";
-        const handle = state.igUser ? (state.igUser.startsWith("@") ? state.igUser : `@${state.igUser}`) : "@renukayadav";
-        const igId = state.igId || "43599208749";
+        const handle = state.igUser ? (state.igUser.startsWith("@") ? state.igUser : `@${state.igUser}`) : "@creator";
+        const igId = state.igId || "me";
         if (popupIgName) popupIgName.textContent = handle;
         if (popupIgSub) popupIgSub.textContent = `User ID: ${igId}`;
       } else {
@@ -75,13 +75,13 @@ function initPopup() {
         bizStatus.className = "account-status status-online";
         bizStatus.textContent = "Online";
         const p = state.businessSuitePages[0];
-        if (popupBizName) popupBizName.textContent = `Page: ${p.name || "Motivational Docqueen"}`;
+        if (popupBizName) popupBizName.textContent = `Page: ${p.name || "Facebook Page"}`;
         if (popupBizSub) popupBizSub.textContent = `Page ID: ${p.id}`;
       } else if (state.businessSuiteStatus === "no_pages" || state.businessSuiteHasNoPages || (state.fbLoggedIn && (!state.businessSuitePages || state.businessSuitePages.length === 0))) {
         bizStatus.className = "account-status status-warning";
         bizStatus.textContent = "No Pages Linked";
         if (popupBizName) popupBizName.textContent = "Meta Business Suite";
-        const owner = state.fbUser || "Renuka Yadav";
+        const owner = state.fbUser || "Facebook User";
         if (popupBizSub) popupBizSub.textContent = `Personal Profile (${owner}) • No Pages`;
       } else {
         bizStatus.className = "account-status status-offline";

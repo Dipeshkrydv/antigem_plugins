@@ -1,8 +1,8 @@
 {
   "name": "meta-suite-automation",
-  "displayName": "Meta Suite & Social Autopilot",
+  "displayName": "Meta Suite Page Management",
   "version": "2.0.0",
-  "description": "Master Autonomous Meta Suite Production Engine (v2.0.0): Meta Business Suite scheduler for Motivational Docqueen (1409644015561854), Instagram (@renukayadav: 43599208749), custom Reel covers & video thumbnails, DeepX Google Flow AI bridge, and 2M-20M viral recommendation algorithms.",
+  "description": "Master Autonomous Meta Suite Production Engine (v2.0.0): Enterprise Meta Business Suite Facebook Page management, dual-mode native & local queue scheduler, custom Reel covers & video thumbnails, DeepX Google Flow AI bridge, anti-ad organic shield, and 2M-20M viral recommendation algorithms.",
   "logo": "icon.png",
   "author": {
     "name": "Dipesh Kr Yadav",
@@ -11,7 +11,8 @@
   "keywords": [
     "meta",
     "meta business suite",
-    "instagram",
+    "facebook pages",
+    "page management",
     "social automation",
     "deepx",
     "google flow",
@@ -20,8 +21,8 @@
     "video thumbnail"
   ],
   "suggestedPrompts": [
-    "Post or schedule a viral reel to Motivational Docqueen with a custom thumbnail",
-    "Publish a high-CTR photo post to Instagram @renukayadav",
+    "Post or schedule a viral reel to your managed Facebook Page with a custom thumbnail",
+    "Schedule a multi-post content marathon across peak audience windows",
     "Generate a viral SEO package and schedule posts via Meta Business Suite"
   ],
   "homepage": "https://github.com/Dipeshkrydv/antigem_plugins",

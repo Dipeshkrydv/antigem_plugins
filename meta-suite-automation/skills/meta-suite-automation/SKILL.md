@@ -1,30 +1,31 @@
 ---
 name: meta-suite-automation
-description: "Master Autonomous Meta Suite Production Engine (v2.0.0). Direct Meta Business Suite scheduler for Motivational Docqueen (Asset ID: 1409644015561854), Facebook Personal Profile (Renuka Yadav: 61592442011195), and Instagram (@renukayadav: 43599208749). Enforces 1-click publishing & scheduling of Reels (9:16), Long Videos (16:9), Photos, Stories, and Text with custom video thumbnails/covers, in-memory DataTransfer injection, <100ms synthetic clipboard paste, anti-ad organic shield, anti-comment box firewall, and 100% script-fidelity DeepX Google Flow AI media generation."
+description: "Master Autonomous Meta Suite Production Engine (v2.0.0). Enterprise Meta Business Suite Facebook Page management and scheduling engine. Enforces 1-click publishing & scheduling of Page Reels (9:16), Long Videos (16:9), Photos, Stories, and Announcements with custom video thumbnails/covers, in-memory DataTransfer injection, <100ms synthetic clipboard paste, anti-ad organic shield, anti-comment box firewall, and 100% script-fidelity DeepX Google Flow AI media generation."
 ---
 
-# Master Meta Suite Automation Skill (v2.0.0)
+# Master Meta Suite Page Management Engine (v2.0.0)
 
-The definitive autonomous production, publishing, and scheduling engine for Meta Business Suite, Facebook Personal Profile, Instagram, and connected creator platforms.
+The definitive autonomous production, publishing, and scheduling engine dedicated 100% to **Facebook Page Management via Meta Business Suite**.
 
 ---
 
 ## 0. Instant Architecture & Zero Overhead (CRITICAL)
 
 - **WebSocket Bridge**: Active and listening at `ws://127.0.0.1:8765` (connecting the Python FastMCP server to the Chrome Extension).
-- **DeepX Google Flow Bridge**: Active and listening at `ws://127.0.0.1:8792/ws` (generating high-impact post visuals, viral thumbnails, and Veo 3.1 video reels with 100% script and prompt fidelity).
+- **DeepX Google Flow Bridge**: Active and listening at `ws://127.0.0.1:8792/ws` (generating high-impact page visuals, viral thumbnails, and Veo 3.1 video reels with 100% script and prompt fidelity).
 - **Background Scheduler Daemon**: Running via SQLite WAL (`meta_suite.db`) and APScheduler with automatic 30-second execution ticks.
-- **ZERO Manual Interruption**: Never prompt the user to open Facebook, Meta Business Suite, or Chrome tabs manually. All operations run directly in the background.
+- **ZERO Manual Interruption**: Never prompt the user to open Meta Business Suite or Chrome tabs manually. All operations run directly in the background.
 
 ---
 
-## 1. Grounded Accounts & Destination Routing
+## 1. Managed Facebook Page Routing & Asset Discovery
 
-| Target Platform | Identity / Handle | Asset / Profile ID | Routing Parameters |
+| Target Surface | Destination | Routing Parameters | Capabilities |
 | :--- | :--- | :--- | :--- |
-| **Meta Business Suite Page** | **Motivational Docqueen** | **`1409644015561854`** | `target_type: "page"`, `target_id: "1409644015561854"` |
-| **Facebook Personal Profile** | **Renuka Yadav** | **`61592442011195`** | `target_type: "profile"`, `target_id: "61592442011195"` |
-| **Instagram Account** | **@renukayadav** (`renukaydv624`) | **`43599208749`** | `target_type: "instagram"`, `target_id: "43599208749"` |
+| **Meta Business Suite Page** | Managed Facebook Page | `target_type: "page"`, `target_id: "me"` (or `<page_id>`) | Dedicated Page composer, organic reach, multi-page selection |
+
+- **Dynamic Page Discovery**: Automatically detects connected Facebook Pages from the active Meta Business Suite session (`business.facebook.com`).
+- **Target Selection**: Use `target_id="me"` for the primary/currently active page, or specify the numerical `page_id` when managing multiple business pages.
 
 ---
 
@@ -77,11 +78,11 @@ The definitive autonomous production, publishing, and scheduling engine for Meta
 ## 5. 1-Call Autonomous Dispatch Protocol
 
 Keep reasoning under 2 seconds and dispatch directly:
-1. **Publish to Motivational Docqueen Page**:
+1. **Publish to Facebook Page Page**:
    ```python
    fb_publish(
        target_type="page",
-       target_id="1409644015561854",
+       target_id="me",
        post_type="photo",
        media_paths=["latest"],
        title="The Power of Relentless Focus",
@@ -93,7 +94,7 @@ Keep reasoning under 2 seconds and dispatch directly:
    ```python
    fb_schedule(
        target_type="page",
-       target_id="1409644015561854",
+       target_id="me",
        post_type="reel",
        media_paths=["/path/to/reel_video.mp4"],
        thumbnail_path="/path/to/cover_image.png",
