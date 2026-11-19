@@ -1,9 +1,9 @@
 ---
 name: meta-suite-automation
-description: "Master Autonomous Meta Suite Production Engine (v2.1.0). Enterprise Meta Business Suite Facebook Page management and scheduling engine. Enforces 1-click publishing & scheduling of Page Reels (9:16), Long Videos (16:9), Photos, Stories, and Announcements with custom video thumbnails/covers, in-memory DataTransfer injection, <100ms synthetic clipboard paste, anti-ad organic shield, anti-comment box firewall, and 100% script-fidelity DeepX Google Flow AI media generation."
+description: "Master Autonomous Meta Suite Production Engine (v2.1.1). Enterprise Meta Business Suite Facebook Page management and scheduling engine. Enforces 1-click publishing & scheduling of Page Reels (9:16), Long Videos (16:9), Photos, Stories, and Announcements with custom video thumbnails/covers, in-memory DataTransfer injection, <100ms synthetic clipboard paste, anti-ad organic shield, anti-comment box firewall, and 100% script-fidelity DeepX Google Flow AI media generation."
 ---
 
-# Master Meta Suite Page Management Engine (v2.1.0)
+# Master Meta Suite Page Management Engine (v2.1.1)
 
 The definitive autonomous production, publishing, and scheduling engine dedicated 100% to **Facebook Page Management via Meta Business Suite**. Zero delays. Zero questions. Zero friction.
 
@@ -22,10 +22,15 @@ result = fb_status()
 
 | `result.logged_in` | Action |
 |---|---|
-| `true` | Confirm connection cleanly. STRICTLY DO NOT ask post or reel questions. ONLY ASK: *"Do you want to use Agent Mode for asset generation, or not?"* |
+| `true` | Confirm connection cleanly. STRICTLY DO NOT ask post or reel questions. If the user tells to generate a design or post, ask ONLY: *"Do you want to use Agent Mode for asset generation, or not?"* |
 | `false` | Call `fb_open_browser()` once → ask user to sign in once → STOP until confirmed |
 
-**ZERO post/reel questioning.** NEVER ask "What would you like to post today?" or "Do you want a post or reel?". ONLY verify login, and ask if the user wants Agent Mode for asset generation.
+**ZERO post/reel questioning.** NEVER ask "What would you like to post today?" or "Do you want a post or reel?".
+**WHEN THE USER TELLS TO GENERATE A DESIGN OR POST:**
+Ask ONLY: *"Do you want to use Agent Mode for asset generation, or not?"*
+
+**MANDATORY GOOGLE FLOW GENERATION:**
+ALWAYS use Google Flow (`deepx-flow` / `gemini-nano-banana-2.1` for designs, photos, and thumbnails; `veo-3.1` for video reels). Never use PIL, OpenCV, or external mock generators.
 
 ---
 
@@ -105,9 +110,16 @@ fb_publish(
 
 ---
 
-## 3. DeepX Auto-Routing (AI Media Generation → Publish Pipeline)
+## 3. Mandatory Google Flow Engine for All Design & Video Generation (COMPULSORY)
 
-**Trigger detection (ANY of these phrases → auto-route to DeepX):**
+**ALWAYS USE GOOGLE FLOW FOR ALL DESIGN AND VIDEO GENERATION:**
+- Strictly zero Python PIL / OpenCV mock thumbnail rendering.
+- Strictly zero external fallback image renderers.
+- **Designs & Photo Posts** → DeepX Google Flow (🍌 Nano Banana 2.1 / `deepx_meta_generate_design` or `deepx_generate_image`).
+- **Custom Thumbnails** → DeepX Google Flow (`deepx_meta_generate_thumbnail`).
+- **Video Reels & Promos** → DeepX Google Flow (Veo 3.1 / `deepx_meta_generate_video` or `deepx_generate_video`).
+
+**Trigger detection (ANY of these phrases → auto-route to Google Flow via DeepX):**
 - "generate image", "make a photo", "create visual", "design a post", "redesign", "make it engaging", "edit this photo", "create thumbnail", "make thumbnail", "AI image", "generate thumbnail", "create a reel visual", "make video", "create promo video"
 
 **Auto-routing decision:**
@@ -117,6 +129,9 @@ fb_publish(
 | Design / photo post | `deepx_meta_generate_design(prompt=<desc>, aspect_ratio="1:1" or "9:16")` | Auto-attach result to `fb_publish` |
 | Thumbnail for video/reel | `deepx_meta_generate_thumbnail(prompt=<desc>, format="16:9" or "9:16")` | Auto-attach to `fb_publish` / `fb_publish_reel` as `thumbnail_path` |
 | Promo / reel video | `deepx_meta_generate_video(prompt=<desc>, aspect_ratio="9:16", duration=10)` | Auto-attach to `fb_publish_reel` |
+
+**When Agent Mode is selected:**
+DeepX Google Flow executes the generation autonomously and pipes the resulting asset directly into `fb_publish` / `fb_publish_reel` in full unbroken autopilot.
 
 **Pipeline — zero pauses between generation and publishing:**
 ```
@@ -202,7 +217,7 @@ Every publication or scheduling action on Meta Business Suite MUST execute in th
 
 1. **Step 1 — Instant `fb_status` Check (ALWAYS FIRST, NO EXCEPTIONS)**
    - Call `fb_status()` immediately as the literal first tool call.
-   - If `logged_in: true` → confirm connected, ask ONLY: *"Do you want to use Agent Mode for asset generation, or not?"*, and proceed. Never ask post or reel questions.
+   - If `logged_in: true` → confirm connected cleanly. If user tells to generate design or post, ask ONLY: *"Do you want to use Agent Mode for asset generation, or not?"*, and proceed. Never ask post or reel questions.
    - If `logged_in: false` → call `fb_open_browser()` once, ask user to sign in once, STOP.
    - **NEVER ask status before calling `fb_status`.** The check is instant (<100ms).
 
@@ -210,10 +225,10 @@ Every publication or scheduling action on Meta Business Suite MUST execute in th
    - Confirm routing: `target_type="page"`, `target_id="me"` (or numerical Page ID).
    - Direct all actions strictly to the managed Page composer in Meta Business Suite.
 
-3. **Step 3 — Content Preparation & Anti-Duplicate Check**
+3. **Step 3 — Content Preparation, Google Flow AI Media Generation & Anti-Duplicate Check**
    - Structure viral SEO package: Title + multiline description (`\n\n` preserved) + 3 to 6 targeted `#Hashtags`.
    - Verify SHA-256 hash against published content and queued jobs to prevent duplicate uploads.
-   - If user requests AI content → call DeepX tools NOW before step 4.
+   - **For all visual design and video generation, ALWAYS invoke Google Flow** (`deepx_meta_generate_design` / `deepx_meta_generate_thumbnail` / `deepx_meta_generate_video`).
 
 4. **Step 4 — In-Memory Asset & Custom Thumbnail / Cover Injection**
    - Ingest media files via in-memory `DataTransfer` buffer directly in RAM (<400ms).
