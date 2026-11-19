@@ -3,11 +3,11 @@
   "displayName": "2D Video Editing Studio",
   "version": "3.3.1",
   "description": "Master Autonomous 2D Video Director & Production Engine (v3.3.1): Google Flow Agent Mode & Batch Dispatch, Anti-Offline Server Shield, 52-89 FPS High-Speed Render Presets, Instant Help CLI, 15-Minute Timeline Scaling Laws, Broadcast Vox explainers, Bento Box data cards, Stickman storytelling, and Multi-Domain Google Flow Bridge.",
+  "logo": "icon.png",
   "author": {
     "name": "Dipesh Kr Yadav",
     "url": "https://github.com/Dipeshkrydv/antigem_plugins"
   },
-  "icon": "icon.png",
   "homepage": "https://github.com/Dipeshkrydv/antigem_plugins",
   "repository": "https://github.com/Dipeshkrydv/antigem_plugins",
   "keywords": [

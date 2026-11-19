@@ -1,9 +1,20 @@
-
-assets/
-*.mp3
-*.m4a
-*.srt
-*.jpg
-*.png
+# Temporary / generated media assets
+assets/raw/
+assets/rendered/
+*.mp4
+*.m4v
+*.avi
+*.mov
+*.zip
+*.tar.gz
 *.db*
+*.db-wal
+*.db-shm
+__pycache__/
+*.pyc
 
+# Explicitly track brand logos and extension icons
+!icon.png
+!assets/logo.png
+!assets/logo.svg
+!extension/icons/

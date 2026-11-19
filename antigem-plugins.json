@@ -7,23 +7,26 @@
       "name": "2D Video Editing Studio",
       "version": "3.3.1",
       "description": "Senior Video Editor & Autonomous 2D Production Engine (v3.3.1): Google Flow Agent Mode & Batch Dispatch, Anti-Offline Server Shield, 52-89 FPS High-Speed Render Presets, Instant Help CLI, 15-Minute Timeline Scaling Laws, Broadcast Vox explainers, Bento Box data cards, Stickman storytelling, and Multi-Domain Google Flow Bridge.",
-      "icon": "icon.png"
+      "icon": "icon.png",
+      "logo": "assets/logo.png"
     },
     {
       "path": "facebook-automation",
       "id": "facebook-automation",
       "name": "Facebook Automation & SEO Studio",
-      "version": "1.6.0",
-      "description": "Pre-Trained Phone (Desktop-on-Phone www.facebook.com & Mobile Touch m.facebook.com) and Desktop Facebook Automation Engine (v1.6.0): Dedicated Feed Posts (Text/Photo/Carousel/Video), Anti-Comment Firewall (strictly never posts into comments), Reels (/reels/create + automatic mobile fallback + video event dispatch), Stories (/stories/create Photo/Video with overlay story_text & Text Story), Real Video/Reel Thumbnail & Cover Uploader, Multiline Formatted Caption Engine (Title + Description + Bullets + CTA + 3-6 #Hashtags), and Zero-Overthinking 1-Call Dispatch.",
-      "icon": "icon.png"
+      "version": "1.7.0",
+      "description": "Pre-Trained Phone (Desktop-on-Phone www.facebook.com & Mobile Touch m.facebook.com) and Desktop Facebook Automation Engine (v1.7.0): Dedicated Feed Posts (Text/Photo/Carousel/Video), Anti-Comment Firewall (strictly never posts into comments), Reels (/reels/create + automatic mobile fallback + video event dispatch), Stories (/stories/create Photo/Video with overlay story_text & Text Story), Real Video/Reel Thumbnail & Cover Uploader, Multiline Formatted Caption Engine (Title + Description + Bullets + CTA + 3-6 #Hashtags), and Zero-Overthinking 1-Call Dispatch.",
+      "icon": "icon.png",
+      "logo": "icon.png"
     },
     {
       "path": "meta-suite-automation",
       "id": "meta-suite-automation",
       "name": "Meta Suite Page Management",
-      "version": "2.0.0",
-      "description": "Master Autonomous Meta Suite Production Engine (v2.0.0): Enterprise Meta Business Suite Facebook Page management, dual-mode native & local queue scheduler, custom Reel covers & video thumbnails, DeepX Google Flow AI bridge, anti-ad organic shield, and 2M-20M viral recommendation algorithms.",
-      "icon": "icon.png"
+      "version": "2.1.0",
+      "description": "Master Autonomous Meta Suite Production Engine (v2.1.0): Enterprise Meta Business Suite Facebook Page management, 6-Step Sequential Order Execution Rule, dual-mode native & local queue scheduler, custom Reel covers & video thumbnails, DeepX Google Flow AI bridge, anti-ad organic shield, and 2M-20M viral recommendation algorithms.",
+      "icon": "icon.png",
+      "logo": "assets/logo.png"
     }
   ]
 }
