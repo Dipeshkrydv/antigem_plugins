@@ -56,7 +56,7 @@ async def fb_status(open_browser: bool = True) -> Dict[str, Any]:
     NOTE: When publishing, do NOT call fb_status first—call fb_publish directly in 1 step!
     """
     connected = bridge.is_connected()
-    due_jobs = db.get_due_jobs()
+    due_jobs = db.list_upcoming_jobs() if hasattr(db, "list_upcoming_jobs") else []
     recent = db.list_posts(limit=5)
     login_info = await controller.get_login_status() if (connected and open_browser) else {"logged_in": False}
     return {
@@ -191,7 +191,8 @@ async def fb_resume_pending() -> Dict[str, Any]:
 
 @mcp.tool()
 async def fb_schedule(
-    run_at_timestamp: float,
+    run_at_timestamp: Optional[float] = None,
+    schedule_time_iso: Optional[str] = None,
     caption: str = "",
     title: Optional[str] = None,
     hashtags: Optional[List[str]] = None,
@@ -200,12 +201,24 @@ async def fb_schedule(
     post_type: str = "text",
     target_type: str = "profile",
     target_id: Optional[str] = None,
-    story_text: Optional[str] = None
+    story_text: Optional[str] = None,
+    use_native_meta_scheduler: bool = False
 ) -> Dict[str, Any]:
     """
     Schedule a Facebook post, reel, or story for future publication.
+    Enqueues the job into the SQLite APScheduler queue (or native Meta Business Suite scheduler).
+    Accepts either `schedule_time_iso` (e.g. '2026-11-19T10:00:00Z') or `run_at_timestamp` (epoch float).
     Always enforces a viral Title (`title`), formatted multiline Description, and 3-6 `#Hashtags` (`hashtags`) for posts/videos/reels, or clean `story_text` for Stories.
     """
+    from datetime import datetime, timezone, timedelta
+    target_iso = None
+    if schedule_time_iso:
+        target_iso = schedule_time_iso
+    elif run_at_timestamp:
+        target_iso = datetime.fromtimestamp(run_at_timestamp, tz=timezone.utc).isoformat()
+    else:
+        target_iso = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+
     enriched = FacebookSEO.ensure_title_and_hashtags(
         caption=caption,
         title=title,
@@ -218,26 +231,42 @@ async def fb_schedule(
     if is_dup:
         return {"success": False, "error": dup_reason, "duplicate_detected": True, "stop_loop": True}
 
-    client_id = f"sched_{int(run_at_timestamp)}"
-    post_id = db.record_post(
-        client_id=client_id,
-        post_type=post_type,
-        caption=final_caption,
-        media_paths=media_paths or [],
-        target_type=target_type,
-        target_id=target_id,
-        status="scheduled"
-    )
-    job_id = db.schedule_post(post_id, run_at_timestamp)
-    return {
-        "success": True,
-        "message": f"Post scheduled for timestamp {run_at_timestamp}",
-        "post_id": post_id,
-        "job_id": job_id,
+    payload = {
+        "media_paths": media_paths or [],
         "title": enriched["title"],
+        "caption": final_caption,
+        "description": final_caption,
         "hashtags": enriched["hashtags"],
-        "thumbnail_path": thumbnail_path
+        "thumbnail_path": thumbnail_path,
+        "story_text": story_text,
+        "auto_publish": True,
+        "bypass_spacing": False
     }
+
+    try:
+        res = scheduler.schedule_job(
+            platform="facebook",
+            target_type=target_type or "profile",
+            target_id=target_id,
+            content_type=post_type,
+            payload=payload,
+            schedule_time_iso=target_iso,
+            use_native_meta_scheduler=use_native_meta_scheduler
+        )
+        return {
+            "success": True,
+            "message": f"Post scheduled successfully for {target_iso}",
+            "job_id": res.get("job_id"),
+            "schedule_time_iso": target_iso,
+            "mode": res.get("mode", "local_sqlite_queue"),
+            "title": enriched["title"],
+            "hashtags": enriched["hashtags"],
+            "thumbnail_path": thumbnail_path,
+            "target_type": target_type,
+            "target_id": target_id
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e), "stop_loop": True}
 
 
 @mcp.tool()

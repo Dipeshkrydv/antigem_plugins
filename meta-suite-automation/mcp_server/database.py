@@ -392,6 +392,23 @@ class Database:
                 jobs.append(d)
             return jobs
 
+    def get_due_jobs(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Alias to list_upcoming_jobs for backward compatibility."""
+        return self.list_upcoming_jobs(limit=limit)
+
+    def schedule_post(self, post_id: int, run_at_timestamp: float) -> int:
+        """Alias to create_scheduled_job for backward compatibility."""
+        from datetime import datetime, timezone
+        schedule_iso = datetime.fromtimestamp(run_at_timestamp, tz=timezone.utc).isoformat()
+        return self.create_scheduled_job(
+            platform="facebook",
+            target_type="profile",
+            target_id=None,
+            content_type="photo",
+            payload={"post_id": post_id, "auto_publish": True},
+            schedule_time_iso=schedule_iso
+        )
+
     def list_scheduled_jobs(self, limit: int = 100, status: Optional[str] = None) -> List[Dict[str, Any]]:
         with self.get_connection() as conn:
             cursor = conn.cursor()
