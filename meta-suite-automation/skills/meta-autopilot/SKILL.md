@@ -57,33 +57,34 @@ When formatting any post caption:
 
 ---
 
-## 4. Execution Workflow (Step-by-Step)
+## 4. Execution Workflow (Step-by-Step Order Rule)
 
-When the user says "Post X to Facebook Page" or "Schedule Page Reel for tomorrow":
+Every publication or scheduling action on Meta Business Suite MUST execute in this exact, immutable order:
 
-### Step 1: Detect Page Target
-- Target: `target_type="page"`, `target_id="me"` (or user-specified numerical Facebook Page ID).
+### Step 1: Meta Business Suite Login & Session Verification (FIRST STEP)
+- Check and verify active login session on `business.facebook.com`.
+- If unauthenticated, open the browser for one-time login verification and wait for user completion. Never spam login checks or proceed with unauthenticated tabs.
+
+### Step 2: Managed Facebook Page Target Selection
+- Confirm target routing: `target_type: "page"`, `target_id: "me"` (or user-specified numerical Facebook Page ID).
 - All posting via Meta Suite Autopilot routes directly into the managed Page composer in Meta Business Suite.
 
-### Step 2: Prepare Media (if needed)
-- If media is supplied (e.g. `/path/to/video.mp4`): Validate format (auto-conforms to JPEG/MP4).
+### Step 3: Content Preparation & Anti-Duplicate Check
+- Structure viral SEO package: punchy Title, formatted description (`\n\n` linebreaks preserved), and 3 to 6 targeted `#Hashtags`.
+- Compute SHA-256 hash of media and text; verify against recent posts to guarantee zero duplicate submissions.
+
+### Step 4: In-Memory Asset & Custom Thumbnail / Cover Injection
+- If media is supplied (e.g. `/path/to/video.mp4`): Ingest via in-memory `DataTransfer` buffer directly in RAM (<400ms).
 - If creative media requested: Generate high-impact visuals via DeepX Google Flow bridge (`ws://127.0.0.1:8792/ws`).
+- For Video/Reel: Open **Edit Video -> Thumbnail** or **Reel Cover -> Upload cover** and upload custom thumbnail (strictly never attach as a second post photo).
 
-### Step 3: Format Viral SEO Caption
-- Synthesize engaging caption with hook, bullet points, CTA, and 3-6 targeted hashtags.
+### Step 5: Anti-Ad Organic Shield Verification
+- Inspect and confirm that the "Make this an ad post" switch is strictly **OFF** for 100% organic algorithmic distribution.
 
-### Step 4: Dispatch Post in Background
-- For Page Post / Video / Reel:
-  - Call MCP tool `fb_publish` (with `target_type="page"`) OR run `python3 cli.py post --platform facebook --target page --target-id me --caption "..." --force`.
-- For Page Scheduling:
-  - Supply ISO-8601 UTC timestamp `schedule_time_iso` to enqueue into the SQLite APScheduler queue (or native Meta scheduler).
-
-### Step 5: Report Clean Confirmation
-- Report clean, human-friendly confirmation:
-  - Platform: `Facebook Page (Meta Business Suite)`
-  - Content summary and hashtags
-  - Immediate publication status or scheduled date/time
-  - Job ID or published link (if available)
+### Step 6: Synthetic Paste & Final Publish or Schedule
+- Paste formatted text into the Page Create Post dialog using synthetic clipboard paste (<100ms). Strictly avoid feed comment boxes.
+- **Immediate Post**: Call `fb_publish(target_type="page", ...)` or click the native **"Publish"** button.
+- **Scheduled Post**: Call `fb_schedule(target_type="page", ...)` with `schedule_time_iso` or toggle the native **"Set date and time"** switch, configure timestamp, and click **"Schedule"**.
 
 ---
 

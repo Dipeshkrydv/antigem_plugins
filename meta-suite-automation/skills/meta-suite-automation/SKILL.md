@@ -104,3 +104,28 @@ Keep reasoning under 2 seconds and dispatch directly:
        hashtags=["#ReelsViral", "#Focus", "#Discipline"]
    )
    ```
+
+---
+
+## 6. Mandatory Sequential Execution Order Rule (STRICT WORKFLOW PIPELINE)
+
+Every publication or scheduling action on Meta Business Suite MUST execute in this exact, immutable order:
+
+1. **Step 1: Meta Business Suite Login & Session Verification (FIRST STEP)**
+   - Check and verify active login session on `business.facebook.com`.
+   - If unauthenticated, open browser for one-time login verification and wait for user completion. Never spam login checks.
+2. **Step 2: Managed Facebook Page Target Selection**
+   - Confirm routing: `target_type="page"`, `target_id="me"` (or numerical Page ID).
+   - Direct all actions strictly to the managed Page composer in Meta Business Suite.
+3. **Step 3: Content Preparation & Anti-Duplicate Check**
+   - Structure viral SEO package: Title + multiline description (`\n\n` preserved) + 3 to 6 targeted `#Hashtags`.
+   - Verify SHA-256 hash against published content and queued jobs to prevent duplicate uploads.
+4. **Step 4: In-Memory Asset & Custom Thumbnail / Cover Injection**
+   - Ingest media files via in-memory `DataTransfer` buffer directly in RAM (<400ms).
+   - For Video/Reel: Open **Edit Video -> Thumbnail** or **Reel Cover -> Upload cover** and upload custom thumbnail (strictly never attach as a second post photo).
+5. **Step 5: Anti-Ad Organic Shield Verification**
+   - Inspect and confirm that the "Make this an ad post" switch is strictly **OFF** for 100% organic algorithmic distribution.
+6. **Step 6: Synthetic Paste & Final Publish or Schedule**
+   - Paste formatted text into the Page Create Post dialog using synthetic clipboard paste (<100ms). Strictly avoid feed comment boxes.
+   - **Immediate Post**: Click the native **"Publish"** button.
+   - **Scheduled Post**: Toggle the native **"Set date and time"** switch, configure the scheduled date/time, and click **"Schedule"**.

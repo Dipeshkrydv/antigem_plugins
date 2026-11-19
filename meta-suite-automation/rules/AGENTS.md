@@ -53,3 +53,27 @@
 ## 5. Anti-Ad Organic Shield & Anti-Duplicate Protection
 - **Pure Organic Placement**: In Meta Business Suite, ensure the "Make this an ad post" switch is strictly OFF.
 - **Anti-Duplicate Shield**: Automatically check SHA-256 hash and recent posts to prevent duplicate uploads on managed pages.
+
+---
+
+## 6. Mandatory Sequential Execution Order Rule (STRICT WORKFLOW PIPELINE)
+Every upload, publication, or scheduling action on Meta Business Suite MUST execute in this exact, immutable order:
+
+1. **Step 1: Meta Business Suite Login & Session Verification (FIRST STEP)**:
+   - Check and verify active login session on `business.facebook.com`.
+   - If not logged in, trigger one-time browser login, prompt the user once to sign in inside the open tab, and halt further posting actions until verified. Never loop login checks.
+2. **Step 2: Managed Facebook Page Target Selection**:
+   - Confirm target routing: `target_type: "page"`, `target_id: "me"` (or explicit Page ID).
+   - Ensure the automation targets the managed Page's composer dialog, never a personal feed.
+3. **Step 3: Content Preparation & Anti-Duplicate Check**:
+   - Format viral SEO package: punchy Title, formatted multiline description (`\n\n` linebreaks preserved), and 3 to 6 targeted `#Hashtags`.
+   - Compute SHA-256 hash of media and text; verify against recent posts to guarantee zero duplicate submissions.
+4. **Step 4: In-Memory Asset & Custom Thumbnail / Cover Injection**:
+   - Ingest media files via in-memory `DataTransfer` buffer directly in RAM (<400ms), suppressing OS file dialogs.
+   - For Video/Reel: Open **Edit Video -> Thumbnail** or **Reel Cover -> Upload cover** and upload custom thumbnail (strictly never attach as a second post photo).
+5. **Step 5: Anti-Ad Organic Shield Verification**:
+   - Inspect and confirm that the "Make this an ad post" switch is strictly **OFF** for 100% organic algorithmic distribution.
+6. **Step 6: Synthetic Paste & Final Publish or Schedule**:
+   - Paste formatted text into the Page Create Post dialog using synthetic clipboard paste (<100ms). Strictly avoid feed comment boxes.
+   - **Immediate Post**: Click the native **"Publish"** button.
+   - **Scheduled Post**: Toggle the native **"Set date and time"** switch, configure the scheduled date/time, and click **"Schedule"**.
