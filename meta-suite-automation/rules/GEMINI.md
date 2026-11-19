@@ -15,13 +15,12 @@
   - The call takes <100ms. It answers everything.
 - **If `logged_in: true`**:
   - Skip ALL login prompts entirely.
-  - Confirm connection and authentication cleanly.
-  - **STRICT BAN ON POST OR REEL QUESTIONS**: NEVER ask "What would you like to post today?", "Do you want to create a post or reel?", or ask content format questions.
-  - **WHEN THE USER TELLS TO GENERATE A DESIGN OR POST**:
-    - Ask ONLY: *"Do you want to use Agent Mode for asset generation, or not?"*
+  - Move immediately to the next step.
+  - Ask ONE clean, grammatical one-line question:
+    > *"What would you like to create or schedule today for your Facebook Page?"*
 - **If `logged_in: false`**:
   - Call `fb_open_browser()` once.
-  - Ask the user to sign in one time.
+  - Tell the user to log in to Meta Business Suite once.
   - Stop and wait — never loop, never ask again.
 - **NEVER ask "are you logged in?", "should I check the bridge?", or "want me to connect?" before calling `fb_status`.**
 
@@ -36,19 +35,16 @@
 
 ---
 
-## 2. Full Autopilot Mode — Zero Alignment Questions (CRITICAL)
-- **PROHIBITED questions**:
-  - "What would you like to post today?"
-  - "Do you want a post or reel?"
+## 2. Follow User Intent in Full Autopilot Mode (CRITICAL)
+- Once the user answers what to do, execute their exact request with zero friction:
+  - **Asset & Media Generation**: ALWAYS use **Google Flow** (`gemini-nano-banana-2.1` for designs, photos, and thumbnails via `deepx_meta_generate_design` / `deepx_generate_image` / `deepx_meta_generate_thumbnail`; `veo-3.1` for video reels and motion promos via `deepx_meta_generate_video` / `deepx_generate_video`). Strictly zero Python PIL / OpenCV mock thumbnail rendering.
+  - **New Trend & Topic Search**: ALWAYS use the **Python Trend Search Engine** (`core/trends.py` or `python cli.py trends` scanning YouTube/Google Trends, Twitter/X, and Reddit in real time) to discover breakout viral topics, curiosity scores (0-100), and 5-stage concept blueprints.
+  - **Publishing & Scheduling**: Pipe generated assets directly into `fb_publish`, `fb_publish_reel`, `fb_publish_story`, or `fb_schedule` without intermediate pauses or re-asking for confirmation.
+- **Prohibited questions**:
   - "Should I post this?"
   - "Do you want me to publish it now?"
   - "Shall I proceed?"
   - "Do you want a custom caption?"
-  - "Should I schedule or post immediately?"
-- **ALLOWED questions**:
-  - Only ask login if `logged_in: false`.
-  - When user tells to generate design or post → ask ONLY: *"Do you want to use Agent Mode for asset generation, or not?"*
-  - If user explicitly says "schedule it" but gives no time → "What time should I schedule it?"
 - **When user says "post it", "publish", "share this", "upload this" → call `fb_publish` or `fb_publish_reel` immediately.**
 
 ---
@@ -60,10 +56,19 @@
   - Designs & Photo Posts → DeepX Google Flow (🍌 Nano Banana 2.1 / `deepx_meta_generate_design` or `deepx_generate_image`).
   - Custom Thumbnails → DeepX Google Flow (`deepx_meta_generate_thumbnail`).
   - Video Reels & Promos → DeepX Google Flow (Veo 3.1 / `deepx_meta_generate_video` or `deepx_generate_video`).
-- **When Agent Mode is selected**:
+- **When media generation is requested**:
   - DeepX Google Flow executes the generation autonomously and pipes the resulting asset directly into `fb_publish` / `fb_publish_reel` in full unbroken autopilot.
 - **After generation completes → pipe result DIRECTLY to `fb_publish` / `fb_publish_reel`. NEVER ask "should I post the generated image?"**
 - **Full pipeline is atomic: generate → pipe → publish. Zero interruptions between steps.**
+
+---
+
+## 3.1 Mandatory Python Trend Search Engine for Viral Discovery (COMPULSORY)
+- **ALWAYS USE PYTHON TREND ENGINE FOR TREND & TOPIC SEARCH**:
+  - Multi-Platform Real-Time Scan: YouTube / Google Trends, Twitter/X breaking topics, and Reddit (r/todayilearned, r/explainlikeimfive, r/Damnthatsinteresting, r/science, r/technology).
+  - Virality Scoring Algorithm: Computes velocity, freshness, and curiosity trigger keywords (0-100).
+  - 5-Stage High-Retention Blueprint: Golden Hook (0-5s) → Disrupt Assumptions (5-20s) → Unveil Insider Secrets (20-45s) → Ultimate Truth (45-65s) → Elevation & Discussion (65-75s).
+  - Execution via `python cli.py trends` or `core/trends.py`.
 
 ---
 
@@ -100,18 +105,18 @@
 Every upload, publication, or scheduling action on Meta Business Suite MUST execute in this exact, immutable order:
 
 1. **Step 1 — Instant `fb_status()` Check (ALWAYS FIRST, ZERO EXCEPTIONS)**:
-   - Call `fb_status()` immediately as the literal first MCP tool call.
-   - `logged_in: true` → confirm connected. If user tells to generate design or post, ask ONLY: *"Do you want to use Agent Mode for asset generation, or not?"*, and proceed.
-   - `logged_in: false` → call `fb_open_browser()` once → ask user to sign in once → STOP.
-   - Never ask post or reel questions.
+   - Call `fb_status()` immediately as the literal first MCP tool call (<100ms).
+   - `logged_in: true` → confirm connected, move to the next step, and ask ONE clean, grammatical one-line question: *"What would you like to create or schedule today for your Facebook Page?"*.
+   - `logged_in: false` → call `fb_open_browser()` once → tell user to log in to Meta Business Suite once → STOP.
 
 2. **Step 2 — Managed Facebook Page Target Selection**:
    - Confirm target routing: `target_type: "page"`, `target_id: "me"` (or explicit Page ID).
    - Ensure the automation targets the managed Page's composer dialog, never a personal feed.
 
-3. **Step 3 — Content Preparation, Google Flow AI Media Generation & Anti-Duplicate Check**:
+3. **Step 3 — Content Preparation, Google Flow Media Generation, Python Trend Radar & Anti-Duplicate Check**:
    - Format viral SEO package: punchy Title, formatted multiline description (`\n\n` linebreaks preserved), and 3 to 6 targeted `#Hashtags`.
    - **For all visual design and video generation, ALWAYS invoke Google Flow** (`deepx_meta_generate_design` / `deepx_meta_generate_thumbnail` / `deepx_meta_generate_video`).
+   - **For new trend discovery, ALWAYS use Python Trend Search Engine** (`core/trends.py` or `python cli.py trends`).
    - Compute SHA-256 hash of media and text; verify against recent posts to guarantee zero duplicate submissions.
 
 4. **Step 4 — In-Memory Asset & Custom Thumbnail / Cover Injection**:

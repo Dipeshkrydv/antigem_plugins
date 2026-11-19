@@ -22,15 +22,13 @@ result = fb_status()
 
 | `result.logged_in` | Action |
 |---|---|
-| `true` | Confirm connection cleanly. STRICTLY DO NOT ask post or reel questions. If the user tells to generate a design or post, ask ONLY: *"Do you want to use Agent Mode for asset generation, or not?"* |
-| `false` | Call `fb_open_browser()` once → ask user to sign in once → STOP until confirmed |
+| `true` | Move immediately to the next step. Ask ONE clean, grammatical one-line question: *"What would you like to create or schedule today for your Facebook Page?"* |
+| `false` | Call `fb_open_browser()` once → tell user to sign in to Meta Business Suite once → STOP until confirmed |
 
-**ZERO post/reel questioning.** NEVER ask "What would you like to post today?" or "Do you want a post or reel?".
-**WHEN THE USER TELLS TO GENERATE A DESIGN OR POST:**
-Ask ONLY: *"Do you want to use Agent Mode for asset generation, or not?"*
-
-**MANDATORY GOOGLE FLOW GENERATION:**
-ALWAYS use Google Flow (`deepx-flow` / `gemini-nano-banana-2.1` for designs, photos, and thumbnails; `veo-3.1` for video reels). Never use PIL, OpenCV, or external mock generators.
+**EXECUTION RULES ACCORDING TO USER'S RESPONSE:**
+1. **Asset Generation**: ALWAYS use **Google Flow** (`deepx-flow` / `gemini-nano-banana-2.1` for designs, photos, and thumbnails; `veo-3.1` for video reels). Never use PIL, OpenCV, or external mock generators.
+2. **New Trend & Topic Search**: ALWAYS use the **Python Trend Search Engine** (`core/trends.py` or `python cli.py trends` across YouTube/Google Trends, Twitter/X, and Reddit) to discover real-time viral topics, virality scores (0-100), and 5-stage concept blueprints.
+3. **Dispatch & Autopilot**: Once generated, pipe assets directly into `fb_publish`, `fb_publish_reel`, `fb_publish_story`, or `fb_schedule` with zero intermediate confirmation pauses.
 
 ---
 
@@ -146,6 +144,23 @@ User: "generate a motivational post about focus and post it"
 
 ---
 
+## 3.1 Mandatory Python Trend Search Engine for Viral Discovery (COMPULSORY)
+
+**ALWAYS USE PYTHON TREND ENGINE FOR TREND & TOPIC SEARCH:**
+When the user asks to "find trends", "what's trending", "search topics", "viral ideas", or "what should I post about":
+- **Multi-Source Real-Time Scan**: Automatically scans YouTube / Google Trends, Twitter/X breaking trends, and Reddit (r/todayilearned, r/explainlikeimfive, r/Damnthatsinteresting, r/science, r/technology).
+- **Virality Scoring Algorithm**: Calculates velocity, freshness, and curiosity trigger keywords (0-100).
+- **5-Stage Blueprint Generator**: Automatically structures findings into a high-retention video/post script (Golden Hook → Disrupt Assumptions → Unveil Insider Secrets → Ultimate Truth → Elevation & Discussion).
+- **Execution Command**:
+  ```python
+  # CLI execution
+  python cli.py trends --keywords "<topic>" --sources "youtube,twitter,reddit"
+  # Or via core engine
+  python core/trends.py --sources all --limit 5
+  ```
+
+---
+
 ## 4. Multi-Format Production Matrix
 
 1. **Reels (9:16 Vertical)**:
@@ -216,19 +231,20 @@ Use `meta_viral_seo_generate(topic=<topic>, format=<post_type>)` for advanced fo
 Every publication or scheduling action on Meta Business Suite MUST execute in this exact, immutable order:
 
 1. **Step 1 — Instant `fb_status` Check (ALWAYS FIRST, NO EXCEPTIONS)**
-   - Call `fb_status()` immediately as the literal first tool call.
-   - If `logged_in: true` → confirm connected cleanly. If user tells to generate design or post, ask ONLY: *"Do you want to use Agent Mode for asset generation, or not?"*, and proceed. Never ask post or reel questions.
-   - If `logged_in: false` → call `fb_open_browser()` once, ask user to sign in once, STOP.
+   - Call `fb_status()` immediately as the literal first tool call (<100ms).
+   - If `logged_in: true` → confirm connected, move to the next step, and ask ONE clean, grammatical one-line question: *"What would you like to create or schedule today for your Facebook Page?"*.
+   - If `logged_in: false` → call `fb_open_browser()` once → tell user to log in to Meta Business Suite once → STOP.
    - **NEVER ask status before calling `fb_status`.** The check is instant (<100ms).
 
 2. **Step 2 — Managed Facebook Page Target Selection**
    - Confirm routing: `target_type="page"`, `target_id="me"` (or numerical Page ID).
    - Direct all actions strictly to the managed Page composer in Meta Business Suite.
 
-3. **Step 3 — Content Preparation, Google Flow AI Media Generation & Anti-Duplicate Check**
+3. **Step 3 — Content Preparation, Google Flow Media Generation, Python Trend Radar & Anti-Duplicate Check**
    - Structure viral SEO package: Title + multiline description (`\n\n` preserved) + 3 to 6 targeted `#Hashtags`.
    - Verify SHA-256 hash against published content and queued jobs to prevent duplicate uploads.
    - **For all visual design and video generation, ALWAYS invoke Google Flow** (`deepx_meta_generate_design` / `deepx_meta_generate_thumbnail` / `deepx_meta_generate_video`).
+   - **For new trend discovery, ALWAYS use Python Trend Search Engine** (`core/trends.py` or `python cli.py trends`).
 
 4. **Step 4 — In-Memory Asset & Custom Thumbnail / Cover Injection**
    - Ingest media files via in-memory `DataTransfer` buffer directly in RAM (<400ms).
