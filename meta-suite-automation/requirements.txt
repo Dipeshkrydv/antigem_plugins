@@ -1,0 +1,26 @@
+# Antigravity Meta Suite - Zero-Budget ($0.00) Open-Source Dependencies
+# 100% Free - No Paid APIs, No Credit Cards, No Cloud Schedulers
+
+# MCP Protocol & Local WebSockets Bridge
+mcp>=1.0.0
+websockets>=12.0
+fastapi>=0.110.0
+uvicorn>=0.29.0
+httpx>=0.27.0
+pydantic>=2.0.0
+python-dateutil>=2.8.2
+
+# 24/7 Background Scheduler & Queue
+apscheduler>=3.10.4
+
+# Instagram Private Session Engine (Session Sync & Direct Upload)
+instagrapi>=2.1.2
+
+# Zero-Cost Neural Voiceover & Synced Subtitles (.srt)
+edge-tts>=7.3.1
+
+# Image Pre-Processor, Typography & SEO Alt-Text Validator
+Pillow>=10.2.0
+
+# Video Stitching, H.264 / AAC Encoding & Faststart Optimization
+moviepy>=1.0.3

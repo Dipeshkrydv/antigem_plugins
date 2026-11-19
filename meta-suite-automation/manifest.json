@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "id": "meta-suite-automation",
+  "name": "Meta Suite & Social Autopilot",
+  "version": "2.0.0",
+  "description": "Master Autonomous Meta Suite Production Engine (v2.0.0): Meta Business Suite scheduler for Motivational Docqueen (1409644015561854), Instagram (@renukayadav: 43599208749), custom Reel covers & video thumbnails, DeepX Google Flow AI bridge, and 2M-20M viral recommendation algorithms.",
+  "author": "Dipesh Kr Yadav",
+  "icon": "icon.png",
+  "icons": {
+    "16": "icon.png",
+    "32": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
+  "permissions": [
+    "tabs",
+    "scripting",
+    "debugger",
+    "cookies",
+    "storage",
+    "alarms",
+    "downloads",
+    "antigemFiles"
+  ],
+  "host_permissions": [
+    "*://*.facebook.com/*",
+    "*://*.business.facebook.com/*",
+    "*://*.instagram.com/*",
+    "*://*.flow.google.com/*"
+  ],
+  "background": {
+    "service_worker": "worker.js"
+  },
+  "worker": "worker.js",
+  "entrypoint": "mcp_server/server.py",
+  "skills": "skills"
+}

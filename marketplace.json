@@ -1,7 +1,7 @@
 {
   "name": "antigem-plugins",
   "displayName": "Antigem Official Plugins",
-  "description": "Official Antigem plugins repository: 2D Video Editing Studio (v3.3.1) and Facebook Automation & SEO Studio (v1.6.0).",
+  "description": "Official Antigem plugins repository: 2D Video Editing Studio (v3.3.1), Facebook Automation & SEO Studio (v1.6.0), and Meta Suite & Social Autopilot (v2.0.0).",
   "owner": {
     "name": "Dipesh Kr Yadav",
     "url": "https://github.com/Dipeshkrydv"
@@ -31,31 +31,31 @@
     {
       "name": "facebook-automation",
       "source": "./facebook-automation",
-      "displayName": "Facebook Automation & Meta Suite Studio",
-      "description": "Pre-Trained Phone & Desktop Facebook Automation Engine (v2.0.0): Meta Business Suite scheduler for Motivational Docqueen, custom Reel covers & video thumbnails, DeepX Google Flow bridge integration, human-like in-memory DataTransfer uploads, and 2M-20M viral recommendation algorithms.",
-      "version": "2.0.0",
+      "displayName": "Facebook Automation & SEO Studio",
+      "description": "Pre-Trained Phone (Desktop-on-Phone www.facebook.com & Mobile Touch m.facebook.com) and Desktop Facebook Automation Engine (v1.6.0): Dedicated Feed Posts (Text/Photo/Carousel/Video), Anti-Comment Firewall (strictly never posts into comments), Reels (/reels/create + automatic mobile fallback + video event dispatch), Stories (/stories/create Photo/Video with overlay story_text & Text Story), Real Video/Reel Thumbnail & Cover Uploader, Multiline Formatted Caption Engine (Title + Description + Bullets + CTA + 3-6 #Hashtags), and Zero-Overthinking 1-Call Dispatch.",
+      "version": "1.6.0",
       "author": {
         "name": "Dipesh Kr Yadav"
       },
       "homepage": "https://github.com/Dipeshkrydv/antigem_plugins",
       "keywords": [
         "facebook",
-        "meta",
-        "instagram",
-        "meta business suite",
         "automation",
-        "deepx",
-        "google flow",
+        "social-media",
         "reels",
         "stories",
-        "scheduler"
+        "seo",
+        "anti-duplicate",
+        "antigem-browser",
+        "kiwi-browser",
+        "mobile"
       ]
     },
     {
-      "name": "meta-suite",
-      "source": "./facebook-automation",
+      "name": "meta-suite-automation",
+      "source": "./meta-suite-automation",
       "displayName": "Meta Suite & Social Autopilot",
-      "description": "Autonomous, production-grade social publishing & scheduling engine for Meta Business Suite (Motivational Docqueen), Facebook, Instagram, YouTube & TikTok with DeepX Google Flow bridge integration, human-like in-memory DataTransfer uploads, and 2M-20M viral recommendation algorithms.",
+      "description": "Master Autonomous Meta Suite Production Engine (v2.0.0): Meta Business Suite scheduler for Motivational Docqueen (1409644015561854), Instagram (@renukayadav: 43599208749), custom Reel covers & video thumbnails, DeepX Google Flow AI bridge (ws://127.0.0.1:8792/ws), human-like in-memory DataTransfer uploads, and 2M-20M viral recommendation algorithms.",
       "version": "2.0.0",
       "author": {
         "name": "Dipesh Kr Yadav"
@@ -63,15 +63,14 @@
       "homepage": "https://github.com/Dipeshkrydv/antigem_plugins",
       "keywords": [
         "meta",
-        "facebook",
-        "instagram",
         "meta business suite",
-        "automation",
+        "instagram",
+        "social automation",
         "deepx",
         "google flow",
+        "scheduler",
         "reels",
-        "stories",
-        "scheduler"
+        "video thumbnail"
       ]
     }
   ]

@@ -1,0 +1,30 @@
+{
+  "name": "meta-suite-automation",
+  "displayName": "Meta Suite & Social Autopilot",
+  "version": "2.0.0",
+  "description": "Master Autonomous Meta Suite Production Engine (v2.0.0): Meta Business Suite scheduler for Motivational Docqueen (1409644015561854), Instagram (@renukayadav: 43599208749), custom Reel covers & video thumbnails, DeepX Google Flow AI bridge, and 2M-20M viral recommendation algorithms.",
+  "logo": "icon.png",
+  "author": {
+    "name": "Dipesh Kr Yadav",
+    "url": "https://github.com/Dipeshkrydv"
+  },
+  "keywords": [
+    "meta",
+    "meta business suite",
+    "instagram",
+    "social automation",
+    "deepx",
+    "google flow",
+    "scheduler",
+    "reels",
+    "video thumbnail"
+  ],
+  "suggestedPrompts": [
+    "Post or schedule a viral reel to Motivational Docqueen with a custom thumbnail",
+    "Publish a high-CTR photo post to Instagram @renukayadav",
+    "Generate a viral SEO package and schedule posts via Meta Business Suite"
+  ],
+  "homepage": "https://github.com/Dipeshkrydv/antigem_plugins",
+  "repository": "https://github.com/Dipeshkrydv/antigem_plugins",
+  "license": "MIT"
+}

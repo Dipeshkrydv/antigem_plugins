@@ -1,0 +1,1775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Antigravity Meta Bridge — Side Panel</title>
+  <style>
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-card: #1e293b;
+      --bg-input: #334155;
+      --border-color: #334155;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent-blue: #3b82f6;
+      --accent-blue-hover: #2563eb;
+      --accent-green: #10b981;
+      --accent-green-bg: rgba(16, 185, 129, 0.15);
+      --accent-red: #ef4444;
+      --accent-red-bg: rgba(239, 68, 68, 0.15);
+      --accent-amber: #f59e0b;
+      --accent-purple: #8b5cf6;
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 100%;
+      height: 100vh;
+      overflow-x: hidden;
+      overflow-y: auto;
+      font-family: var(--font-family);
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Sticky Header */
+    .header {
+      padding: 12px 16px;
+      background: #090d16;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand img {
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+    }
+
+    .brand-title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #ffffff;
+    }
+
+    .brand-subtitle {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .connection-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .connection-badge.connected {
+      background: var(--accent-green-bg);
+      color: var(--accent-green);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .connection-badge.disconnected {
+      background: var(--accent-red-bg);
+      color: var(--accent-red);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .status-dot.pulse {
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(1.2); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    /* Header Quick Controls */
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-sm {
+      padding: 5px 9px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 5px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .btn-sm:hover {
+      background: #334155;
+      border-color: #475569;
+    }
+
+    .btn-reload {
+      background: #0284c7;
+      border-color: #0369a1;
+      color: #ffffff;
+    }
+
+    .btn-reload:hover {
+      background: #0369a1;
+    }
+
+    .btn-pause {
+      background: #b91c1c;
+      border-color: #991b1b;
+      color: #ffffff;
+    }
+
+    .btn-pause:hover {
+      background: #991b1b;
+    }
+
+    .btn-resume {
+      background: #059669;
+      border-color: #047857;
+      color: #ffffff;
+    }
+
+    .btn-resume:hover {
+      background: #047857;
+    }
+
+    /* Tactile Native App Interaction Styles */
+    button,
+    .nav-tab,
+    .quick-link-btn,
+    .btn-sm,
+    .btn-primary,
+    .btn-icon {
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    button:active,
+    .nav-tab:active,
+    .quick-link-btn:active,
+    .btn-sm:active,
+    .btn-primary:active,
+    .btn-icon:active {
+      transform: scale(0.96) !important;
+      opacity: 0.88;
+    }
+
+    /* Native App Toast Notification */
+    .app-toast {
+      position: fixed;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-24px);
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+      padding: 8px 16px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      white-space: nowrap;
+    }
+
+    .app-toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    .app-toast.success {
+      border-color: rgba(16, 185, 129, 0.45);
+      background: rgba(6, 78, 59, 0.94);
+      color: #d1fae5;
+    }
+
+    .app-toast.warn {
+      border-color: rgba(245, 158, 11, 0.45);
+      background: rgba(120, 53, 15, 0.94);
+      color: #fef3c7;
+    }
+
+    .app-toast.error {
+      border-color: rgba(239, 68, 68, 0.45);
+      background: rgba(127, 29, 29, 0.94);
+      color: #fee2e2;
+    }
+
+    /* Tabs Navigation */
+    .nav-tabs {
+      display: flex;
+      background: #090d16;
+      border-bottom: 1px solid var(--border-color);
+      padding: 0 8px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      flex-wrap: nowrap;
+    }
+
+    .nav-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .nav-tab {
+      padding: 10px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .nav-tab:hover {
+      color: var(--text-primary);
+    }
+
+    .nav-tab.active {
+      color: var(--accent-blue);
+      border-bottom-color: var(--accent-blue);
+    }
+
+    .badge-count {
+      background: var(--bg-input);
+      color: var(--text-primary);
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 9999px;
+    }
+
+    /* Trend Radar Specific Styles */
+    .source-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border-radius: 9999px;
+      font-size: 10px;
+      font-weight: 600;
+      background: var(--bg-input);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-color);
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s ease;
+    }
+    .source-chip.active {
+      background: rgba(59, 130, 246, 0.25);
+      border-color: var(--accent-blue);
+      color: #93c5fd;
+    }
+    .badge-breakout {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+    .badge-surging {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+    .badge-climb {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+    .badge-emerging {
+      background: rgba(148, 163, 184, 0.2);
+      color: #cbd5e1;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+    .trend-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+    .trend-card:hover {
+      border-color: rgba(99, 102, 241, 0.6);
+      transform: translateY(-1px);
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.08); }
+    }
+
+    /* Content Area with App Transitions */
+    .tab-content {
+      flex: 1;
+      padding: 16px;
+      display: none;
+      animation: tabFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    @keyframes tabFadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Account Rows */
+    .account-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .account-row:last-child {
+      border-bottom: none;
+    }
+
+    .account-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .account-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .account-sub {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .status-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .pill-online {
+      background: var(--accent-green-bg);
+      color: var(--accent-green);
+    }
+
+    .pill-warning {
+      background: rgba(245, 158, 11, 0.15);
+      color: #f59e0b;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .pill-offline {
+      background: rgba(148, 163, 184, 0.1);
+      color: var(--text-secondary);
+    }
+
+    .copyable-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      cursor: pointer;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: rgba(51, 65, 85, 0.6);
+      color: #cbd5e1;
+      font-size: 10px;
+      transition: background 0.15s, color 0.15s;
+      user-select: none;
+    }
+
+    .copyable-badge:hover {
+      background: #3b82f6;
+      color: #ffffff;
+    }
+
+    .biz-notice-box {
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: rgba(245, 158, 11, 0.08);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      font-size: 11px;
+      line-height: 1.4;
+      display: none;
+    }
+
+    .btn-create-page {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      font-size: 10px;
+      font-weight: 600;
+      border-radius: 4px;
+      background: #f59e0b;
+      color: #0f172a;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+
+    .btn-create-page:hover {
+      background: #d97706;
+    }
+
+    /* Form Inputs */
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    input[type="text"],
+    input[type="datetime-local"],
+    select,
+    textarea {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 13px;
+      color: var(--text-primary);
+      outline: none;
+      font-family: inherit;
+      transition: border-color 0.15s;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--accent-blue);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .char-count {
+      text-align: right;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Drag & Drop File Upload */
+    .file-drop-area {
+      border: 2px dashed var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      background: rgba(30, 41, 59, 0.5);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .file-drop-area:hover,
+    .file-drop-area.dragover {
+      border-color: var(--accent-blue);
+      background: rgba(59, 130, 246, 0.05);
+    }
+
+    .file-drop-icon {
+      font-size: 24px;
+      margin-bottom: 6px;
+    }
+
+    .file-drop-text {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .file-drop-subtext {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .file-preview-card {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: var(--bg-input);
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-top: 8px;
+    }
+
+    .file-preview-img {
+      width: 44px;
+      height: 44px;
+      object-fit: cover;
+      border-radius: 4px;
+      background: #000;
+    }
+
+    .file-preview-info {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .file-preview-name {
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .file-preview-size {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .btn-remove-file {
+      background: none;
+      border: none;
+      color: var(--accent-red);
+      cursor: pointer;
+      font-size: 16px;
+      padding: 4px;
+    }
+
+    /* Submit Button */
+    .btn-primary {
+      width: 100%;
+      background: var(--accent-blue);
+      color: #ffffff;
+      border: none;
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.15s;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-blue-hover);
+    }
+
+    .btn-primary:disabled {
+      background: #475569;
+      cursor: not-allowed;
+    }
+
+    /* Queue Table / Cards */
+    .queue-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .queue-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .queue-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .queue-id {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent-blue);
+    }
+
+    .queue-target {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .queue-caption {
+      font-size: 12px;
+      color: var(--text-primary);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      line-height: 1.4;
+    }
+
+    .queue-card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 6px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .queue-time {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .queue-actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .btn-icon {
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      border-radius: 4px;
+      padding: 3px 6px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-icon:hover {
+      background: #475569;
+    }
+
+    .btn-icon.retry:hover {
+      background: var(--accent-blue);
+      border-color: var(--accent-blue);
+    }
+
+    .btn-icon.cancel:hover {
+      background: var(--accent-red);
+      border-color: var(--accent-red);
+    }
+
+    .queue-error {
+      font-size: 11px;
+      color: var(--accent-red);
+      background: var(--accent-red-bg);
+      padding: 4px 6px;
+      border-radius: 4px;
+      margin-top: 4px;
+    }
+
+    /* Live Console */
+    .console-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .console-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .console-box {
+      flex: 1;
+      height: 480px;
+      background: #000000;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .log-line {
+      display: flex;
+      gap: 6px;
+      word-break: break-all;
+    }
+
+    .log-time {
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .log-level {
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .log-level.INFO { color: #38bdf8; }
+    .log-level.WARN { color: #facc15; }
+    .log-level.ERROR { color: #f87171; }
+    .log-level.DOM { color: #a855f7; }
+    .log-level.WS { color: #34d399; }
+
+    .log-msg {
+      color: #e2e8f0;
+    }
+
+    /* Quick Links */
+    .quick-links {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .quick-link-btn {
+      padding: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      border-radius: 6px;
+      text-align: center;
+      cursor: pointer;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.15s;
+    }
+
+    .quick-link-btn:hover {
+      background: #475569;
+    }
+
+    /* Meta Dev Knowledge Base Specific Styles */
+    .kb-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--bg-input);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-color);
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .kb-pill:hover {
+      border-color: #6366f1;
+      color: #fff;
+    }
+    .kb-pill.active {
+      background: rgba(99, 102, 241, 0.25);
+      border-color: #818cf8;
+      color: #c7d2fe;
+    }
+    .kb-step-card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-bottom: 6px;
+    }
+    .kb-code-box {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 10px;
+      background: #090d16;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      padding: 6px 8px;
+      color: #38bdf8;
+      word-break: break-all;
+      margin-top: 4px;
+    }
+    .kb-archetype-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 8px;
+      transition: border-color 0.15s;
+    }
+    .kb-archetype-card:hover {
+      border-color: #818cf8;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Native App Toast Notification Container -->
+  <div id="appToast" class="app-toast"></div>
+
+  <!-- Top Sticky Header -->
+  <div class="header">
+    <div class="header-top">
+      <div class="brand">
+        <img src="icons/icon48.png" alt="Logo">
+        <div>
+          <div class="brand-title">Antigravity Meta Bridge</div>
+          <div class="brand-subtitle">Persistent Operations Side Panel</div>
+        </div>
+      </div>
+      <div id="bridgeBadge" class="connection-badge disconnected">
+        <span class="status-dot pulse"></span>
+        <span id="bridgeText">Disconnected</span>
+      </div>
+    </div>
+
+    <!-- Quick Control Buttons -->
+    <div class="header-controls">
+      <button id="btnReloadBridge" class="btn-sm btn-reload" title="Reloads background worker & content script">
+        <span>⚡ Reload Bridge</span>
+      </button>
+      <button id="btnSyncSessions" class="btn-sm" title="Extract and upload active Facebook/Instagram cookies">
+        <span>🔄 Force Sync</span>
+      </button>
+      <button id="btnPauseToggle" class="btn-sm btn-pause" title="Emergency stop scheduler">
+        <span id="pauseBtnText">🛑 Emergency Pause</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Navigation Tabs -->
+  <div class="nav-tabs">
+    <div class="nav-tab active" data-tab="tab-overview">
+      <span>📊 Overview</span>
+    </div>
+    <div class="nav-tab" data-tab="tab-composer">
+      <span>✍️ Create Post</span>
+    </div>
+    <div class="nav-tab" data-tab="tab-queue">
+      <span>📋 Queue</span>
+      <span id="queueBadgeCount" class="badge-count">0</span>
+    </div>
+    <div class="nav-tab" data-tab="tab-trends">
+      <span>🔥 Trend Radar</span>
+      <span id="trendLiveBadge" class="badge-count" style="background: #ef4444; color: #fff; font-weight: 700; font-size: 8px; padding: 1px 4px; animation: pulse 1.5s infinite;">LIVE</span>
+    </div>
+    <div class="nav-tab" data-tab="tab-console">
+      <span>📜 Live Console</span>
+    </div>
+    <div class="nav-tab" data-tab="tab-knowledge">
+      <span>📚 Meta Dev Knowledge</span>
+      <span class="badge-count" style="background: #6366f1; color: #fff; font-weight: 700; font-size: 8px; padding: 1px 4px;">83 DOCS</span>
+    </div>
+    <div class="nav-tab" data-tab="tab-smm">
+      <span>🧠 SMM & Auto-Reply</span>
+      <span class="badge-count" style="background: #10b981; color: #fff; font-weight: 700; font-size: 8px; padding: 1px 4px;">PRO</span>
+    </div>
+  </div>
+
+  <!-- Tab 1: Overview -->
+  <div id="tab-overview" class="tab-content active">
+    <!-- One-Time Direct Setup Card -->
+    <div class="card" style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95)); border: 1px solid rgba(99, 102, 241, 0.4);">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+        <div style="font-weight: 700; font-size: 13px; color: #fff; display: flex; align-items: center; gap: 6px;">
+          <span>⚡ One-Time Direct Connection</span>
+        </div>
+        <span id="oneTimeSetupPill" class="status-pill pill-online">Auto-Active</span>
+      </div>
+      <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
+        Direct connection active for <b>Facebook</b>, <b>Instagram</b>, and <b>Meta Business Suite</b>. Zero tab prompts required — all canvases run autonomously in the background.
+      </p>
+      <button id="btnOneTimeAutoSync" class="btn-primary" style="width: 100%; padding: 7px; font-size: 11px; font-weight: 600;">
+        <span>🔄 Instant Auto-Sync All 3 Platforms</span>
+      </button>
+    </div>
+
+    <!-- Logged in Sessions Card -->
+    <div class="card">
+      <div class="card-title">
+        <span>Live Connected Sessions</span>
+        <button id="btnRefreshSessions" class="btn-sm" style="padding: 2px 6px; font-size: 10px;">Refresh</button>
+      </div>
+
+      <!-- Facebook Account -->
+      <div class="account-row" style="flex-wrap: wrap; gap: 6px; align-items: center;">
+        <div class="account-info" style="flex: 1; min-width: 130px;">
+          <div class="account-name" id="fbAccountName">Facebook Profile</div>
+          <div class="account-sub" id="fbAccountId">Profile ID: Not Synced</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span id="fbStatusPill" class="status-pill pill-offline">Offline</span>
+          <button type="button" id="btnFocusFB" class="btn-sm" style="padding: 2px 6px; font-size: 10px; background: #2563eb; color: #fff;" title="Open / Bring Facebook to front">Open</button>
+          <button type="button" id="btnLogoutFB" class="btn-sm" style="padding: 2px 6px; font-size: 10px; background: #dc2626; color: #fff;" title="Logout of Facebook">Logout</button>
+        </div>
+      </div>
+
+      <!-- Instagram Account -->
+      <div class="account-row" style="flex-wrap: wrap; gap: 6px; align-items: center;">
+        <div class="account-info" style="flex: 1; min-width: 130px;">
+          <div class="account-name" id="igAccountName">Instagram Account</div>
+          <div class="account-sub" id="igAccountId">User ID: Not Synced</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span id="igStatusPill" class="status-pill pill-offline">Offline</span>
+          <button type="button" id="btnFocusIG" class="btn-sm" style="padding: 2px 6px; font-size: 10px; background: #c026d3; color: #fff;" title="Open / Bring Instagram to front">Open</button>
+          <button type="button" id="btnLogoutIG" class="btn-sm" style="padding: 2px 6px; font-size: 10px; background: #dc2626; color: #fff;" title="Logout of Instagram">Logout</button>
+        </div>
+      </div>
+
+      <!-- Meta Business Suite Account -->
+      <div class="account-row" style="flex-wrap: wrap; gap: 6px; align-items: center;">
+        <div class="account-info" style="flex: 1; min-width: 130px;">
+          <div class="account-name" id="bizAccountName">Meta Business Suite</div>
+          <div class="account-sub" id="bizAccountId">Personal Account • No Pages Linked</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span id="bizStatusPill" class="status-pill pill-offline">Offline</span>
+          <button type="button" id="btnFocusBiz" class="btn-sm" style="padding: 2px 6px; font-size: 10px; background: #4f46e5; color: #fff;" title="Open / Bring Business Suite to front">Open</button>
+          <button type="button" id="btnLogoutBiz" class="btn-sm" style="padding: 2px 6px; font-size: 10px; background: #dc2626; color: #fff;" title="Logout of Business Suite">Logout</button>
+        </div>
+      </div>
+
+      <!-- YouTube Studio Account -->
+      <div class="account-row" style="flex-wrap: wrap; gap: 6px; align-items: center;">
+        <div class="account-info" style="flex: 1; min-width: 130px;">
+          <div class="account-name" id="ytAccountName">YouTube Studio</div>
+          <div class="account-sub" id="ytAccountId">Channel: Not Synced</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span id="ytStatusPill" class="status-pill pill-offline">Offline</span>
+          <button type="button" id="btnFocusYT" class="btn-sm" style="padding: 2px 6px; font-size: 10px; background: #dc2626; color: #fff;" title="Open / Bring YouTube Studio to front">Open</button>
+          <button type="button" id="btnLogoutYT" class="btn-sm" style="padding: 2px 6px; font-size: 10px; background: #64748b; color: #fff;" title="Logout of YouTube">Logout</button>
+        </div>
+      </div>
+
+      <!-- TikTok Creator Account -->
+      <div class="account-row" style="flex-wrap: wrap; gap: 6px; align-items: center;">
+        <div class="account-info" style="flex: 1; min-width: 130px;">
+          <div class="account-name" id="ttAccountName">TikTok Creator Center</div>
+          <div class="account-sub" id="ttAccountId">Handle: Not Synced</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span id="ttStatusPill" class="status-pill pill-offline">Offline</span>
+          <button type="button" id="btnFocusTT" class="btn-sm" style="padding: 2px 6px; font-size: 10px; background: #000000; color: #fff; border: 1px solid #334155;" title="Open / Bring TikTok Creator Center to front">Open</button>
+          <button type="button" id="btnLogoutTT" class="btn-sm" style="padding: 2px 6px; font-size: 10px; background: #64748b; color: #fff;" title="Logout of TikTok">Logout</button>
+        </div>
+      </div>
+
+      <!-- Informative Notice for Meta Business Suite when no Pages are linked -->
+      <div id="bizNoticeBox" class="biz-notice-box">
+        <div style="display: flex; align-items: flex-start; gap: 6px;">
+          <span style="font-size: 14px;">ℹ️</span>
+          <div>
+            <div style="font-weight: 600; color: #f59e0b; margin-bottom: 2px;" id="bizNoticeTitle">No Facebook Pages Linked</div>
+            <div style="color: #94a3b8; font-size: 10px; line-height: 1.4;" id="bizNoticeDesc">
+              Your account, <b id="bizOwnerName" style="color: #e2e8f0;">Renuka Yadav</b>, currently does not have access to any Facebook Pages or Instagram business profiles in Meta Business Suite. Direct posting to your <b>Personal Facebook Feed</b> is active and ready!
+            </div>
+            <div style="margin-top: 6px; display: flex; gap: 6px;">
+              <a href="https://www.facebook.com/pages/create/" target="_blank" class="btn-create-page">+ Create Facebook Page</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Canvas Openers -->
+    <div class="card">
+      <div class="card-title">Instant Web Canvases (Optional)</div>
+      <p style="font-size: 10px; color: var(--text-muted); margin-bottom: 8px;">
+        Canvases run automatically in the background when posting. Open only if you wish to inspect manually.
+      </p>
+      <div class="quick-links">
+        <button id="btnOpenFB" class="quick-link-btn">
+          <span>📘 View Facebook</span>
+        </button>
+        <button id="btnOpenIG" class="quick-link-btn">
+          <span>📸 View Instagram</span>
+        </button>
+        <button id="btnOpenBusinessSuite" class="quick-link-btn" style="grid-column: span 2;">
+          <span>💼 View Meta Business Suite</span>
+        </button>
+        <button id="btnOpenYT" class="quick-link-btn">
+          <span>🎬 View YouTube Studio</span>
+        </button>
+        <button id="btnOpenTT" class="quick-link-btn">
+          <span>🎵 View TikTok Creator</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Bridge Diagnostics -->
+    <div class="card">
+      <div class="card-title">Bridge Architecture</div>
+      <div style="font-size: 11px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 6px;">
+        <div><b>WebSocket:</b> <code>ws://127.0.0.1:8765</code></div>
+        <div><b>Engine:</b> Autonomous In-Memory DataTransfer & DOM Relay</div>
+        <div><b>Database:</b> SQLite WAL (<code>meta_suite.db</code>)</div>
+        <div><b>Compliance:</b> 24h Quota Guard & Human Jitter Active</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 2: Create Post (Composer) -->
+  <div id="tab-composer" class="tab-content">
+    <form id="postComposerForm">
+      <div class="form-group">
+        <label for="platformSelect">Platform</label>
+        <select id="platformSelect">
+          <option value="facebook" selected>Facebook</option>
+          <option value="instagram">Instagram</option>
+          <option value="youtube">YouTube Studio (Shorts/Video)</option>
+          <option value="tiktok">TikTok Creator Center</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="targetSelect">Target Destination</label>
+        <select id="targetSelect">
+          <option value="page_1409644015561854" selected>📄 Page: Motivational Docqueen (1409644015561854)</option>
+          <option value="profile">👤 Personal Feed (Renuka Yadav)</option>
+          <option value="page_1410480472148071">📄 Page: renukaydv624 (1410480472148071)</option>
+          <option value="group">👥 Facebook Group</option>
+        </select>
+      </div>
+
+      <div class="form-group" id="targetIdGroup" style="display: none;">
+        <label for="targetIdInput">Target Page/Group ID</label>
+        <input type="text" id="targetIdInput" placeholder="e.g. 1029384756">
+      </div>
+
+      <div class="form-group">
+        <label for="contentTypeSelect">Content Type</label>
+        <select id="contentTypeSelect">
+          <option value="photo" selected>🖼️ Photo Post</option>
+          <option value="reel">🎥 Facebook / IG Reel (Vertical 9:16)</option>
+          <option value="video">🎬 Long Video (Landscape 16:9)</option>
+          <option value="story">⚡ Story (24h Ephemeral)</option>
+          <option value="text">📝 Text Only Post</option>
+        </select>
+      </div>
+
+      <!-- AI Creative Director Studio Accordion -->
+      <div class="creative-studio-card" style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; padding: 12px; margin-bottom: 14px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;" id="toggleCreativeStudio">
+          <div style="display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13px; color: #a5b4fc;">
+            <span>✨ AI Creative Director</span>
+            <span style="font-size: 10px; background: rgba(99, 102, 241, 0.2); padding: 2px 6px; border-radius: 4px; color: #c7d2fe;">7 Archetypes</span>
+          </div>
+          <span id="creativeStudioArrow" style="font-size: 11px; color: #94a3b8;">▼</span>
+        </div>
+        <div id="creativeStudioBody" style="display: none; margin-top: 10px;">
+          <div class="form-group" style="margin-bottom: 8px;">
+            <label style="font-size: 11px; color: #94a3b8;">Creative Archetype</label>
+            <select id="creativeArchetypeSelect" style="width: 100%; font-size: 12px; padding: 6px; background: #0f172a; border: 1px solid #334155; color: #e2e8f0; border-radius: 6px;">
+              <option value="tactile_clipboard">📋 Real Tactile Clipboard & Stationery</option>
+              <option value="classical_contrast">🏛️ Classical Marble Statue + Modern Tech</option>
+              <option value="keyboard_shortcut">⌨️ Tactile Keyboard Key Metaphor (CTRL+V, CTRL+S)</option>
+              <option value="surreal_metaphor">🐢 Surreal Visual Metaphor (Tortoise/Fuel Gauge)</option>
+              <option value="ui_as_reality">👥 Architectural UI as Reality (Board Table)</option>
+              <option value="editorial_color_block">⚡ Bold Editorial & Color-Block Slash</option>
+              <option value="pop_culture_subversion">🎬 Pop-Culture & Cinema Risograph Subversion</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom: 8px;">
+            <label style="font-size: 11px; color: #94a3b8;">Headline / Hook</label>
+            <input type="text" id="creativeHeadlineInput" placeholder="e.g. 4 RULES OF DAILY CONSISTENCY" style="width: 100%; font-size: 12px; padding: 6px; background: #0f172a; border: 1px solid #334155; color: #e2e8f0; border-radius: 6px;">
+          </div>
+          <div class="form-group" style="margin-bottom: 8px;">
+            <label style="font-size: 11px; color: #94a3b8;">Tagline / Punchline</label>
+            <input type="text" id="creativeTaglineInput" placeholder="e.g. Consistency > Intensity" style="width: 100%; font-size: 12px; padding: 6px; background: #0f172a; border: 1px solid #334155; color: #e2e8f0; border-radius: 6px;">
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: 10px;">
+            <button type="button" id="btnBuildAgencyPrompt" class="btn-sm" style="flex: 1; background: #4f46e5; color: #fff; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; border: none; cursor: pointer;">⚡ Apply to Caption</button>
+            <button type="button" id="btnCopyAgencyPrompt" class="btn-sm" style="background: #334155; color: #cbd5e1; padding: 6px 10px; border-radius: 6px; font-size: 11px; border: none; cursor: pointer;">📋 Copy Prompt</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pre-Post Competitor Battle & Viral SEO Optimizer -->
+      <div class="prepost-optimizer-card" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(99, 102, 241, 0.15)); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 8px; padding: 12px; margin-bottom: 14px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+          <div style="font-weight: 700; font-size: 12px; color: #f87171; display: flex; align-items: center; gap: 6px;">
+            <span>⚔️ Pre-Post Viral SEO & Competitor Battle Analyzer</span>
+          </div>
+          <span class="badge-count" style="background: rgba(239, 68, 68, 0.25); color: #fca5a5; font-size: 9px; font-weight: 700;">Anti-Boring • Instant</span>
+        </div>
+        <p style="font-size: 10px; color: var(--text-secondary); margin-bottom: 8px; line-height: 1.35;">
+          Searches YouTube, Twitter, Reddit & GitHub in parallel before you post. Outperforms competitors, extracts winning keywords, and bans boring paragraphs.
+        </p>
+        <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+          <input type="text" id="prePostConceptInput" class="input-text" style="flex: 1; padding: 6px 10px; font-size: 11px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #fff;" placeholder="e.g. flow + antigravity connection with extension (insane results)" />
+          <button type="button" id="btnRunPrePostOptimize" class="btn-sm" style="padding: 6px 12px; font-size: 11px; font-weight: 700; background: linear-gradient(135deg, #ef4444, #6366f1); color: #fff; border-radius: 6px; border: none; cursor: pointer; white-space: nowrap;">
+            <span>⚡ Battle & Optimize</span>
+          </button>
+        </div>
+        <!-- Benchmark readout (hidden until run) -->
+        <div id="prePostBattleResult" style="display: none; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 6px; padding: 8px; margin-top: 6px; font-size: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="font-weight: 700; color: #10b981;">✓ Competitors Outperformed</span>
+            <span id="prePostViralityPill" style="background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 1px 5px; border-radius: 4px; font-weight: 700;">Virality: 96.5/100</span>
+          </div>
+          <div id="prePostCompetitorStats" style="color: var(--text-secondary); margin-bottom: 4px;"></div>
+          <div id="prePostWeaknessText" style="color: #cbd5e1; font-style: italic; margin-bottom: 6px;"></div>
+          <div style="display: flex; gap: 6px;">
+            <button type="button" id="btnApplyOptimizedCaption" class="btn-sm" style="flex: 1; background: #10b981; color: #fff; padding: 4px 8px; font-size: 10px; font-weight: 600; border-radius: 4px;">
+              <span>🚀 Apply Viral Hook & Cheat Sheet to Post</span>
+            </button>
+            <button type="button" id="btnCopyOptimizedPrompt" class="btn-sm" style="background: #334155; color: #cbd5e1; padding: 4px 8px; font-size: 10px; border-radius: 4px;">
+              <span>📋 Visual Prompt</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="postCaption">Caption / Message</label>
+        <textarea id="postCaption" placeholder="What's on your mind? Type caption or hashtags..."></textarea>
+        <div class="char-count"><span id="captionCharCount">0</span> characters</div>
+      </div>
+
+      <!-- File Drop & Picker -->
+      <div class="form-group" id="mediaUploadGroup">
+        <label>Media Asset (Photo or Video)</label>
+        <div id="fileDropArea" class="file-drop-area">
+          <input type="file" id="mediaFileInput" accept="image/jpeg,image/png,image/webp,video/mp4" style="display: none;">
+          <div class="file-drop-icon">📁</div>
+          <div class="file-drop-text">Click or Drag & Drop media file here</div>
+          <div class="file-drop-subtext">Supports JPEG, PNG, MP4 (up to 50MB)</div>
+        </div>
+
+        <div id="filePreviewCard" class="file-preview-card">
+          <img id="filePreviewImg" class="file-preview-img" src="" alt="Preview">
+          <div class="file-preview-info">
+            <div id="filePreviewName" class="file-preview-name">image.jpg</div>
+            <div id="filePreviewSize" class="file-preview-size">0 KB</div>
+          </div>
+          <button type="button" id="btnRemoveFile" class="btn-remove-file" title="Remove file">✕</button>
+        </div>
+      </div>
+
+      <!-- Thumbnail / Cover Picker for Reels & Videos -->
+      <div class="form-group" id="thumbnailUploadGroup" style="display: none;">
+        <label>Video Thumbnail / Reel Cover (Optional - High CTR)</label>
+        <div id="thumbDropArea" class="file-drop-area" style="padding: 10px; min-height: auto;">
+          <input type="file" id="thumbnailFileInput" accept="image/jpeg,image/png,image/webp" style="display: none;">
+          <div class="file-drop-icon" style="font-size: 18px;">🖼️</div>
+          <div class="file-drop-text" style="font-size: 11px;">Upload Custom Thumbnail / Cover Image</div>
+          <div class="file-drop-subtext" style="font-size: 9px;">JPG, PNG (16:9 for Video, 9:16 for Reel)</div>
+        </div>
+
+        <div id="thumbPreviewCard" class="file-preview-card" style="display: none; margin-top: 6px;">
+          <img id="thumbPreviewImg" class="file-preview-img" src="" alt="Thumbnail" style="height: 48px; width: 48px; object-fit: cover; border-radius: 4px;">
+          <div class="file-preview-info">
+            <div id="thumbPreviewName" class="file-preview-name" style="font-size: 11px;">cover.jpg</div>
+            <div id="thumbPreviewSize" class="file-preview-size" style="font-size: 9px;">0 KB</div>
+          </div>
+          <button type="button" id="btnRemoveThumb" class="btn-remove-file" title="Remove thumbnail">✕</button>
+        </div>
+      </div>
+
+      <!-- Publish Mode -->
+      <div class="form-group">
+        <label for="scheduleMode">Dispatch Mode</label>
+        <select id="scheduleMode">
+          <option value="immediate" selected>⚡ Publish Immediately (Bypass spacing)</option>
+          <option value="scheduled">🕒 Schedule for Future</option>
+        </select>
+      </div>
+
+      <div class="form-group" id="scheduleTimeGroup" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <label for="scheduleTimeInput" style="margin-bottom: 0;">Scheduled Date & Time (Local)</label>
+          <span id="scheduleConvertedUtc" style="font-size: 10px; color: #60a5fa; font-weight: 600;"></span>
+        </div>
+        <input type="datetime-local" id="scheduleTimeInput">
+        <div style="display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap;">
+          <button type="button" class="btn-sm btn-quick-time" data-offset="15" style="font-size: 10px; padding: 2px 6px;">+15 min</button>
+          <button type="button" class="btn-sm btn-quick-time" data-offset="60" style="font-size: 10px; padding: 2px 6px;">+1 hr</button>
+          <button type="button" class="btn-sm btn-quick-time" data-offset="180" style="font-size: 10px; padding: 2px 6px;">+3 hr</button>
+          <button type="button" class="btn-sm btn-quick-time" data-offset="1440" style="font-size: 10px; padding: 2px 6px;">Tomorrow</button>
+        </div>
+      </div>
+
+      <button type="submit" id="btnSubmitPost" class="btn-primary">
+        <span>🚀 Enqueue & Publish Post</span>
+      </button>
+    </form>
+  </div>
+
+  <!-- Tab 3: Queue & History -->
+  <div id="tab-queue" class="tab-content">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <span style="font-size: 12px; font-weight: 700; color: var(--text-secondary);">Jobs in SQLite Queue</span>
+      <div style="display: flex; gap: 6px;">
+        <button id="btnRefreshQueue" class="btn-sm">🔄 Refresh</button>
+        <button id="btnClearCompleted" class="btn-sm">🧹 Clear Finished</button>
+      </div>
+    </div>
+
+    <div id="queueList" class="queue-list">
+      <!-- Dynamically filled with queue cards -->
+      <div style="text-align: center; color: var(--text-muted); font-size: 12px; padding: 24px 0;">
+        Loading queued jobs...
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 5: Trend Radar & Competitor Intelligence -->
+  <div id="tab-trends" class="tab-content">
+    <!-- Trend Radar Header Card -->
+    <div class="card" style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98)); border: 1px solid rgba(239, 68, 68, 0.35);">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+        <div style="font-weight: 700; font-size: 13px; color: #fff; display: flex; align-items: center; gap: 6px;">
+          <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 8px #ef4444;"></span>
+          <span>⚡ Live Internet Idea Firehose</span>
+        </div>
+        <span id="trendEngineModePill" class="status-pill pill-online">Millisecond Radar</span>
+      </div>
+      <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.4;">
+        Scans real-time breakout trends across <b>YouTube</b>, <b>Twitter/X</b>, <b>Reddit</b>, and <b>GitHub</b> (Bilibili excluded). Detect competitor outlier videos and auto-convert to viral Instagram Reels & Facebook posts.
+      </p>
+
+      <!-- Input Controls -->
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+        <div>
+          <label style="font-size: 10px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 4px;">Target Keywords / Niche</label>
+          <input type="text" id="trendKeywordInput" class="input-text" style="width: 100%; padding: 7px 10px; font-size: 12px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 6px; color: #fff;" placeholder="e.g. AI Automation, Personal Finance, Reels Growth" value="AI Automation" />
+        </div>
+        <div>
+          <label style="font-size: 10px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 4px;">Competitor Channel / Handle (Optional)</label>
+          <input type="text" id="trendCompetitorInput" class="input-text" style="width: 100%; padding: 7px 10px; font-size: 12px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 6px; color: #fff;" placeholder="e.g. @AlexHormozi, Fireship, GaryVee" />
+        </div>
+      </div>
+
+      <!-- Source Filter Chips (No Bilibili) -->
+      <div style="margin-bottom: 12px;">
+        <label style="font-size: 10px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 6px;">Active Stream Sources</label>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;" id="trendSourcePills">
+          <label class="source-chip active" data-source="youtube">
+            <input type="checkbox" id="srcYouTube" checked style="display:none;">
+            <span>▶️ YouTube (Primary)</span>
+          </label>
+          <label class="source-chip active" data-source="twitter">
+            <input type="checkbox" id="srcTwitter" checked style="display:none;">
+            <span>🐦 Twitter/X</span>
+          </label>
+          <label class="source-chip active" data-source="reddit">
+            <input type="checkbox" id="srcReddit" checked style="display:none;">
+            <span>🤖 Reddit</span>
+          </label>
+          <label class="source-chip active" data-source="github">
+            <input type="checkbox" id="srcGitHub" checked style="display:none;">
+            <span>🐙 GitHub</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Action Buttons Row -->
+      <div style="display: flex; gap: 8px;">
+        <button id="btnScanTrends" class="btn-primary" style="flex: 1; padding: 8px 10px; font-size: 11px; font-weight: 700; background: linear-gradient(135deg, #ef4444, #f97316);">
+          <span>⚡ Scan Live Trends</span>
+        </button>
+        <button id="btnToggleLiveStream" class="btn-sm" style="padding: 8px 10px; font-size: 11px; font-weight: 600; background: var(--bg-input); color: #fff;" title="Toggle automated millisecond idea feed">
+          <span id="streamToggleIcon">🔴</span> <span id="streamToggleText">Stream: OFF</span>
+        </button>
+        <button id="btnSpyCompetitor" class="btn-sm" style="padding: 8px 10px; font-size: 11px; font-weight: 600; background: #6366f1; color: #fff;" title="Spy competitor outlier videos & content gaps">
+          <span>🔍 Spy Gaps</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Live Stream Velocity Ticker -->
+    <div id="trendTickerBar" style="background: rgba(15, 23, 42, 0.8); border: 1px solid var(--border-color); border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; font-size: 11px;">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="color: #10b981;">⚡</span>
+        <span id="tickerSpeedText" style="color: var(--text-secondary);">Latency: <b style="color: #fff;">48ms</b></span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="color: #f59e0b;">🔥</span>
+        <span id="tickerVelocityText" style="color: var(--text-secondary);">Velocity: <b style="color: #fff;">+24,800/hr</b></span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="color: #ef4444;">🚀</span>
+        <span id="tickerBreakoutText" style="color: var(--text-secondary);"><b id="tickerBreakoutCount" style="color: #fff;">0</b> Breakouts</span>
+      </div>
+    </div>
+
+    <!-- Competitor Spy Section (Hidden by default until triggered) -->
+    <div id="competitorSpyCard" class="card" style="display: none; background: rgba(30, 41, 59, 0.95); border: 1px solid #6366f1; margin-bottom: 12px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span style="font-size: 12px; font-weight: 700; color: #a5b4fc;">🎯 Competitor Outliers & Content Gaps</span>
+        <button id="btnCloseSpyCard" class="btn-sm" style="padding: 2px 6px; font-size: 10px;">✕ Close</button>
+      </div>
+      <div id="spyBenchmarkInfo" style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;"></div>
+      <div id="spyContentGapsList" style="display: flex; flex-direction: column; gap: 6px;"></div>
+    </div>
+
+    <!-- Trend Feed List -->
+    <div id="trendFeedList" style="display: flex; flex-direction: column; gap: 10px;">
+      <div style="text-align: center; color: var(--text-muted); font-size: 12px; padding: 24px 0;">
+        Click <b>⚡ Scan Live Trends</b> to discover viral topics across YouTube, Twitter, Reddit & GitHub.
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 4: Live Console -->
+  <div id="tab-console" class="tab-content">
+    <div class="console-container">
+      <div class="console-controls">
+        <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Streaming Bridge Logs</span>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <label style="font-size: 10px; text-transform: none; display: flex; align-items: center; gap: 4px; cursor: pointer; margin-bottom: 0;">
+            <input type="checkbox" id="autoScrollCheck" checked> Auto-scroll
+          </label>
+          <button id="btnClearConsole" class="btn-sm" style="padding: 2px 6px; font-size: 10px;">Clear</button>
+        </div>
+      </div>
+      <div id="consoleBox" class="console-box">
+        <div class="log-line">
+          <span class="log-time">[System]</span>
+          <span class="log-level INFO">INFO</span>
+          <span class="log-msg">Antigravity Meta Bridge Side Panel Initialized.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 5: Meta Developer Knowledge Base -->
+  <div id="tab-knowledge" class="tab-content">
+    <!-- Header Hero Card -->
+    <div class="card" style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95)); border: 1px solid rgba(99, 102, 241, 0.4); margin-bottom: 12px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+        <div style="font-weight: 700; font-size: 13px; color: #fff; display: flex; align-items: center; gap: 6px;">
+          <span>📚 Meta Dev Knowledge & Architecture</span>
+        </div>
+        <span class="status-pill pill-online" style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.4);">v21.0 Grounded</span>
+      </div>
+      <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;">
+        Authoritative knowledge base compiled from Meta developer documentation: 83 docs, 6 workflows, error diagnostic registry, token lifecycle formulas, and viral SEO blueprints.
+      </p>
+
+      <!-- Instant Doc Search Input -->
+      <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+        <input type="text" id="kbSearchInput" placeholder="Search 83 Meta docs, errors, or endpoints..." style="flex: 1; padding: 7px 10px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 6px; color: #fff; font-size: 11px;">
+        <button id="btnKbSearch" class="btn-primary" style="padding: 7px 12px; font-size: 11px; font-weight: 600;">
+          <span>🔍 Search</span>
+        </button>
+      </div>
+
+      <!-- Category Filter Pills -->
+      <div style="display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none;" id="kbCategoryPills">
+        <span class="kb-pill active" data-category="ALL">All (83)</span>
+        <span class="kb-pill" data-category="Instagram Graph API">📸 Instagram (14)</span>
+        <span class="kb-pill" data-category="Facebook Pages API">📄 Pages (12)</span>
+        <span class="kb-pill" data-category="Authentication & Token Management">🔑 Auth & Tokens (10)</span>
+        <span class="kb-pill" data-category="Messenger Platform & Bots">💬 Messenger (8)</span>
+        <span class="kb-pill" data-category="Error Handling & Rate Limits">⚠️ Errors & Quotas (8)</span>
+      </div>
+
+      <!-- Search Results Area (Hidden unless searching) -->
+      <div id="kbSearchResultsArea" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.08);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <span style="font-size: 11px; font-weight: 700; color: #a5b4fc;" id="kbResultsCount">Found 0 Matches</span>
+          <button id="btnClearKbSearch" class="btn-sm" style="padding: 2px 6px; font-size: 10px;">✕ Close</button>
+        </div>
+        <div id="kbSearchResultsList" style="display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto;"></div>
+      </div>
+    </div>
+
+    <!-- Section 1: Error Code Diagnostic Matrix -->
+    <div class="card" style="margin-bottom: 12px;">
+      <div class="card-title">
+        <span>⚡ Error Code Diagnostic Matrix (#1 - #80004)</span>
+        <span style="font-size: 10px; color: #94a3b8; font-weight: 400;">Subcode Auto-Resolution</span>
+      </div>
+      <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
+        Instant diagnosis, root-cause breakdown, and 1-click remediation commands for Meta Graph API errors:
+      </p>
+
+      <!-- Quick Error Chips -->
+      <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px;" id="errorChipsContainer">
+        <span class="kb-pill active" data-code="190">#190 (Token Expired)</span>
+        <span class="kb-pill" data-code="200">#200 (Permissions)</span>
+        <span class="kb-pill" data-code="4">#4 (App Rate Limit)</span>
+        <span class="kb-pill" data-code="100">#100 (Invalid Param)</span>
+        <span class="kb-pill" data-code="341">#341 (Feed Spam Cap)</span>
+        <span class="kb-pill" data-code="368">#368 (Policy Block)</span>
+        <span class="kb-pill" data-code="613">#613 (Burst Rate)</span>
+        <span class="kb-pill" data-code="80004">#80004 (Page Limit)</span>
+        <span class="kb-pill" data-code="17">#17 (User Limit)</span>
+        <span class="kb-pill" data-code="10">#10 (App Permission)</span>
+      </div>
+
+      <!-- Subcode Select for #190 -->
+      <div id="subcodeSelectRow" style="display: flex; align-items: center; gap: 6px; margin-bottom: 10px; background: rgba(15, 23, 42, 0.5); padding: 6px 8px; border-radius: 6px;">
+        <span style="font-size: 10px; font-weight: 700; color: #a5b4fc;">Subcode:</span>
+        <select id="errorSubcodeSelect" style="flex: 1; padding: 4px 6px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 4px; color: #fff; font-size: 10px;">
+          <option value="463">463 - Token Expired after 60 days</option>
+          <option value="467">467 - User Session Expired / Logged Out</option>
+          <option value="468">468 - User Password Reset / Security Invalidation</option>
+          <option value="490">490 - Account Inactive / Checkpointed</option>
+        </select>
+      </div>
+
+      <!-- Diagnostic Display Box -->
+      <div id="errorDiagnosisCard" class="kb-step-card" style="border-left: 3px solid #ef4444; background: rgba(30, 41, 59, 0.7);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <span style="font-size: 12px; font-weight: 700; color: #f87171;" id="diagErrorName">#190: Invalid OAuth 2.0 Access Token</span>
+          <span class="status-pill pill-warning" id="diagRetryBadge" style="font-size: 9px; padding: 1px 6px;">Non-Retryable</span>
+        </div>
+        <div style="font-size: 11px; color: #cbd5e1; margin-bottom: 6px;" id="diagDescription">
+          Access token is expired, revoked, invalidated, user logged out, or password was changed.
+        </div>
+        <div style="font-size: 10px; font-weight: 700; color: #fbbf24; margin-bottom: 2px;">REMEDIATION ACTION:</div>
+        <div style="font-size: 11px; color: #fde68a; margin-bottom: 8px; line-height: 1.3;" id="diagAction">
+          Token must be renewed. Run token exchange flow to exchange short-lived token for 60-day token, or re-authorize.
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 10px; color: var(--text-muted);">CLI Command:</span>
+          <button id="btnCopyErrorCli" class="btn-sm" style="padding: 3px 8px; font-size: 10px; background: #3b82f6; color: #fff;">
+            <span>📋 Copy CLI Diagnostic</span>
+          </button>
+        </div>
+        <div class="kb-code-box" id="diagCliCommand">python3 cli.py error 190 --subcode 463</div>
+      </div>
+    </div>
+
+    <!-- Section 2: End-to-End Workflow Architecture Visualizer -->
+    <div class="card" style="margin-bottom: 12px;">
+      <div class="card-title">
+        <span>🏗️ Production Workflow Architecture</span>
+      </div>
+      <div style="display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 10px; scrollbar-width: none;" id="workflowPillsContainer">
+        <span class="kb-pill active" data-wf="instagram_publishing">📸 Instagram 2-Step Flow</span>
+        <span class="kb-pill" data-wf="page_token_formula">🔑 Page Token Formula</span>
+        <span class="kb-pill" data-wf="messaging_24h_policy">💬 24h DM & Tags</span>
+        <span class="kb-pill" data-wf="facebook_pages_posting">📄 Facebook Pages</span>
+      </div>
+
+      <div id="workflowDisplayCard">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <div style="font-weight: 700; font-size: 12px; color: #fff;" id="wfTitle">Instagram 2-Step Container Publishing</div>
+          <span class="status-pill pill-online" style="font-size: 9px;" id="wfBadge">API v21.0 Standard</span>
+        </div>
+        <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;" id="wfDescription">
+          Official 2-step media publishing architecture for Instagram Feed photos, videos, and Reels.
+        </p>
+
+        <!-- Dynamic Steps Container -->
+        <div id="wfStepsContainer" style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px;"></div>
+
+        <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 4px;">
+          <b>Required Scopes:</b> <span id="wfScopes" style="color: #38bdf8;">instagram_basic, instagram_content_publish</span>
+        </div>
+        <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 8px;">
+          <b>Rate Limits:</b> <span id="wfLimits" style="color: #fbbf24;">25 published posts per rolling 24-hour window.</span>
+        </div>
+
+        <button id="btnCopyWorkflowSnippet" class="btn-primary" style="width: 100%; padding: 6px; font-size: 11px;">
+          <span>📋 Copy Autopilot CLI Command</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Section 3: Viral SEO & Creative Studio -->
+    <div class="card" style="margin-bottom: 12px;">
+      <div class="card-title">
+        <span>🎨 Viral SEO & Nano Banana Creative Studio</span>
+      </div>
+      <div style="display: flex; gap: 6px; margin-bottom: 10px;">
+        <button id="btnSubtabHooks" class="btn-primary" style="flex: 1; padding: 6px; font-size: 11px; font-weight: 600;">
+          <span>🎣 3s Viral Hooks</span>
+        </button>
+        <button id="btnSubtabArchetypes" class="btn-secondary" style="flex: 1; padding: 6px; font-size: 11px; font-weight: 600;">
+          <span>🍌 7 Visual Archetypes</span>
+        </button>
+      </div>
+
+      <!-- Viral Hooks View -->
+      <div id="viralHooksView">
+        <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
+          Battle-tested retention hooks proven to capture mobile attention within 3 seconds:
+        </p>
+        <div id="viralHooksList" style="display: flex; flex-direction: column; gap: 8px;"></div>
+      </div>
+
+      <!-- Visual Archetypes View -->
+      <div id="visualArchetypesView" style="display: none;">
+        <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
+          Agency-grade visual archetypes for Nano Banana Pro (gemini-3-pro-image) & Nano Banana 2.1:
+        </p>
+        <div id="archetypesList" style="display: flex; flex-direction: column; gap: 8px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 7: Senior SMM, 2026 Meta Algorithm & Auto-Reply Pro -->
+  <div id="tab-smm" class="tab-content">
+    <!-- Header Banner -->
+    <div class="card" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(30, 41, 59, 0.95)); border: 1px solid rgba(16, 185, 129, 0.4);">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+        <div style="font-weight: 700; font-size: 13px; color: #fff; display: flex; align-items: center; gap: 6px;">
+          <span>🧠 Senior Social Media Manager & Algorithm Suite</span>
+        </div>
+        <span style="font-size: 10px; background: rgba(16, 185, 129, 0.25); color: #10b981; padding: 2px 8px; border-radius: 9999px; font-weight: 700;">2026 META ENGINE</span>
+      </div>
+      <p style="font-size: 11px; color: var(--text-secondary); line-height: 1.4;">
+        Integrated with <strong>fb-autoreply-pro</strong>, <strong>AlgoHack-AI</strong>, and <strong>facebook-content-automation-dashboard</strong>. Autonomous comment-to-DM funnels, 4-pillar algorithmic reach auditor, and peak dwell-time scheduling.
+      </p>
+    </div>
+
+    <!-- Section 1: 2026 Meta Algorithm Post Auditor -->
+    <div class="card">
+      <div class="card-title">
+        <span>⚡ 2026 Meta Algorithm Auditor (AlgoHack Engine)</span>
+      </div>
+      <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">
+        Pre-flight check against Meta's 2026 feed ranking mechanics: Retention Hook, Anti-Book Scannability, MSI Weighting, and Link Suppression Bypass.
+      </p>
+
+      <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+        <div style="flex: 1;">
+          <label style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 4px;">Platform</label>
+          <select id="smmPlatformSelect" class="form-select" style="padding: 6px 8px; font-size: 11px;">
+            <option value="facebook" selected>Facebook (Motivational Docqueen / Profile)</option>
+            <option value="instagram">Instagram (@renukaydv624)</option>
+          </select>
+        </div>
+        <div style="flex: 1;">
+          <label style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 4px;">Format</label>
+          <select id="smmFormatSelect" class="form-select" style="padding: 6px 8px; font-size: 11px;">
+            <option value="post" selected>Post / Text / Graphic</option>
+            <option value="reel">Reel / Video (9:16)</option>
+            <option value="story">Story</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <label style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Draft Caption or Script</label>
+          <button id="btnSmmPullComposer" class="btn-sm" style="font-size: 10px; padding: 2px 6px;">📥 Pull from Composer</button>
+        </div>
+        <textarea id="smmDraftInput" class="form-input" rows="4" style="font-family: inherit; font-size: 11px; resize: vertical;" placeholder="Type or paste draft post caption here... (e.g. 🔥 99% fail this IQ question. Comment ANSWER below!)"></textarea>
+      </div>
+
+      <button id="btnRunSmmAudit" class="btn-primary" style="width: 100%; padding: 8px; font-size: 12px; font-weight: 700;">
+        <span>⚡ Audit with 2026 Meta Algorithm</span>
+      </button>
+
+      <!-- Audit Results Card (Initially hidden) -->
+      <div id="smmAuditResultCard" style="display: none; margin-top: 12px; background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 11px; font-weight: 700; color: #fff;">Predicted Reach Score:</span>
+            <span id="smmReachScoreBadge" style="font-size: 13px; font-weight: 800; padding: 2px 8px; border-radius: 6px; background: #10b981; color: #fff;">85/100</span>
+          </div>
+          <span id="smmVerdictPill" style="font-size: 10px; font-weight: 600; color: var(--text-secondary);">High Reach</span>
+        </div>
+
+        <!-- 4 Pillars Breakdown -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px;">
+          <div style="background: rgba(30, 41, 59, 0.8); padding: 6px 8px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);">
+            <div style="display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 2px;">
+              <span style="color: var(--text-secondary);">🎣 Hook Strength</span>
+              <strong id="smmPillarHook" style="color: #60a5fa;">20/25</strong>
+            </div>
+          </div>
+          <div style="background: rgba(30, 41, 59, 0.8); padding: 6px 8px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);">
+            <div style="display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 2px;">
+              <span style="color: var(--text-secondary);">📐 Scannability</span>
+              <strong id="smmPillarFormat" style="color: #34d399;">25/25</strong>
+            </div>
+          </div>
+          <div style="background: rgba(30, 41, 59, 0.8); padding: 6px 8px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);">
+            <div style="display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 2px;">
+              <span style="color: var(--text-secondary);">💬 MSI Interaction</span>
+              <strong id="smmPillarMsi" style="color: #a78bfa;">22/25</strong>
+            </div>
+          </div>
+          <div style="background: rgba(30, 41, 59, 0.8); padding: 6px 8px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05);">
+            <div style="display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 2px;">
+              <span style="color: var(--text-secondary);">🛡️ Anti-Penalty</span>
+              <strong id="smmPillarPenalty" style="color: #fbbf24;">25/25</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notes / Warnings -->
+        <div id="smmPillarNotes" style="font-size: 10px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.4;"></div>
+
+        <!-- External Link Suppression Bypass Alert -->
+        <div id="smmLinkSuppressionBox" style="display: none; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 6px; padding: 8px; margin-bottom: 8px;">
+          <div style="font-size: 10px; font-weight: 700; color: #fbbf24; margin-bottom: 3px;">⚠️ 70% Link Reach Penalty Bypassed</div>
+          <div id="smmFirstCommentDirective" style="font-size: 10px; color: #fff; line-height: 1.3;"></div>
+        </div>
+
+        <!-- Algorithm Optimized Draft -->
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <label style="font-size: 10px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Algorithm-Optimized Draft</label>
+            <div style="display: flex; gap: 4px;">
+              <button id="btnCopySmmDraft" class="btn-sm" style="font-size: 10px; padding: 2px 6px;">📋 Copy</button>
+              <button id="btnApplySmmDraftToComposer" class="btn-sm" style="font-size: 10px; padding: 2px 6px; background: rgba(59, 130, 246, 0.2); color: #60a5fa; border-color: rgba(59, 130, 246, 0.4);">✍️ To Composer</button>
+            </div>
+          </div>
+          <textarea id="smmOptimizedDraftOutput" class="form-input" rows="4" readonly style="font-family: inherit; font-size: 10px; background: #0f172a; resize: vertical;"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: Smart Auto-Reply Pro & Comment-to-DM Funnels -->
+    <div class="card">
+      <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>💬 Smart Auto-Reply & DM Funnels (fb-autoreply-pro)</span>
+        <button id="btnRefreshAutoReply" class="btn-sm" style="font-size: 10px; padding: 2px 6px;">🔄 Sync</button>
+      </div>
+      <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">
+        Automatic 2-tier responses: Public thread engagement + compliant 1-to-1 private DM lead capture with 5-12s human jitter.
+      </p>
+
+      <!-- Rule Simulator / Tester -->
+      <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); border-radius: 6px; padding: 8px; margin-bottom: 10px;">
+        <div style="font-size: 10px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 6px;">🧪 Comment Rule Simulator</div>
+        <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+          <input id="autoreplyTestComment" class="form-input" style="flex: 2; font-size: 11px; padding: 5px 8px;" placeholder="Comment (e.g. Bhai price koto?)" value="Bhai price koto?">
+          <input id="autoreplyTestUser" class="form-input" style="flex: 1; font-size: 11px; padding: 5px 8px;" placeholder="Name" value="Ahmed">
+        </div>
+        <button id="btnTestAutoreplyMatch" class="btn-secondary" style="width: 100%; padding: 6px; font-size: 11px; font-weight: 600;">
+          <span>Test Keyword Match & DM Funnel</span>
+        </button>
+
+        <div id="autoreplyTestResultBox" style="display: none; margin-top: 8px; padding: 8px; background: rgba(30, 41, 59, 0.9); border-radius: 6px; border-left: 3px solid #10b981; font-size: 10px;">
+          <div id="autoreplyResultHeader" style="font-weight: 700; color: #10b981; margin-bottom: 4px;">✅ Matched Rule</div>
+          <div style="color: var(--text-secondary); margin-bottom: 3px;"><strong>Public Reply:</strong> <span id="autoreplyResultPublic" style="color: #fff;"></span></div>
+          <div id="autoreplyDmContainer" style="color: var(--text-secondary);"><strong>Private DM:</strong> <span id="autoreplyResultDm" style="color: #60a5fa;"></span></div>
+        </div>
+      </div>
+
+      <!-- Autonomous Cycle Runner -->
+      <div style="display: flex; gap: 6px; margin-bottom: 10px;">
+        <button id="btnRunAutoreplyCycle" class="btn-primary" style="flex: 1; padding: 7px; font-size: 11px; font-weight: 700;">
+          <span>▶️ Run Auto-Reply Scan Cycle</span>
+        </button>
+      </div>
+      <div id="autoreplyCycleStatus" style="font-size: 10px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.4;"></div>
+
+      <!-- Active Rules List -->
+      <div style="font-size: 10px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 6px;">Active Auto-Reply Rules</div>
+      <div id="smmRulesList" style="display: flex; flex-direction: column; gap: 6px;"></div>
+    </div>
+
+    <!-- Section 3: Daily Cron Peak Slots & Stale Recovery -->
+    <div class="card" style="margin-bottom: 12px;">
+      <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>⏰ Peak Engagement Windows & Stale Recovery</span>
+        <button id="btnRecoverStaleJobs" class="btn-sm" style="font-size: 10px; padding: 2px 6px; background: rgba(245, 158, 11, 0.2); color: #fbbf24; border-color: rgba(245, 158, 11, 0.4);">🔄 Unstick Stale Jobs</button>
+      </div>
+      <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">
+        High-dwell scheduling slots for Meta algorithms. Automatic recovery frees jobs held in 'running' past 15-minute timeout.
+      </p>
+
+      <div id="smmPeakSlotsList" style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px;"></div>
+      <div id="staleRecoveryStatus" style="font-size: 10px; color: var(--text-muted); line-height: 1.3;"></div>
+    </div>
+  </div>
+
+  <script type="module" src="sidepanel.js"></script>
+</body>
+</html>

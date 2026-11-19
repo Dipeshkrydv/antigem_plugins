@@ -1,0 +1,88 @@
+{
+  "manifest_version": 3,
+  "name": "Antigravity Meta Bridge (Zero-Cost Dumb Relay)",
+  "version": "1.0.0",
+  "description": "Universal Undetectable Social Autopilot Bridge connecting Meta Business Suite, Instagram, YouTube Studio, and TikTok Creator Center.",
+  "permissions": [
+    "cookies",
+    "tabs",
+    "scripting",
+    "activeTab",
+    "storage",
+    "webNavigation",
+    "alarms",
+    "sidePanel"
+  ],
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "host_permissions": [
+    "*://facebook.com/*",
+    "*://*.facebook.com/*",
+    "*://instagram.com/*",
+    "*://*.instagram.com/*",
+    "*://business.facebook.com/*",
+    "*://*.business.facebook.com/*",
+    "*://studio.youtube.com/*",
+    "*://*.youtube.com/*",
+    "*://tiktok.com/*",
+    "*://*.tiktok.com/*",
+    "*://*.reddit.com/*",
+    "*://api.github.com/*",
+    "*://*.twitter.com/*",
+    "*://*.x.com/*",
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' ws://127.0.0.1:8765 ws://localhost:8765 http://127.0.0.1:8765 http://localhost:8765 https://*.facebook.com https://*.instagram.com https://business.facebook.com https://*.youtube.com https://studio.youtube.com https://*.tiktok.com https://*.reddit.com https://api.github.com https://*.twitter.com https://*.x.com;"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://facebook.com/*",
+        "*://*.facebook.com/*",
+        "*://instagram.com/*",
+        "*://*.instagram.com/*",
+        "*://business.facebook.com/*",
+        "*://*.business.facebook.com/*"
+      ],
+      "js": ["stealth_engine.js", "content_bridge.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://studio.youtube.com/*",
+        "*://*.youtube.com/*"
+      ],
+      "js": ["stealth_engine.js", "youtube_driver.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://tiktok.com/*",
+        "*://*.tiktok.com/*"
+      ],
+      "js": ["stealth_engine.js", "tiktok_driver.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png",
+    "512": "icons/icon512.png"
+  }
+}

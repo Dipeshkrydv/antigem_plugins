@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Antigravity Meta Bridge</title>
+  <style>
+    body {
+      width: 320px;
+      margin: 0;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 10px;
+    }
+    .logo {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+    }
+    .title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .badge.connected {
+      background: #dcfce7;
+      color: #15803d;
+    }
+    .badge.disconnected {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+    .account-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      font-size: 13px;
+    }
+    .account-name {
+      font-weight: 600;
+      color: #334155;
+    }
+    .account-status {
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .status-online {
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+    .status-warning {
+      background: #fef3c7;
+      color: #b45309;
+      border: 1px solid #fde68a;
+    }
+    .status-offline {
+      background: #f1f5f9;
+      color: #94a3b8;
+    }
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+      padding: 9px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    button:active {
+      transform: scale(0.96) !important;
+      opacity: 0.9;
+    }
+    .btn-sync {
+      background: #2563eb;
+      color: #ffffff;
+    }
+    .btn-sync:hover {
+      background: #1d4ed8;
+    }
+    .btn-pause {
+      background: #dc2626;
+      color: #ffffff;
+    }
+    .btn-pause:hover {
+      background: #b91c1c;
+    }
+    .btn-resume {
+      background: #16a34a;
+      color: #ffffff;
+    }
+    .btn-resume:hover {
+      background: #15803d;
+    }
+    .footer {
+      margin-top: 12px;
+      font-size: 10px;
+      text-align: center;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="icons/icon48.png" alt="Logo" class="logo">
+    <div class="title">Meta Bridge Dumb Relay</div>
+  </div>
+
+  <div id="connectionBadge" class="badge disconnected">
+    <span class="status-dot"></span>
+    <span id="connectionText">MCP Server Disconnected</span>
+  </div>
+
+  <div class="card" style="background: #f1f5f9; border-color: #cbd5e1; margin-bottom: 10px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+      <span style="font-size: 11px; font-weight: 700; color: #334155;">⚡ ONE-TIME SETUP</span>
+      <span style="font-size: 10px; background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-weight: 600;">Auto-Canvas Active</span>
+    </div>
+    <div style="font-size: 10px; color: #64748b; line-height: 1.3;">
+      Zero tab-opening prompts. Posts execute autonomously in background.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Live Logged-In Sessions</div>
+    <div class="account-row" style="flex-wrap: wrap; gap: 4px; margin-bottom: 6px;">
+      <div>
+        <div class="account-name" id="popupFbName">Facebook</div>
+        <div style="font-size: 10px; color: #64748b;" id="popupFbSub">Profile ID: Not Synced</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 4px;">
+        <span id="fbStatus" class="account-status status-offline">Offline</span>
+        <button type="button" id="btnPopupOpenFB" style="padding: 2px 6px; font-size: 10px; background: #2563eb; color: #fff;">Open</button>
+        <button type="button" id="btnPopupLogoutFB" style="padding: 2px 6px; font-size: 10px; background: #dc2626; color: #fff;">Logout</button>
+      </div>
+    </div>
+    <div class="account-row" style="flex-wrap: wrap; gap: 4px; margin-bottom: 6px;">
+      <div>
+        <div class="account-name" id="popupIgName">Instagram</div>
+        <div style="font-size: 10px; color: #64748b;" id="popupIgSub">User ID: Not Synced</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 4px;">
+        <span id="igStatus" class="account-status status-offline">Offline</span>
+        <button type="button" id="btnPopupOpenIG" style="padding: 2px 6px; font-size: 10px; background: #c026d3; color: #fff;">Open</button>
+        <button type="button" id="btnPopupLogoutIG" style="padding: 2px 6px; font-size: 10px; background: #dc2626; color: #fff;">Logout</button>
+      </div>
+    </div>
+    <div class="account-row" style="flex-wrap: wrap; gap: 4px;">
+      <div>
+        <div class="account-name" id="popupBizName">Meta Business Suite</div>
+        <div style="font-size: 10px; color: #64748b;" id="popupBizSub">No Pages Linked</div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 4px;">
+        <span id="bizStatus" class="account-status status-offline">Offline</span>
+        <button type="button" id="btnPopupOpenBiz" style="padding: 2px 6px; font-size: 10px; background: #4f46e5; color: #fff;">Open</button>
+        <button type="button" id="btnPopupLogoutBiz" style="padding: 2px 6px; font-size: 10px; background: #dc2626; color: #fff;">Logout</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Trend Radar Card -->
+  <div class="card" style="background: linear-gradient(135deg, #0f172a, #1e293b); border: 1px solid rgba(239, 68, 68, 0.4); color: #fff;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+      <span style="font-size: 11px; font-weight: 700; color: #f87171;">🔥 LIVE TREND RADAR</span>
+      <span style="font-size: 9px; background: #ef4444; color: #fff; padding: 1px 5px; border-radius: 4px; font-weight: 700;">ACTIVE</span>
+    </div>
+    <div style="font-size: 10px; color: #cbd5e1; line-height: 1.3; margin-bottom: 8px;">
+      Real-time YouTube, Twitter, Reddit & GitHub breakout trends & competitor gaps.
+    </div>
+    <button id="btnPopupTrendRadar" type="button" style="width: 100%; padding: 6px; font-size: 11px; font-weight: 700; background: linear-gradient(135deg, #ef4444, #f97316); color: #fff; border: none; border-radius: 6px; cursor: pointer;">
+      <span>⚡ Open Trend Radar & Gaps</span>
+    </button>
+  </div>
+
+  <div class="actions">
+    <button id="btnOpenSidePanel" class="btn-sidepanel" style="background: #6366f1; color: #ffffff;">
+      <span>🖥️ Open Persistent Side Panel</span>
+    </button>
+    <button id="btnReload" class="btn-reload" style="background: #0284c7; color: #ffffff;">
+      <span>⚡ Reload Extension Bridge</span>
+    </button>
+    <button id="btnSync" class="btn-sync">
+      <span>🔄 Force Sync Sessions</span>
+    </button>
+    <button id="btnPauseToggle" class="btn-pause">
+      <span id="pauseBtnText">🛑 Emergency Pause All</span>
+    </button>
+  </div>
+
+  <div class="footer">
+    Antigravity Meta Suite • Zero-Cost Local Bridge
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

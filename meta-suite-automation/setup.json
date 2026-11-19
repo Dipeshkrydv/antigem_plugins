@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "project": "Meta Suite & Social Autopilot",
+  "version": "2.0.0",
+  "status": "ready",
+  "connection": {
+    "server": "meta-scheduler-mcp",
+    "wsUrl": "ws://127.0.0.1:8765",
+    "port": 8765,
+    "zeroSetup": true,
+    "oneTimeCheck": true,
+    "status": "ready"
+  },
+  "deepxFlowBridge": {
+    "server": "deepx-flow",
+    "wsUrl": "ws://127.0.0.1:8792/ws",
+    "port": 8792,
+    "status": "ready"
+  },
+  "accounts": {
+    "businessSuitePage": {
+      "name": "Motivational Docqueen",
+      "id": "1409644015561854"
+    },
+    "facebookProfile": {
+      "name": "Renuka Yadav",
+      "id": "61592442011195"
+    },
+    "instagram": {
+      "handle": "@renukayadav",
+      "id": "43599208749"
+    }
+  },
+  "antigravityDirectives": {
+    "suppressConnectionJsonDumps": true,
+    "suppressExploratoryProbing": true,
+    "checkConnectionOnce": true,
+    "instantTwoStepDispatch": true,
+    "antiCommentBoxLock": true,
+    "fastClipboardPaste": true,
+    "realThumbnailUpload": true
+  }
+}
