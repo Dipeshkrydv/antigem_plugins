@@ -576,7 +576,7 @@ class YouTubeSEOEngine:
                 f"📌 SUBSCRIBE & RESOURCES\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                 f"▶ Subscribe for Daily Breakthroughs: {subscribe_url}\n"
-                f"▶ Official Community: https://www.facebook.com/groups/motivationaldocqueen\n\n"
+                f"▶ Official Community: https://www.facebook.com/groups/community\n\n"
                 f"#Shorts #YouTubeShorts #{tag_base} #Motivation #Success"
             )
             hashtags = ["Shorts", "YouTubeShorts", tag_base, "SelfImprovement", "Success"]
@@ -641,7 +641,7 @@ class YouTubeSEOEngine:
                 f"📌 CONNECT & SUBSCRIBE\n"
                 f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                 f"▶ Subscribe for Weekly Breakthroughs: {subscribe_url}\n"
-                f"▶ Official Community: https://www.facebook.com/groups/motivationaldocqueen\n\n"
+                f"▶ Official Community: https://www.facebook.com/groups/community\n\n"
                 f"{tag_string}"
             )
 
@@ -776,7 +776,7 @@ class MetaBusinessSuiteSEOEngine:
         )
 
         first_comment_text = (
-            f"🔗 Full Breakdown & Resources: https://www.facebook.com/groups/motivationaldocqueen\n\n"
+            f"🔗 Full Breakdown & Resources: https://www.facebook.com/groups/community\n\n"
             f"Save this post and drop any questions below — I respond to all of you!"
         )
 

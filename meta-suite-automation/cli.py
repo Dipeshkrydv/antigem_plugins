@@ -714,7 +714,7 @@ def cmd_publish_video(args):
         )
         print(f"✅ Published to Facebook Profile: {res}")
 
-    elif platform in ("meta_business_suite", "page", "motivational_docqueen", "mbs"):
+    elif platform in ("meta_business_suite", "page", "mbs_page", "mbs"):
         from mcp_server.facebook_controller import fb_controller
         from mcp_server.video_seo_analyzer import seo_analyzer
         seo_data = seo_analyzer.analyze_and_generate_all(args.media, topic_hint=topic)
@@ -1636,10 +1636,10 @@ def main_cli():
 
     # Post
     p_post = subparsers.add_parser("post", help="Publish a post immediately or schedule for future")
-    p_post.add_argument("--platform", choices=["instagram", "facebook"], required=True, help="Platform")
+    p_post.add_argument("--platform", choices=["instagram", "facebook"], default="facebook", help="Platform")
     p_post.add_argument("--type", choices=["photo", "reel", "text", "story"], default="photo", help="Content type")
-    p_post.add_argument("--target", default="feed", help="Target type: 'feed', 'profile', 'page', 'group'")
-    p_post.add_argument("--target-id", default=None, help="Target ID (Page ID, Group ID, or Profile ID)")
+    p_post.add_argument("--target", default="page", help="Target type: 'page' (Meta Business Suite Page)")
+    p_post.add_argument("--target-id", default="me", help="Target Page ID (Default: 'me' for active Meta Business Suite page)")
     p_post.add_argument("--media", type=str, default=None, help="Path to photo or video media file")
     p_post.add_argument("--caption", type=str, default="", help="Caption / text content")
     p_post.add_argument("--hashtags", type=str, default="", help="Space-separated hashtags")
@@ -1651,8 +1651,8 @@ def main_cli():
     p_batch = subparsers.add_parser("batch", help="Schedule multi-post batch with humanized pacing (1 live + rest scheduled)")
     p_batch.add_argument("--platform", choices=["instagram", "facebook"], default="facebook", help="Platform")
     p_batch.add_argument("--type", choices=["photo", "reel", "text", "story"], default="photo", help="Content type")
-    p_batch.add_argument("--target", default="profile", help="Target type: 'profile', 'feed', 'page', 'group'")
-    p_batch.add_argument("--target-id", default="me", help="Target ID (Default: Facebook User profile)")
+    p_batch.add_argument("--target", default="page", help="Target type: 'page'")
+    p_batch.add_argument("--target-id", default="me", help="Target Page ID (Default: 'me' for active Meta Business Suite page)")
     p_batch.add_argument("--file", type=str, default=None, help="JSON file containing array of post objects")
     p_batch.add_argument("--sample", type=int, default=15, help="Number of sample study/Loksewa posts to generate & schedule (Default: 15)")
     p_batch.add_argument("--min-gap", type=int, default=40, help="Minimum spacing in minutes (Default: 40)")

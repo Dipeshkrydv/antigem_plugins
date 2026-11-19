@@ -714,7 +714,7 @@ def cmd_publish_video(args):
         )
         print(f"✅ Published to Facebook Profile: {res}")
 
-    elif platform in ("meta_business_suite", "page", "motivational_docqueen", "mbs"):
+    elif platform in ("meta_business_suite", "page", "mbs_page", "mbs"):
         from mcp_server.facebook_controller import fb_controller
         from mcp_server.video_seo_analyzer import seo_analyzer
         seo_data = seo_analyzer.analyze_and_generate_all(args.media, topic_hint=topic)

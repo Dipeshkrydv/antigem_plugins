@@ -59,34 +59,28 @@ When formatting any post caption:
 
 ## 4. Execution Workflow (Step-by-Step)
 
-When the user says "Post X to Facebook" or "Post this to Instagram" or "Schedule routine for tomorrow":
+When the user says "Post X to Facebook Page" or "Schedule Page Reel for tomorrow":
 
-### Step 1: Detect Platform & Target
-- If user mentions **Facebook**:
-  - Target: `target_type="profile"`, `target_id="me"`.
-- If user mentions **Instagram**:
-  - Target: Instagram feed or reel (`@creator`).
-- If user says **"Both"** or doesn't specify:
-  - Dispatch to Facebook Personal Profile AND Instagram.
+### Step 1: Detect Page Target
+- Target: `target_type="page"`, `target_id="me"` (or user-specified numerical Facebook Page ID).
+- All posting via Meta Suite Autopilot routes directly into the managed Page composer in Meta Business Suite.
 
 ### Step 2: Prepare Media (if needed)
-- If media is supplied (e.g. `/path/to/image.jpg`): Validate format (auto-conforms to JPEG/MP4).
-- If Instagram post requested without media: Call `render_free_media_asset` to generate a 4:5 JPEG graphic.
+- If media is supplied (e.g. `/path/to/video.mp4`): Validate format (auto-conforms to JPEG/MP4).
+- If creative media requested: Generate high-impact visuals via DeepX Google Flow bridge (`ws://127.0.0.1:8792/ws`).
 
 ### Step 3: Format Viral SEO Caption
-- Synthesize engaging caption with hook, bullet points, and 3-8 viral hashtags.
+- Synthesize engaging caption with hook, bullet points, CTA, and 3-6 targeted hashtags.
 
 ### Step 4: Dispatch Post in Background
-- For Facebook:
-  - Call MCP tool `publish_or_schedule_facebook` OR run `python3 cli.py post --platform facebook --target profile --target-id me --caption "..." --force`.
-- For Instagram:
-  - Call MCP tool `publish_or_schedule_instagram` OR run `python3 cli.py post --platform instagram --type photo --media "..." --caption "..." --force`.
-- For Scheduling:
-  - Supply ISO-8601 UTC timestamp `schedule_time_iso` to enqueue into the SQLite APScheduler queue.
+- For Page Post / Video / Reel:
+  - Call MCP tool `fb_publish` (with `target_type="page"`) OR run `python3 cli.py post --platform facebook --target page --target-id me --caption "..." --force`.
+- For Page Scheduling:
+  - Supply ISO-8601 UTC timestamp `schedule_time_iso` to enqueue into the SQLite APScheduler queue (or native Meta scheduler).
 
 ### Step 5: Report Clean Confirmation
 - Report clean, human-friendly confirmation:
-  - Platform (`Facebook (Facebook User)` / `Instagram (@creator)`)
+  - Platform: `Facebook Page (Meta Business Suite)`
   - Content summary and hashtags
   - Immediate publication status or scheduled date/time
   - Job ID or published link (if available)

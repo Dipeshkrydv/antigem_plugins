@@ -101,19 +101,20 @@ async def fb_publish(
     thumbnail_path: Optional[str] = None,
     media_paths: Optional[List[str]] = None,
     post_type: str = "text",
-    target_type: str = "profile",
-    target_id: Optional[str] = None,
+    target_type: str = "page",
+    target_id: Optional[str] = "me",
     first_comment: Optional[str] = None,
     story_text: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    ONE-TOUCH SENIOR SOCIAL MEDIA MANAGER PUBLISHER (Feed Posts, Photos, Carousels, Feed Videos — and routes Reel/Story if specified):
-    NOTE: For Facebook REELS prefer `fb_publish_reel(...)`; for Facebook STORIES prefer `fb_publish_story(...)`.
+    ONE-TOUCH META BUSINESS SUITE PAGE PUBLISHER (Page Posts, Photos, Carousels, Videos, Reels, Stories):
+    Dedicated strictly to Facebook Page Management via Meta Business Suite (business.facebook.com).
     MANDATORY RULES:
     1. ZERO OVERTHINKING: Call `fb_publish`, `fb_publish_reel`, or `fb_publish_story` directly as your FIRST tool call.
-    2. UNIFIED PHOTO + DEEP QUOTE IN ONE CALL: When uploading a photo (`post_type="photo"`), NEVER upload bare text or bare photo — pass `media_paths=["latest"]` (or user file path), `title`, formatted multiline `caption` (Title -> blank line -> Quote -> Bullets -> CTA), and 3-6 `hashtags`.
+    2. UNIFIED PHOTO + DEEP QUOTE: Pass `media_paths=["latest"]` (or user file path), `title`, formatted multiline `caption` (Title -> blank line -> Quote -> Bullets -> CTA), and 3-6 `hashtags`.
     3. FORMATTED CAPTION & HASHTAGS: Keep `\n\n` spacing between Title, Description, CTA, and `#Hashtags`.
-    4. CUSTOM VIDEO THUMBNAIL: When uploading a Feed Video (`post_type="video"`) with user's `thumbnail_path`, pass `thumbnail_path` and automation uploads it inside Facebook's Edit Video -> Thumbnail panel (never as a second post media item). If no `thumbnail_path` is provided for Video/Reel, ask the user whether to provide one or generate via AI Image Model (`fb_thumbnail_prompt`).
+    4. CUSTOM VIDEO THUMBNAIL: When uploading Page Videos with `thumbnail_path`, passes `thumbnail_path` to Edit Video -> Thumbnail panel.
+    5. ORGANIC SHIELD: Strictly ensures 'Make this an ad post' is OFF.
     """
     return await controller.publish_post(
         caption=caption,
@@ -122,8 +123,8 @@ async def fb_publish(
         thumbnail_path=thumbnail_path,
         media_paths=media_paths,
         post_type=post_type,
-        target_type=target_type,
-        target_id=target_id,
+        target_type=target_type or "page",
+        target_id=target_id or "me",
         first_comment=first_comment,
         story_text=story_text
     )
@@ -136,15 +137,15 @@ async def fb_publish_reel(
     title: Optional[str] = None,
     hashtags: Optional[List[str]] = None,
     thumbnail_path: Optional[str] = None,
-    target_type: str = "profile",
-    target_id: Optional[str] = None
+    target_type: str = "page",
+    target_id: Optional[str] = "me"
 ) -> Dict[str, Any]:
     """
-    DEDICATED FACEBOOK REELS PUBLISHER (`https://www.facebook.com/reels/create` + automatic mobile fallback):
-    Uploads a vertical video as a Facebook Reel with:
-    - Custom Cover / Thumbnail (`thumbnail_path`): automatically uploaded in the Reels Edit/Cover panel (NEVER attached as a feed photo). If missing, ask user to provide or generate with AI Image Model (`fb_thumbnail_prompt`).
-    - Viral `title` + formatted multiline `caption` description (`\n\n` spacing preserved) + 3-6 `#Hashtags`.
-    - Supports `video_path="latest"` to automatically pick the newest vertical video on the device.
+    DEDICATED META BUSINESS SUITE PAGE REELS PUBLISHER:
+    Uploads a vertical 9:16 video as a Facebook Page Reel in Meta Business Suite:
+    - Custom Cover / Thumbnail (`thumbnail_path`): automatically uploaded in Reel Cover panel.
+    - Viral `title` + formatted multiline `caption` (`\n\n` spacing preserved) + 3-6 `#Hashtags`.
+    - Supports `video_path="latest"` to pick the newest vertical video automatically.
     """
     return await controller.publish_post(
         caption=caption,
@@ -153,8 +154,8 @@ async def fb_publish_reel(
         thumbnail_path=thumbnail_path,
         media_paths=[video_path],
         post_type="reel",
-        target_type=target_type,
-        target_id=target_id
+        target_type=target_type or "page",
+        target_id=target_id or "me"
     )
 
 
@@ -163,21 +164,20 @@ async def fb_publish_story(
     media_path: Optional[str] = None,
     story_text: Optional[str] = None,
     caption: str = "",
-    target_type: str = "profile",
-    target_id: Optional[str] = None
+    target_type: str = "page",
+    target_id: Optional[str] = "me"
 ) -> Dict[str, Any]:
     """
-    DEDICATED FACEBOOK STORIES PUBLISHER (`https://www.facebook.com/stories/create`):
-    Publishes a Photo/Video Story (with optional short overlay `story_text`) or a Text Story (`Create a text story`).
-    NOTE: Facebook Stories do NOT have a caption/description/hashtag field; use `story_text` (<=120 chars) for short overlay text on Photo/Video Stories or full text on Text Stories.
+    DEDICATED META BUSINESS SUITE PAGE STORIES PUBLISHER:
+    Publishes a Photo/Video Page Story (with optional short overlay `story_text`) or a Text Story.
     """
     return await controller.publish_post(
         caption=caption,
         story_text=story_text,
         media_paths=[media_path] if media_path else [],
         post_type="story",
-        target_type=target_type,
-        target_id=target_id
+        target_type=target_type or "page",
+        target_id=target_id or "me"
     )
 
 
@@ -199,13 +199,13 @@ async def fb_schedule(
     thumbnail_path: Optional[str] = None,
     media_paths: Optional[List[str]] = None,
     post_type: str = "text",
-    target_type: str = "profile",
-    target_id: Optional[str] = None,
+    target_type: str = "page",
+    target_id: Optional[str] = "me",
     story_text: Optional[str] = None,
-    use_native_meta_scheduler: bool = False
+    use_native_meta_scheduler: bool = True
 ) -> Dict[str, Any]:
     """
-    Schedule a Facebook post, reel, or story for future publication.
+    Schedule a Facebook Page post, reel, or story for future publication in Meta Business Suite.
     Enqueues the job into the SQLite APScheduler queue (or native Meta Business Suite scheduler).
     Accepts either `schedule_time_iso` (e.g. '2026-11-19T10:00:00Z') or `run_at_timestamp` (epoch float).
     Always enforces a viral Title (`title`), formatted multiline Description, and 3-6 `#Hashtags` (`hashtags`) for posts/videos/reels, or clean `story_text` for Stories.
@@ -246,8 +246,8 @@ async def fb_schedule(
     try:
         res = scheduler.schedule_job(
             platform="facebook",
-            target_type=target_type or "profile",
-            target_id=target_id,
+            target_type=target_type or "page",
+            target_id=target_id or "me",
             content_type=post_type,
             payload=payload,
             schedule_time_iso=target_iso,
@@ -255,15 +255,15 @@ async def fb_schedule(
         )
         return {
             "success": True,
-            "message": f"Post scheduled successfully for {target_iso}",
+            "message": f"Page post scheduled successfully for {target_iso}",
             "job_id": res.get("job_id"),
             "schedule_time_iso": target_iso,
             "mode": res.get("mode", "local_sqlite_queue"),
             "title": enriched["title"],
             "hashtags": enriched["hashtags"],
             "thumbnail_path": thumbnail_path,
-            "target_type": target_type,
-            "target_id": target_id
+            "target_type": target_type or "page",
+            "target_id": target_id or "me"
         }
     except Exception as e:
         return {"success": False, "error": str(e), "stop_loop": True}

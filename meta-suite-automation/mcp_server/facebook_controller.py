@@ -201,8 +201,8 @@ class FacebookController:
         caption: str = "",
         media_paths: Optional[List[str]] = None,
         post_type: str = "text",
-        target_type: str = "profile",
-        target_id: Optional[str] = None,
+        target_type: str = "page",
+        target_id: Optional[str] = "me",
         first_comment: Optional[str] = None,
         title: Optional[str] = None,
         hashtags: Optional[List[str]] = None,
@@ -486,7 +486,7 @@ class FacebookController:
 
     def publish_or_schedule(
         self,
-        target_type: str = "profile",
+        target_type: str = "page",
         target_id: Optional[str] = "me",
         content_type: str = "photo",
         media_paths: Optional[List[str]] = None,
@@ -560,7 +560,7 @@ class FacebookController:
         self,
         video_path: str,
         caption: str,
-        target_type: str = "profile",
+        target_type: str = "page",
         target_id: str = "me",
         bypass_spacing: bool = False,
         thumbnail_path: Optional[str] = None,
