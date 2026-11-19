@@ -51,9 +51,9 @@ scheduler = FacebookScheduler(database=db, policy_guardian=guardian, fb=controll
 @mcp.tool()
 async def fb_status(open_browser: bool = True) -> Dict[str, Any]:
     """
-    Check Facebook Automation status, open Facebook in the browser if needed,
-    and verify one-time login readiness.
-    NOTE: When publishing, do NOT call fb_status first—call fb_publish directly in 1 step!
+    Check Meta Suite and Facebook Automation status, verify bridge connectivity, and active login session.
+    MANDATORY LITERAL FIRST TOOL CALL on any Meta Suite or Facebook task (<100ms).
+    Returns ready status, logged_in state, active accounts, discovered pages, and queued jobs.
     """
     connected = bridge.is_connected()
     due_jobs = db.list_upcoming_jobs() if hasattr(db, "list_upcoming_jobs") else []
@@ -267,6 +267,48 @@ async def fb_schedule(
         }
     except Exception as e:
         return {"success": False, "error": str(e), "stop_loop": True}
+
+
+@mcp.tool()
+async def fb_manage_queue(
+    action: str = "list",
+    job_id: Optional[int] = None,
+    new_schedule_time_iso: Optional[str] = None,
+    limit: int = 20
+) -> Dict[str, Any]:
+    """
+    Controls and inspects the local SQLite APScheduler post queue for Meta Business Suite & Facebook:
+    - action='list': Lists upcoming and pending scheduled posts.
+    - action='cancel': Cancels a scheduled job by `job_id`.
+    - action='reschedule': Changes scheduled time for `job_id` to `new_schedule_time_iso`.
+    - action='pause_all': Emergency pauses all upcoming jobs in queue.
+    - action='resume_all': Resumes paused jobs in queue.
+    """
+    act = (action or "list").lower().strip()
+    try:
+        if act == "list":
+            jobs = scheduler.list_queue(limit=limit)
+            return {"success": True, "action": "list", "count": len(jobs), "jobs": jobs}
+        elif act == "cancel":
+            if not job_id:
+                return {"success": False, "error": "job_id is required for cancel action"}
+            scheduler.cancel_job(job_id)
+            return {"success": True, "action": "cancel", "job_id": job_id, "message": f"Job #{job_id} cancelled."}
+        elif act == "reschedule":
+            if not job_id or not new_schedule_time_iso:
+                return {"success": False, "error": "job_id and new_schedule_time_iso are required for reschedule action"}
+            scheduler.reschedule_job(job_id, new_schedule_time_iso)
+            return {"success": True, "action": "reschedule", "job_id": job_id, "new_time": new_schedule_time_iso, "message": f"Job #{job_id} rescheduled to {new_schedule_time_iso}."}
+        elif act in ("pause_all", "pause"):
+            scheduler.pause_queue()
+            return {"success": True, "action": "pause_all", "message": "All scheduled queue processing paused."}
+        elif act in ("resume_all", "resume"):
+            scheduler.resume_queue()
+            return {"success": True, "action": "resume_all", "message": "Scheduled queue processing resumed."}
+        else:
+            return {"success": False, "error": f"Unknown action '{action}'. Supported: list, cancel, reschedule, pause_all, resume_all"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 
 @mcp.tool()

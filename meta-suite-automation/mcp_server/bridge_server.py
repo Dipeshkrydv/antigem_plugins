@@ -45,6 +45,7 @@ class BridgeServer:
         self._server_task: Optional[asyncio.Task] = None
         self._is_running = False
         self.loop: Optional[asyncio.AbstractEventLoop] = None
+        self.discovered_pages: List[Dict[str, Any]] = []
 
     async def start(self):
         """Starts the WebSocket server."""
@@ -134,6 +135,11 @@ class BridgeServer:
             tokens = data.get("tokens", {})
             user_agent = data.get("user_agent")
             status = data.get("status", "healthy")
+            pages = data.get("pages", [])
+            if isinstance(pages, list) and len(pages) > 0:
+                self.discovered_pages = pages
+                if isinstance(tokens, dict):
+                    tokens["pages"] = pages
 
             if platform and account_id:
                 self.db.save_session(
@@ -917,8 +923,30 @@ class BridgeServer:
                 "target_type": target_type,
                 "target_id": target_id,
                 "target_url": target_url,
-                "auto_publish": payload.get("auto_publish", True)
+                "auto_publish": payload.get("auto_publish", True),
+                "post_type": post_type,
+                "title": payload.get("title", ""),
+                "hashtags": payload.get("hashtags", []),
+                "story_text": payload.get("story_text"),
+                "schedule_time_iso": payload.get("schedule_time_iso"),
+                "bypass_spacing": payload.get("bypass_spacing", False)
             }
+
+            # Ingest custom thumbnail / cover image if provided
+            if payload.get("thumbnail_file"):
+                tf = payload["thumbnail_file"]
+                dom_params["thumbnail_base64"] = tf.get("base64")
+                dom_params["thumbnail_mime_type"] = tf.get("mime_type", "image/jpeg")
+                dom_params["thumbnail_file_name"] = tf.get("filename", "cover.jpg")
+            elif payload.get("thumbnail_path"):
+                tp = payload["thumbnail_path"]
+                if os.path.exists(tp):
+                    import mimetypes, base64 as b64
+                    tm, _ = mimetypes.guess_type(tp)
+                    with open(tp, "rb") as f:
+                        dom_params["thumbnail_base64"] = b64.b64encode(f.read()).decode("ascii")
+                    dom_params["thumbnail_mime_type"] = tm or "image/jpeg"
+                    dom_params["thumbnail_file_name"] = os.path.basename(tp)
 
             try:
                 res = await self.dispatch_dom_action(instruction, dom_params, timeout=timeout)
@@ -940,6 +968,7 @@ class BridgeServer:
             session = self.db.get_session(sess_key)
             if not session and is_mbs:
                 session = self.db.get_session("facebook")
+            pages_list = self.discovered_pages or (session.get("tokens", {}).get("pages", []) if session else [])
             if session and session.get("account_id"):
                 return {
                     "success": True,
@@ -949,7 +978,8 @@ class BridgeServer:
                         "id": str(session.get("account_id")),
                         "name": str(session.get("name") or "Meta Account"),
                         "type": "page" if is_mbs else "profile",
-                        "url": target_url or ("https://business.facebook.com/" if is_mbs else "https://www.facebook.com/")
+                        "url": target_url or ("https://business.facebook.com/" if is_mbs else "https://www.facebook.com/"),
+                        "pages": pages_list
                     }
                 }
             return {
@@ -960,7 +990,8 @@ class BridgeServer:
                     "id": "me",
                     "name": "Facebook User",
                     "type": "profile",
-                    "url": "https://www.facebook.com/"
+                    "url": "https://www.facebook.com/",
+                    "pages": pages_list
                 }
             }
 

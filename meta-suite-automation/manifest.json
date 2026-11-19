@@ -35,7 +35,7 @@
   "mcp_tools": [
     {
       "name": "fb_status",
-      "description": "\n    Check Facebook Automation status, open Facebook in the browser if needed,\n    and verify one-time login readiness.\n    NOTE: When publishing, do NOT call fb_status first\u2014call fb_publish directly in 1 step!\n    ",
+      "description": "Check Meta Suite and Facebook Automation status, verify bridge connectivity, and active login session.\nMANDATORY LITERAL FIRST TOOL CALL on any Meta Suite or Facebook task (<100ms).\nReturns ready status, logged_in state, active accounts, discovered pages, and queued jobs.",
       "inputSchema": {
         "properties": {
           "open_browser": {
@@ -475,6 +475,54 @@
           }
         },
         "title": "fb_scheduleArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "fb_manage_queue",
+      "description": "Controls and inspects the local SQLite APScheduler post queue for Meta Business Suite & Facebook:\n- action=\"list\": Lists upcoming and pending scheduled posts.\n- action=\"cancel\": Cancels a scheduled job by job_id.\n- action=\"reschedule\": Changes scheduled time for job_id to new_schedule_time_iso.\n- action=\"pause_all\": Emergency pauses all upcoming jobs in queue.\n- action=\"resume_all\": Resumes paused jobs in queue.",
+      "inputSchema": {
+        "properties": {
+          "action": {
+            "default": "list",
+            "description": "Action to perform: 'list', 'cancel', 'reschedule', 'pause_all', or 'resume_all'",
+            "title": "Action",
+            "type": "string"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Scheduled job ID to cancel or reschedule",
+            "title": "Job Id"
+          },
+          "limit": {
+            "default": 20,
+            "description": "Maximum number of queued jobs to return for list action",
+            "title": "Limit",
+            "type": "integer"
+          },
+          "new_schedule_time_iso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Target UTC ISO timestamp for rescheduling (e.g. '2026-11-19T14:30:00Z')",
+            "title": "New Schedule Time Iso"
+          }
+        },
+        "title": "fb_manage_queueArguments",
         "type": "object"
       }
     },
