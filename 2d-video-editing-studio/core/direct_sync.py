@@ -193,13 +193,15 @@ class DirectAssetVoiceSyncAgent:
             text = beat.get("text", "").strip()
             asset = beat.get("asset")
 
-            # Fallback for missing asset
+            # Resolve the beat's OWN asset (a path or an element name). Never substitute some other
+            # cut-out by index: that put unrelated images on this beat's words.
             if not asset or not os.path.exists(asset):
-                cut_candidates = sorted(glob.glob("elements/cut/*.png"))
-                if cut_candidates:
-                    asset = cut_candidates[idx % len(cut_candidates)]
-                else:
-                    raise FileNotFoundError(f"No cut visual asset found for beat #{idx}: {beat}")
+                name = os.path.splitext(os.path.basename(str(asset or beat.get("name") or "")))[0]
+                cands = [p for base in ("elements/cut", "elements/raw") for p in sorted(glob.glob(f"{base}/{name}.*"))] if name else []
+                if not cands:
+                    raise FileNotFoundError(f"beat #{idx + 1}: asset {asset or beat.get('name')!r} not found in "
+                                            f"elements/cut or elements/raw -- generate it (studio.py generate --only {name})")
+                asset = cands[0]
 
             seg_wav = os.path.join(self.audio_dir, f"segment_{seg_id}.wav")
             seg_mp4 = os.path.join(self.video_dir, f"segment_{seg_id}.mp4")

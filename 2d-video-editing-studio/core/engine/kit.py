@@ -299,9 +299,11 @@ def text_block(text, role, size, color, max_w, max_lines=2, align="left", accent
 
 
 # ------------------------------------------------------------------ sprite helpers
-def fit_into(im, w, h):
+def fit_into(im, w, h, pixel=False):
+    """Scale to fit. pixel=True (pixel-art looks) uses nearest-neighbour so sprites keep hard pixel edges
+    instead of being smeared by LANCZOS."""
     r = min(w / im.width, h / im.height)
-    return im.resize((max(1, int(im.width * r)), max(1, int(im.height * r))), Image.LANCZOS)
+    return im.resize((max(1, int(im.width * r)), max(1, int(im.height * r))), Image.NEAREST if pixel else Image.LANCZOS)
 
 def trim(im):
     bb = im.getchannel("A").getbbox() if im.mode == "RGBA" else None

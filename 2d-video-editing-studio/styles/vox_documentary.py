@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Vox documentary — paper-collage explainer engine (rebuilt from reference frames).
+"""Vox / Box Paper Collage — editorial paper-collage explainer engine (rebuilt from reference frames).
+
+IDENTITY
+  A premium editorial explainer built like a hand-made magazine spread that moves. Black-and-white halftone
+  cut-outs of people, places and objects are layered on real paper with ONE spot colour per scene, giant
+  numerals behind the subject, highlighter headlines and pen annotations. Smart, tactile, data-literate.
 
 REFERENCES THIS ENGINE IS BUILT AROUND
   * "1925" / "1927"   a GIANT numeral in spot colour (mustard / navy) sits BEHIND halftone black-and-white
@@ -49,7 +54,34 @@ AVOID  dark cinematic grading, letterbox, neon, sticker outlines, vector pills, 
 """
 
 NAME = "documentary"
-ALIASES = ["vox", "vox_documentary", "paper", "collage"]
+LABEL = "Vox / Box Paper Collage"
+ALIASES = ["vox", "vox_documentary", "paper", "collage", "box_paper"]
+
+PALETTE = {
+    "canvas":  {"hex": "#F4F0E6", "use": "crumpled white paper (also grid / kraft / chalk surfaces)"},
+    "ink":     {"hex": "#181614", "use": "type, halftone blacks, pen loops"},
+    "muted":   {"hex": "#706A62", "use": "source lines, secondary notes"},
+    "accent1": {"hex": "#EC6624", "use": "orange spot colour: action, blocks, orbs"},
+    "accent2": {"hex": "#F7C424", "use": "mustard spot colour: facts, highlighter, giant numerals"},
+    "accent3": {"hex": "#1B3880", "use": "navy spot colour: numbers, charts"},
+    "stamp":   {"hex": "#EC6624", "use": "seals and stamps"},
+    "string":  {"hex": "#181614", "use": "arrows and loops"},
+    "panel":   {"hex": "#FAF7EE", "alpha": 240, "use": "paper notes"},
+    "rule":    "ink black + ONE spot colour per scene (orange OR mustard OR navy); everything else is paper",
+}
+
+TYPE = {
+    "title": "serif", "label": "body", "number": "serif", "caption": "caption",
+    "max_words": {"title": 7, "label": 4, "keyword": 3, "note": 6},
+    "boxes": ["highlighter", "strip", "note", "marker", "torn", "tag"],
+}
+
+MOTION = {
+    "entrances": ["snap", "slide", "rise", "wipe", "grow"],
+    "camera": ["drift", "push_in", "pan_right"],
+    "transitions": ["slide", "paper_slide", "smooth_zoom", "luma_wipe"],
+    "never": ["shake", "flash", "neon glow"],
+}
 
 _NEG = ("no colour photograph, no 3D render, no cinematic film look, no neon, no cartoon, no watermark, "
         "no text, no letters, no numbers, no UI, no frames, no borders, no drop shadow, no background scenery")
@@ -76,6 +108,8 @@ STYLE = {
         "boxes": ["highlighter", "strip", "note", "marker", "torn", "tag"],
     },
     "prompt": {
+        "lock": ("high-contrast black-and-white archival photograph look with deep blacks, bright highlights and fine grain, "
+                 "even documentary light, the same tonal range and grain in every image so the halftone collage reads as one film"),
         "clarity": (
             "ONE dominant subject with a clean, crisp silhouette that can be cut out, high-contrast black-and-white "
             "photograph with deep blacks and bright highlights, simple even studio lighting, no background clutter, "
@@ -220,10 +254,11 @@ LAYOUTS_9_16 = {
     },
 }
 
+# Recipes are TEMPLATES: core/auto_edit.py fills every name / text / cue from the voice line it is used for.
 RECIPES = {
     # 1925-style: giant numeral behind a halftone figure, notes either side
     "numeral_collage": {
-        "layout": "numeral_collage", "bg": "white", "accent2": "#F5BC3B",
+        "use_for": ["number", "hook"], "layout": "numeral_collage", "bg": "white", "accent2": "#F5BC3B",
         "items": [
             {"type": "bigtext", "text": "1925", "slot": "back", "color": "accent2", "at": "WORD"},
             {"type": "asset", "name": "CUTOUT_FIGURE", "slot": "center", "at": "WORD", "halftone": "bw", "ground": True},
@@ -233,7 +268,7 @@ RECIPES = {
     },
     # Porsche-style: strip headline + serif sub-line + one cut-out
     "strip_card": {
-        "layout": "strip_hero", "bg": "grid",
+        "use_for": ["object", "hook"], "layout": "strip_hero", "bg": "grid",
         "items": [
             {"type": "title", "text": "पोर्श *356*", "sub": "लॉन्च के वक़्त क़ीमत थी $3,750", "box": "strip", "at": "WORD"},
             {"type": "asset", "name": "CUTOUT_CAR", "slot": "center", "at": "WORD", "halftone": "spot", "spot": "accent3"},
@@ -242,7 +277,7 @@ RECIPES = {
     },
     # Higgs-style desk: circle block behind the hero, cut-outs around, arrows between
     "desk_collage": {
-        "layout": "desk_collage", "bg": "paper",
+        "use_for": ["list", "object"], "layout": "desk_collage", "bg": "paper",
         "items": [
             {"type": "title", "text": "एक *नया* तरीक़ा", "box": "strip", "at": "WORD"},
             {"type": "block", "shape": "circle", "color": "accent2", "slot": "back", "at": "WORD"},
@@ -255,7 +290,7 @@ RECIPES = {
     },
     # hands-collage: B&W cut-outs, pen loops between them
     "pen_loops": {
-        "layout": "desk_collage", "bg": "white",
+        "use_for": ["list", "reveal"], "layout": "desk_collage", "bg": "white",
         "items": [
             {"type": "asset", "name": "CUTOUT_A", "slot": "a", "frame": "torn", "at": "WORD"},
             {"type": "asset", "name": "CUTOUT_B", "slot": "b", "frame": "torn", "at": "WORD"},
@@ -266,7 +301,7 @@ RECIPES = {
     },
     # bar chart on graph paper
     "bar_chart": {
-        "layout": "chart_grid", "bg": "grid",
+        "use_for": ["number"], "layout": "chart_grid", "bg": "grid",
         "items": [
             {"type": "kicker", "text": "DATA // 1930s"},
             {"type": "title", "text": "तीस के दशक में अर्थव्यवस्था *कैसे* बदली", "box": "plain",
@@ -279,7 +314,7 @@ RECIPES = {
     },
     # gilt-framed portrait on chalkboard
     "framed_portrait": {
-        "layout": "framed_portrait", "bg": "chalk",
+        "use_for": ["person", "quote"], "layout": "framed_portrait", "bg": "chalk",
         "items": [
             {"type": "photo", "src": "PORTRAIT", "frame": "gilt", "slot": "center", "at": "WORD", "halftone": False},
             {"type": "lower_third", "text": "अल्बर्ट आइंस्टीन", "sub": "दार्शनिक · भौतिक विज्ञानी", "slot": "lower", "at": "WORD"},
@@ -288,7 +323,7 @@ RECIPES = {
     },
     # Capitol-style: wide halftone building + orange blocks (glitch edge)
     "wide_blocks": {
-        "layout": "wide_cutout", "bg": "paper", "accent": "#F26B1D",
+        "use_for": ["place"], "layout": "wide_cutout", "bg": "paper", "accent": "#F26B1D",
         "items": [
             {"type": "block", "shape": "rect", "color": "accent", "slot": "back", "glitch": True, "at": "WORD"},
             {"type": "block", "shape": "rect", "color": "accent", "slot": "back2", "at": "WORD"},
@@ -298,7 +333,7 @@ RECIPES = {
     },
     # Pinned Polaroid with 3D pushpin on antique map/grid
     "polaroid_pin": {
-        "layout": "stat_hero", "bg": "grid",
+        "use_for": ["object", "reveal"], "layout": "stat_hero", "bg": "grid",
         "items": [
             {"type": "kicker", "text": "ARCHIVE // EVIDENCE"},
             {"type": "photo", "src": "POLAROID_DOC", "frame": "torn", "slot": "right", "at": "WORD"},
@@ -308,7 +343,7 @@ RECIPES = {
     },
     # Architecture cutout layered over giant burnt-orange / red background orb
     "arch_orb": {
-        "layout": "strip_hero", "bg": "paper", "accent": "#E65100",
+        "use_for": ["place", "hook"], "layout": "strip_hero", "bg": "paper", "accent": "#E65100",
         "items": [
             {"type": "block", "shape": "circle", "color": "accent", "slot": "center", "at": "WORD"},
             {"type": "asset", "name": "CUTOUT_MONUMENT", "slot": "center", "frame": "clean", "at": "WORD"},
@@ -317,7 +352,7 @@ RECIPES = {
     },
     # Tilted seesaw comparing two entities/metrics
     "seesaw_compare": {
-        "layout": "split_compare", "bg": "paper",
+        "use_for": ["compare"], "layout": "split_compare", "bg": "paper",
         "items": [
             {"type": "title", "text": "बड़ा *असंतुलन*", "box": "strip", "at": "WORD"},
             {"type": "asset", "name": "CUTOUT_LEFT", "slot": "left", "label": "1.8x", "at": "WORD"},
@@ -326,7 +361,7 @@ RECIPES = {
     },
     # Halftone projection light cone from TV / screen across subject
     "light_cone": {
-        "layout": "strip_hero", "bg": "paper", "accent2": "#FFB300",
+        "use_for": ["object", "reveal"], "layout": "strip_hero", "bg": "paper", "accent2": "#FFB300",
         "items": [
             {"type": "title", "text": "टेलीविज़न: *प्रचार का साधन*", "box": "highlighter", "at": "WORD"},
             {"type": "asset", "name": "CUTOUT_TV_SCENE", "slot": "center", "at": "WORD"},
@@ -335,11 +370,11 @@ RECIPES = {
     },
     # Archival document quote with live left-to-right yellow chisel-tip marker sweep
     "highlight_sweep": {
-        "layout": "stat_hero", "bg": "paper",
+        "use_for": ["quote", "outro"], "layout": "doc_highlight", "bg": "paper",
         "items": [
             {"type": "kicker", "text": "DECLASSIFIED // QUOTE"},
             {"type": "highlight_sweep", "text": "सत्ता केवल बंदूक से नहीं, सूचना के नियंत्रण से चलती है।", "slot": "title", "at": "WORD"},
-            {"type": "asset", "name": "CUTOUT_DOCUMENT", "slot": "right", "at": "WORD"},
+            {"type": "asset", "name": "CUTOUT_DOCUMENT", "slot": "center", "at": "WORD"},
         ],
     },
 }

@@ -1,91 +1,110 @@
 # -*- coding: utf-8 -*-
-"""Sticker explainer — flat illustrations, retro cut-outs and desk flat-lays (rebuilt from reference frames).
+"""Stickman Storytelling: an expressive comic stickman explainer with selective colour.
 
-REFERENCES THIS ENGINE IS BUILT AROUND
-  * Hindi explainer   China map | pile of coins | England map, each a FLAT vector illustration with a
-                      plain dark label underneath ("चीन", "करोड़ों रुपये", "इंग्लैंड"), generous space around
-                      them, a warm vignetted paper background and a solid MUSTARD caption plate at the bottom
-  * officer + plant   two flat illustrations side by side, labels beneath, the date in the caption plate
-  * retro cut-out     a colour halftone portrait with a thick WHITE sticker border on flat green, small
-                      sans label top-left ("SMART OBJECTS" / "Retro CutOut Effect")
-  * flat-lay desk     green cutting mat, scattered desk objects (keyboard, earbuds, mouse, watch, polaroid
-                      camera), BIG colour-block titles in rounded bold type (brown / yellow / white), little
-                      stars, an app icon, a cursor, tiny UI toggles
+IDENTITY
+  A funny, sharp storyteller. A simple stick figure with a clean white round head acts out the idea in hand-drawn
+  scenes: reacting, pointing, falling, climbing, arguing with itself. The comedy is in the POSE and the FACE, the
+  clarity is in the staging. It reads like a modern comic strip that moves.
 
-WHAT MAKES IT PROFESSIONAL (and why the old stickman version looked toy-like)
-  1. Illustrations are FLAT and unframed; they breathe. Never outline + shadow + tilt + burst on one asset
-  2. Every illustration carries a PLAIN label beneath it -- the label is the explanation
-  3. The surface is warm paper with a real vignette (or a cutting mat), never a blank fill
-  4. Captions are a solid mustard plate with dark ink: legible on anything, no per-word fireworks
-  5. Where it pops, it pops with ONE device: a thick white sticker border + colour halftone (retro),
-     OR a colour-block title -- not both on the same element
-  6. Colour is a small family (terracotta, mustard, brown, cream, one green) used repeatedly
-  7. Motion is gentle: rise / pop / snap, with a hand-moved stop-motion boil on cut-outs
+CANVAS
+  Warm paper #F5F1E6 for diagram beats, or a full hand-drawn 2D scene (cliff, desk, road, cave, city) drawn in muted
+  slate / ink cross-hatching so the coloured hero pops. Never a photograph.
 
-ITEM TYPES TO USE
-  asset        flat illustration + `label` (plain)         {"type":"asset","name":"map_china","slot":"a","label":"चीन"}
-               frame "retro" + halftone "retro" for the white-border sticker pop
-  keyword      `box:"block"` rotates brown / yellow / white colour blocks; also sticky, tag, note, plate
-  badge        UI chip: play / star / hash / check / bell / mail / search / bolt   {"type":"badge","icon":"play"}
-  note, counter, list, callout, stamp, arrow, ransom also work
+PALETTE (selective colour)
+  Scenes stay muted (slate, warm grey, paper). Only the stickman's outfit and the ONE hero prop carry saturated colour:
+  cobalt #2A6BD1, marker red #D63C28 or warm amber #F0AF0F. One saturated colour per scene, plus ink black and white.
 
-LAYOUTS (names usable in EDIT.json)
-  row2 / row3 / row4   2-4 illustrations side by side, labels beneath (the Hindi explainer)
-  retro_hero           title block + label left, large retro sticker right
-  flatlay              colour-block titles in the middle, four desk objects in the corners (use bg "mat")
-  pop_title            one big colour-block title with a second block beneath
+CHARACTER
+  White round head, black ink contour 3 to 5 px, dot or oval eyes, expressive eyebrows, simple mouth (smirk, shock,
+  grin, frown). Limbs are clean lines with readable hands. Outfit comes from the story: the cast in SHOTS.json
+  `world.characters`, or clothing that fits the era and job (caveman tunic, Roman soldier, office shirt, lab coat).
+  Same face, line weight and proportions in every shot.
 
-AVOID  crayon scribbles, speech-bubble clutter, red bursts, polaroids, dark backgrounds, per-word karaoke
-       captions, mixing a white sticker border with a flat illustration in the same scene
+TYPOGRAPHY
+  Handwritten Kalam for titles (2 to 5 words). Labels 1 to 3 words in plain dark ink under the drawing.
+  Emphasis: doodle circle, marker underline, one sticky note. At most ONE speech bubble per scene, 1 to 4 words.
+
+COMPOSITION
+  Rule of thirds: the character on one third, the thing it reacts to on the other. Big empty paper for text.
+  Rows of 2 to 4 labelled drawings for lists and comparisons.
+
+MOTION
+  Snappy but clean: pop with settle, slide in, quick whip transitions between story beats, gentle drift on scenes.
+  No continuous wobble or shaking.
+
+SIGNATURE MOVES
+  whiteboard hero (character + circled keyword) · reaction beat (character + big prop) · labelled row · napkin math
+  (two sides of a comparison) · pop title for questions and punchlines
+
+AVOID
+  photoreal people or places, 3D renders, glossy gradients, more than one saturated colour per scene, speech-bubble
+  clutter, the same outfit for every era, paragraphs of text.
 """
 
 NAME = "stickman"
-ALIASES = ["stickman_hybrid", "doodle", "whiteboard", "explainer"]
+LABEL = "Stickman Storytelling"
+ALIASES = ["stickman_hybrid", "explainer", "stick_figure"]
 
-_NEG = ("no photorealism, no realistic live-action photo, no 3D cgi render, no photographic human skin, "
-        "no text, no letters, no captions, no watermark, no logo, no UI, no frames, no borders, "
-        "no messy scribble, no blur")
+PALETTE = {
+    "canvas":  {"hex": "#F5F1E6", "use": "paper for diagram beats"},
+    "ink":     {"hex": "#181614", "use": "all contours and handwriting"},
+    "muted":   {"hex": "#6E665C", "use": "scenery tone, secondary text"},
+    "accent1": {"hex": "#D63C28", "use": "marker red: problem, danger, emphasis"},
+    "accent2": {"hex": "#F0AF0F", "use": "warm amber: idea, highlight"},
+    "accent3": {"hex": "#2A6BD1", "use": "cobalt: the hero colour, calm facts"},
+    "stamp":   {"hex": "#D63C28", "use": "emphasis marks"},
+    "string":  {"hex": "#181614", "use": "arrows"},
+    "panel":   {"hex": "#FFFCF4", "alpha": 240, "use": "notes and bubbles"},
+    "rule":    "scenes muted; ONE saturated colour per scene on the character or hero prop",
+}
+
+TYPE = {
+    "title": "hand", "label": "body", "number": "hand", "caption": "caption",
+    "max_words": {"title": 5, "label": 3, "keyword": 3, "speech_bubble": 4},
+    "boxes": ["doodle_circle", "marker", "note", "tag", "pill"],
+}
+
+MOTION = {
+    "entrances": ["pop", "slide", "rise", "draw"],
+    "camera": ["drift", "push_in", "pan_right", "pan_left"],
+    "transitions": ["whip", "slide", "smooth_zoom", "cut"],
+    "never": ["shake", "jitter"],
+}
+
+_NEG = ("no photorealism, no live-action photo, no 3D CGI render, no photographic skin, no glossy gradients, "
+        "no text, no letters, no captions, no watermark, no logo, no UI, no frame, no border, no messy scribble, no blur")
 
 STYLE = {
     "look": {
-        # warm paper / sketchbook canvas with subtle natural vignette
-        "bg": (245, 241, 230), "bg_kind": "paper", "vig": 0.18, "vig_tint": (1.0, 0.94, 0.86),
-        "ink": (24, 22, 20), "muted": (110, 102, 92),
-        "accent": (214, 60, 40),           # vibrant red marker
-        "accent2": (240, 175, 15),         # warm yellow highlighter
-        "accent3": (42, 115, 205),         # cobalt blue ink
-        "panel": (255, 252, 244, 240),
-        "stamp_color": (214, 60, 40), "string_color": (24, 22, 20),
+        "bg_kind": "paper", "vig": 0.18, "vig_tint": (1.0, 0.94, 0.86),
         "caption": "pill",
         "asset_frame": "clean", "photo_frame": "flat",
         "label_style": "plain",
         "halftone": False, "photo_halftone": False, "dot": 7,
-        "title_font": "hand", "big_font": "hand",   # Authentic hand-drawn Kalam typography
+        "title_font": "hand", "big_font": "hand",
         "doodles": True, "jitter": False, "ground": False,
         "letterbox": 0.0, "grade": "eq=saturation=1.05", "grain": 0, "vignette": False,
         "transition": "slide", "camera": "drift", "paper": True,
         "kicker_prefix": "",
-        # colour-block palette: rich modern saturated contrast (vibrant blue/white, amber/dark, coral/white, white/cobalt)
-        "blocks": [((35, 95, 225), (255, 255, 255)), ((255, 210, 20), (24, 22, 20)),
-                   ((235, 75, 45), (255, 255, 255)), ((255, 255, 255), (35, 80, 200))],
+        "blocks": [((42, 107, 209), (255, 255, 255)), ((240, 175, 15), (24, 22, 20)),
+                   ((214, 60, 40), (255, 255, 255)), ((255, 255, 255), (42, 107, 209))],
         "boxes": ["pill", "marker", "doodle_circle", "note", "tag"],
     },
     "prompt": {
-        "clarity": (
-            "ONE expressive modern 2D storytelling illustration, Casually Explained and Alan Becker animation style, "
-            "clean white circular head, bold black ink contour lines, highly expressive eyebrows and smirk, "
-            "wearing modern casual attire (oversized hoodie, rolled denim shorts, sneakers) or thematic explorer outfit, "
-            "clean 2D cel shading, vibrant colorful contrast where characters and environments pop with high saturation, crisp vector clarity"
-        ),
-        "medium": "modern 2D digital animation illustration, expressive comic stickman character, clean 2D vector art",
-        "lighting": "cinematic directional light with soft cel shadows, warm sunlit pools or crisp flat studio light",
-        "palette": "bold black ink contours, clean white head, rich saturated attire (cobalt blue, fiery orange, emerald green, denim), warm vibrant colorful 2D cel-shaded environment with lively background tones and golden lighting",
-        "camera": {"shot": "centred hero shot", "lens": "2D animation camera", "angle": "straight-on",
-                   "movement": "none"},
-        "mood": "funny, curious, satirical, storytelling, educational",
-        "quality": "crisp organic hand-drawn ink lines, bold silhouette, clean vector edges, instant readability",
+        "lock": ("modern 2D comic stickman illustration: clean white round head, black ink contours 3 to 5 px, expressive "
+                 "eyebrows, simple readable limbs, flat cel shading; muted slate and paper-toned scenery with ONE saturated "
+                 "colour on the character or hero prop; identical character design and line weight in every image"),
+        "clarity": ("ONE expressive stickman moment that reads in one second: a clear pose and facial expression, the object "
+                    "or place it reacts to, empty paper-toned space for a headline"),
+        "medium": "modern 2D digital comic illustration with an expressive stickman character, clean vector ink lines",
+        "lighting": "simple directional light with soft cel shadows, no realistic lighting",
+        "palette": "ink black contours, white head, muted slate and warm paper scenery, one saturated accent (cobalt, marker red or amber)",
+        "camera": {"shot": "medium shot", "lens": "flat 2D comic framing", "angle": "eye level", "movement": "none"},
+        "mood": "funny, curious, sharp, storytelling",
+        "quality": "crisp ink lines, bold silhouette, clean edges, instant readability",
         "negative": _NEG,
-        "asset_medium": "isolated modern 2D stickman character or pop-art prop with crisp black ink outlines on solid flat pure magenta background hex 0xFF00FF",
+        "asset_medium": ("isolated 2D comic stickman character or single prop with crisp black ink outline and flat cel shading, "
+                         "outfit and props that fit the story's era"),
     },
 }
 
@@ -168,92 +187,97 @@ LAYOUTS_9_16 = {
     },
 }
 
+# Recipes are TEMPLATES: core/auto_edit.py fills every name / text / cue from the voice line it is used for.
 RECIPES = {
     "whiteboard_hero": {
-        "layout": "whiteboard_hero", "bg": "paper",
+        "use_for": ["hook", "person", "reveal"], "layout": "whiteboard_hero", "bg": "paper",
         "items": [
             {"type": "title", "text": "तनाव का *असर*", "at": "WORD"},
-            {"type": "asset", "name": "st_stickman_stressed", "slot": "center", "at": "WORD"},
+            {"type": "asset", "name": "st_stickman_stressed", "slot": "center", "at": "WORD", "enter": "pop"},
             {"type": "keyword", "text": "दबाव", "box": "doodle_circle", "slot": "r1", "at": "WORD"},
         ],
     },
     "story_scene": {
-        "layout": "retro_hero", "bg": "paper",
+        "use_for": ["place", "person", "hook"], "layout": "retro_hero", "bg": "SCENE_BG",
         "items": [
-            {"type": "kicker", "text": "THE JOURNEY"},
             {"type": "title", "text": "मंज़िल की *तलाश*", "at": "WORD"},
             {"type": "asset", "name": "st_stickman_explorer", "slot": "center", "at": "WORD"},
-            {"type": "keyword", "text": "सही रास्ता", "box": "sticky", "slot": "label", "at": "WORD"},
+            {"type": "keyword", "text": "सही रास्ता", "box": "note", "slot": "label", "at": "WORD"},
         ],
     },
-    "speech_sticker": {
-        "layout": "whiteboard_hero", "bg": "paper",
+    "reaction_bubble": {
+        "use_for": ["person", "quote", "reveal"], "layout": "whiteboard_hero", "bg": "paper",
         "items": [
-            {"type": "asset", "name": "st_stickman_brain_offer", "slot": "center", "at": "WORD"},
-            {"type": "speech_bubble", "text": "PLEASE USE IT!", "slot": "title", "at": "WORD"},
-            {"type": "keyword", "text": "सोच समझकर", "box": "tag", "slot": "r1", "at": "WORD"},
+            {"type": "asset", "name": "st_stickman_reacting", "slot": "center", "at": "WORD", "enter": "pop"},
+            {"type": "speech_bubble", "text": "सच में?", "slot": "r1", "at": "WORD"},
         ],
     },
-    "story_desk": {
-        "layout": "whiteboard_hero", "bg": "paper",
+    "napkin_compare": {
+        "use_for": ["compare"], "layout": "napkin_math", "bg": "paper",
         "items": [
-            {"type": "kicker", "text": "DEEP WORK"},
+            {"type": "title", "text": "यह *या* वह", "at": "WORD"},
+            {"type": "asset", "name": "st_side_a", "slot": "left", "label": "पहला", "at": "WORD"},
+            {"type": "asset", "name": "st_side_b", "slot": "right", "label": "दूसरा", "at": "WORD"},
+        ],
+    },
+    "row3_labels": {
+        "use_for": ["list", "object"], "layout": "stickman.row3", "bg": "paper",
+        "items": [
+            {"type": "title", "text": "तीन *चीज़ें*", "at": "WORD"},
+            {"type": "asset", "name": "st_item_1", "slot": "a", "label": "एक", "at": "WORD"},
+            {"type": "asset", "name": "st_item_2", "slot": "b", "label": "दो", "at": "WORD"},
+            {"type": "asset", "name": "st_item_3", "slot": "c", "label": "तीन", "at": "WORD"},
+        ],
+    },
+    "row2_labels": {
+        "use_for": ["compare", "object"], "layout": "stickman.row2", "bg": "paper",
+        "items": [
+            {"type": "asset", "name": "st_item_a", "slot": "a", "label": "पहले", "at": "WORD"},
+            {"type": "asset", "name": "st_item_b", "slot": "b", "label": "अब", "at": "WORD"},
+        ],
+    },
+    "number_hero": {
+        "use_for": ["number"], "layout": "whiteboard_hero", "bg": "paper",
+        "items": [
+            {"type": "counter", "to": 35000, "slot": "title", "at": "WORD"},
+            {"type": "asset", "name": "st_stickman_shocked", "slot": "center", "at": "WORD", "enter": "pop"},
+            {"type": "keyword", "text": "हर दिन", "box": "marker", "slot": "r1", "at": "WORD"},
+        ],
+    },
+    "pop_question": {
+        "use_for": ["hook", "outro", "quote"], "layout": "stickman.pop_title", "bg": "paper", "camera": "still",
+        "items": [
+            {"type": "keyword", "text": "चाय का रहस्य", "box": "doodle_circle", "slot": "title", "at": "WORD"},
+            {"type": "keyword", "text": "आगे देखो", "box": "note", "slot": "l1", "at": "WORD"},
+        ],
+    },
+    "desk_moment": {
+        "use_for": ["place", "object", "outro"], "layout": "retro_hero", "bg": "SCENE_BG",
+        "items": [
             {"type": "title", "text": "रात भर *पढ़ाई*", "at": "WORD"},
             {"type": "asset", "name": "st_stickman_desk_study", "slot": "center", "at": "WORD"},
         ],
     },
-    "row3_labels": {
-        "layout": "row3", "bg": "paper",
-        "items": [
-            {"type": "asset", "name": "map_china", "slot": "a", "label": "चीन", "at": "WORD"},
-            {"type": "asset", "name": "coins", "slot": "b", "label": "करोड़ों रुपये", "at": "WORD"},
-            {"type": "asset", "name": "map_england", "slot": "c", "label": "इंग्लैंड", "at": "WORD"},
-        ],
-    },
-    "row2_labels": {
-        "layout": "row2", "bg": "paper",
-        "items": [
-            {"type": "asset", "name": "officer", "slot": "a", "label": "ब्रिटिश अफ़सर", "at": "WORD"},
-            {"type": "asset", "name": "tea_plant", "slot": "b", "label": "जंगली चाय का पौधा", "at": "WORD"},
-        ],
-    },
-    "pop_title": {
-        "layout": "pop_title", "bg": "paper",
-        "items": [
-            {"type": "kicker", "text": "सवाल"},
-            {"type": "keyword", "text": "चाय का रहस्य", "box": "doodle_circle", "slot": "title", "at": "WORD"},
-            {"type": "keyword", "text": "चीन से इंग्लैंड तक", "box": "sticky", "slot": "l1", "at": "WORD"},
-        ],
-    },
 }
 
-EXAMPLES = [
-    "whiteboard stickman with doodle circled note: RECIPES['whiteboard_hero']",
-    "storytelling stickman explorer: RECIPES['story_scene']",
-    "stick figure with prop & speech bubble: RECIPES['speech_sticker']",
-    "stickman studying at sunlit desk: RECIPES['story_desk']",
-    "clean flat illustrations in a row: RECIPES['row3_labels'] / ['row2_labels']",
-    "doodle circled question title: RECIPES['pop_title']",
-]
+EXAMPLES = [f"{k}: RECIPES['{k}'] ({', '.join(v['use_for'])})" for k, v in RECIPES.items()]
 
-# ---- asset plan: modern stickman explainer (35% stylized 2D scenes, 55% expressive stick assets) ---
+# ---- asset plan: 35% hand-drawn 2D scenes, 55% expressive stickman / prop cut-outs ---------------------
 BEAT_S = 1.1
 MIX = {"scene": 0.35, "asset": 0.55, "reuse": 0.02, "text": 0.08}
 
 MENU = {
-    "scene": ["hand-drawn 2D landscape (cliff overlooking mountains, canyon rapids, desert path)",
-              "stylized warm indoor room (wooden desk with notebooks, sunlit window, library)",
-              "fork in the road crossroad with wooden directional signpost",
-              "storybook settlement / ancient village in cross-hatched ink"],
-    "asset": ["stickman expressing emotion (confused, stressed, tired, triumphant, shocked, smirking)",
-              "stickman performing an action (working at desk, rowing raft, holding map, running, pointing)",
-              "stickman in casual modern outfit (hoodie, rolled denim shorts, sneakers, backward cap)",
-              "stickman with thematic prop (explorer fedora + satchel, flash cowl, caveman tunic)",
-              "pop-art sticker prop (satirical brand parody, detailed anatomical brain, speech bubble)",
-              "hand-drawn doodle object (clock, coffee cup, laptop, money stack, lightbulb, book)",
-              "doodle diagram (flowchart arrow, circled highlight, graph trend, Venn diagram)",
-              "symbol / icon doodle (caution sign, question mark, lightning bolt, cross mark X)"],
+    "scene": ["hand-drawn 2D landscape (cliff over mountains, river rapids, desert path)",
+              "muted indoor room (desk with notebooks, sunlit window, library, office)",
+              "fork in the road with a wooden signpost", "historical setting drawn in cross-hatched ink (cave, fort, market)",
+              "city street in muted slate tones", "a stage or podium the stickman stands on"],
+    "asset": ["stickman showing an emotion (confused, stressed, triumphant, shocked, smirking)",
+              "stickman doing one clear action (running, pointing, climbing, carrying, falling)",
+              "stickman in era-appropriate clothing from world.characters",
+              "stickman holding the hero prop of this line", "a single hero prop drawn in the same ink style",
+              "symbol prop (lightbulb, clock, money stack, warning sign, question mark)",
+              "doodle diagram (arrow, rising graph, scale, ladder)"],
 }
-ACCENTS = ["red marker accent", "cobalt blue ink accent", "mustard highlighter accent", "selective saturated color"]
+ACCENTS = ["cobalt-blue hero colour", "marker-red hero colour", "amber hero colour"]
 
 DESIGN = __doc__

@@ -75,12 +75,25 @@ class Timeline:
         first_tok = target.split()[0] if target.split() else target
         # Search forward from current pointer first (respecting min_time if provided)
         forward_range = list(range(self.ptr, len(self.words)))
-        for tok in (target, first_tok, first_tok[:4] if len(first_tok) >= 4 else first_tok):
+
+        def hit(tok, w_clean, exact):
+            # Never match an empty spoken token ("—", "…" clean to "") or a 1-letter word: "" / "a" are
+            # contained in every cue and made assets fire on the wrong word.
+            if not w_clean or not tok:
+                return False
+            if exact:
+                return w_clean == tok
+            return tok in w_clean or (len(w_clean) >= 3 and w_clean in tok)
+
+        passes = [(target, True), (first_tok, True), (target, False), (first_tok, False)]
+        if len(first_tok) >= 5:
+            passes.append((first_tok[:4], False))
+        for tok, exact in passes:
             if not tok:
                 continue
             for k in forward_range:
                 w_clean = self.words[k][4].lower()
-                if tok in w_clean or w_clean in tok:
+                if hit(tok, w_clean, exact):
                     if min_time is not None and self.words[k][1] + shift - self.lead <= min_time:
                         continue
                     if advance:
@@ -90,7 +103,7 @@ class Timeline:
         if min_time is None:
             for k in range(0, self.ptr):
                 w_clean = self.words[k][4].lower()
-                if target and (target in w_clean or first_tok in w_clean):
+                if w_clean and target and (target in w_clean or first_tok in w_clean):
                     if advance:
                         self.ptr = k
                     return max(0.0, self.words[k][1] + shift - self.lead)

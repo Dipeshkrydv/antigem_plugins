@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "id": "2d-video-editing-studio",
   "name": "2D Video Editing Studio",
-  "version": "3.3.1",
+  "version": "3.4.0",
   "description": "Master Autonomous 2D Video Director & Production Engine (v3.3): Anti-Offline Server Shield (flat RAM < 140MB), Direct In-Memory FFmpeg Stream, High-Speed Render Presets (--fast 720p HD mobile default, --turbo 540p ultrafast 45-55 fps, --1080p full HD), Broadcast-quality Vox explainers, Bento Box data cards, Stickman storytelling, die-cut Sticker collages, Crime Noir thrillers, and 8-bit Arcade videos with 3-Tier Google Flow Rapid Parallel Engine, 25 creative Latin/Devanagari fonts, and quintic smooth transitions.",
   "author": "Dipesh Kr Yadav",
   "icon": "icon.png",

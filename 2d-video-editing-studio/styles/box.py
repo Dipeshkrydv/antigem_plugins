@@ -84,7 +84,7 @@ STYLE = {
         "clarity": (
             "one dominant focal subject, minimal premium composition, deep graphite backdrop, "
             "one bold electric-indigo or safety-yellow accent, generous dark negative space on "
-            "one side reserved for a bold Hindi headline, product-launch photography feel"
+            "one side reserved for a bold headline, product-launch photography feel"
         ),
         "medium": "premium editorial product photograph, Apple-launch aesthetic, 8K",
         "lighting": "soft directional studio key, controlled rim light, clean gradients, no harsh shadows",

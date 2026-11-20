@@ -18,7 +18,7 @@ Run every step from inside a PROJECT folder (create one with `new`):
   python studio.py still 12.5 40                   exact frames -> _stills/
   python studio.py preview                         fast 960x540 draft -> preview.mp4
   python studio.py render  [--fast|--turbo|--1080p] final video -> master.mp4 (fast=720p HD mobile default, turbo=540p, 1080p=full)
-  python studio.py styles                          list the creative style engines (box / noir / sticker / vox / kinetic / cinematic)
+  python studio.py styles [--doc|--lint]           list styles; --doc writes STYLES.md, --lint checks the 6 official style specs
   python studio.py recipes <style> [recipe]        show scene templates from a style's engine (paste into EDIT.json)
   python studio.py selftest [--quick]              test every feature on THIS machine (phone or laptop) and report timings
   python studio.py guard [reset]                   Flow pacing status / clear the pause after an unusual-activity stop
@@ -186,6 +186,35 @@ def key_props():
               + (f"   ⚠ not separated: {' '.join(miss)} (regenerate the sheet: python studio.py generate --only {n})" if miss else ""))
 
 
+def _guard_template_shots(shots="SHOTS.json"):
+    """`new` copies the sample project (Kathmandu 1846: bg_kot_night, ct_khukuri ...). If the user wrote their
+    own LINES.tsv but SHOTS.json is still that sample, every generated asset would be a dummy that has
+    nothing to do with the voice-over. Stop with a clear message instead of rendering the wrong video."""
+    if not os.path.exists(shots):
+        return
+    sys.path.insert(0, CORE)
+    from auto_edit import TEMPLATE_NAMES
+    import json
+    try:
+        names = {x.get("name") for x in json.load(open(shots, encoding="utf-8")).get("shots", [])}
+    except Exception:
+        return
+    leaked = sorted(n for n in names if n in TEMPLATE_NAMES)
+    if not leaked:
+        return
+    tpl_lines = os.path.join(ROOT, "templates", "v2", "LINES.tsv")
+    try:
+        same = open("LINES.tsv", encoding="utf-8").read().strip() == open(tpl_lines, encoding="utf-8").read().strip()
+    except Exception:
+        same = False
+    if same:        # running the bundled sample on purpose
+        return
+    sys.exit(f"✗ {shots} is still the SAMPLE shot list from the template ({', '.join(leaked)}), but LINES.tsv is your "
+             f"own script.\n  Those dummy images do not match your voice-over. Write SHOTS.json for YOUR script: "
+             f"run `python studio.py plan`, then one shot per beat with \"line\" (the VO line id) and \"cue\" "
+             f"(the spoken word it lands on).")
+
+
 def _ensure_edit_ready():
     sys.path.insert(0, CORE)
     import auto_edit
@@ -216,6 +245,7 @@ def run_autopilot(args):
         print("  ✓ VO.wav & WORDS.tsv already present")
 
     print("▶ [2/6] Building & auto-healing Google Flow prompts (SHOTS.json -> ELEMENTS.tsv)...", flush=True)
+    _guard_template_shots()
     run(os.path.join(CORE, "prompt_engine.py"), "SHOTS.json")
 
     if a.agent:
@@ -271,12 +301,14 @@ def main():
     elif cmd == "lint":
         run(os.path.join(CORE, "shot_lint.py"), *rest)
     elif cmd == "prompts":
+        _guard_template_shots(rest[0] if rest and not rest[0].startswith("-") else "SHOTS.json")
         if "--no-lint" in rest:
             rest = [x for x in rest if x != "--no-lint"]
         elif os.path.exists(rest[0] if rest and not rest[0].startswith("-") else "SHOTS.json"):
             run(os.path.join(CORE, "shot_lint.py"), *(rest[:1] if rest and not rest[0].startswith("-") else []), "--warn-only")
         run(os.path.join(CORE, "prompt_engine.py"), *(rest or ["SHOTS.json"]))
     elif cmd == "generate":
+        _guard_template_shots()
         if os.path.exists("SHOTS.json") and "--status" not in rest and "--no-lint" not in rest:
             run(os.path.join(CORE, "shot_lint.py"), "--warn-only")
         if "--agent" in rest:
@@ -317,7 +349,12 @@ def main():
     elif cmd == "selftest":
         run(os.path.join(CORE, "selftest.py"), *rest)
     elif cmd == "styles":
-        _list_styles()
+        if "--doc" in rest:
+            _write_styles_doc()
+        elif "--lint" in rest:
+            _lint_styles()
+        else:
+            _list_styles()
     elif cmd == "recipes":
         _show_recipes(*rest)
     else:
@@ -342,6 +379,100 @@ def _list_styles():
         if rec:
             print(f"               recipes: {', '.join(rec)}  (see `studio.py recipes {name}`)")
         print()
+
+
+def _first_sentences(text, limit):
+    out = ""
+    for sent in text.replace("? ", "?|").replace(". ", ".|").split("|"):
+        if out and len(out) + len(sent) + 1 > limit:
+            break
+        out = f"{out} {sent}".strip()
+    return out
+
+
+def _lint_styles():
+    s = _load_engine()
+    probs = s.lint_official()
+    for st, m in probs:
+        print(f"✗ {st}: {m}")
+    if probs:
+        sys.exit(f"{len(probs)} style-spec problem(s)")
+    print(f"✓ {len(s.OFFICIAL)} official styles pass the spec lint: {', '.join(s.OFFICIAL)}")
+
+
+def _write_styles_doc(path=None):
+    """STYLES.md is GENERATED from styles/<name>.py, never hand-edited: the hex values, fonts and recipes in the
+    docs are exactly what the renderer and prompt engine use."""
+    s = _load_engine()
+    path = path or os.path.join(ROOT, "STYLES.md")
+    L = ["# Deepesh Studio: the 6 official styles", "",
+         "> GENERATED by `python studio.py styles --doc` from `styles/<name>.py`. Do not edit by hand: change the style "
+         "module and regenerate. `python studio.py styles --lint` checks every style against the contract.", "",
+         "| # | Style | Use in SHOTS.json / EDIT.json | Aliases |", "|---|---|---|---|"]
+    canon_aliases = dict(s.list_styles())
+    for i, name in enumerate(s.OFFICIAL, 1):
+        c = s.canonical(name)
+        L.append(f"| {i} | **{s.SPECS[name]['LABEL']}** | `\"style\": \"{name}\"` | "
+                 f"{', '.join(f'`{a}`' for a in sorted(set(canon_aliases.get(c, []) + [c])) if a != name)} |")
+    for name in s.OFFICIAL:
+        spec, st = s.SPECS[name], s.STYLES[name]
+        L += ["", "---", "", f"## {spec['LABEL']}  (`{name}`)", ""]
+        L += ["```text", s.DESIGN.get(name, "").strip(), "```", "", "### Palette", "",
+              "| Role | Hex | Use |", "|---|---|---|"]
+        for role, v in spec["PALETTE"].items():
+            if isinstance(v, dict):
+                L.append(f"| {role} | `{v['hex']}` | {v.get('use', '')} |")
+        if spec["PALETTE"].get("rule"):
+            L += ["", f"**Colour rule:** {spec['PALETTE']['rule']}"]
+        T = spec.get("TYPE", {})
+        L += ["", "### Typography", "",
+              f"- Font roles: title `{T.get('title')}`, label `{T.get('label')}`, number `{T.get('number')}`, caption `{T.get('caption')}`"
+              + (f", case: {T['case']}" if T.get("case") else ""),
+              f"- Max words: " + ", ".join(f"{k} {v}" for k, v in T.get("max_words", {}).items()),
+              f"- Keyword treatments: " + ", ".join(f"`{b}`" for b in T.get("boxes", []))]
+        M = spec.get("MOTION", {})
+        L += ["", "### Motion", "", f"- Entrances: {', '.join(M.get('entrances', []))}",
+              f"- Camera: {', '.join(M.get('camera', []))}", f"- Transitions: {', '.join(M.get('transitions', []))}",
+              f"- Never: {', '.join(M.get('never', []))}"]
+        pr = st["prompt"]
+        L += ["", "### Image prompt contract (added to every Flow prompt)", "",
+              f"- **Style lock:** {pr['lock']}", f"- **Scenes:** {pr['medium']}; {pr['clarity']}",
+              f"- **Cut-outs:** {pr['asset_medium']}", f"- **Avoid:** {pr['negative']}"]
+        plan = s.plan_for(name)
+        L += ["", "### Asset plan", "", f"- One visual beat every {plan['beat_s']}s; mix: "
+              + ", ".join(f"{k} {int(v * 100)}%" for k, v in plan["mix"].items()),
+              f"- Scene menu: {'; '.join(plan['menu'].get('scene', []))}",
+              f"- Cut-out menu: {'; '.join(plan['menu'].get('asset', []))}"]
+        L += ["", "### Recipes (scene templates; autopilot fills them from each voice line)", "",
+              "| Recipe | Use for | Layout |", "|---|---|---|"]
+        for rn, r in s.RECIPES.get(name, {}).items():
+            L.append(f"| `{rn}` | {', '.join(r.get('use_for', []))} | `{r['layout']}` |")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(L) + "\n")
+    print(f"✓ wrote {path}")
+    # the short per-style skill cards are generated from the same source
+    cards = {"vox": "vox_documentary.md", "stickman": "stickman_hybrid.md", "sticker": "sticker_popart.md",
+             "noir": "suspense_noir_crime.md", "doodle": "hand_drawn_doodle.md", "arcade": "retro_8bit_arcade.md"}
+    for name, fn in cards.items():
+        spec, st = s.SPECS[name], s.STYLES[name]
+        ident = s.DESIGN.get(name, "").split("IDENTITY", 1)[-1].split("\n\n")[0].strip() if "IDENTITY" in s.DESIGN.get(name, "") \
+            else s.DESIGN.get(name, "").strip().split("\n")[0]
+        ident = " ".join(ident.split())
+        pal = ", ".join(f"{r} `{v['hex']}`" for r, v in spec["PALETTE"].items() if isinstance(v, dict))
+        recs = ", ".join(f"`{k}`" for k in s.RECIPES.get(name, {}))
+        body = [
+            "---", f"name: {spec['LABEL']}", f"description: {_first_sentences(ident, 220)}", "version: 3.2.0", "---", "",
+            f"# {spec['LABEL']} (`\"style\": \"{name}\"`)", "",
+            "> Generated by `python studio.py styles --doc` from `styles/` — full spec in STYLES.md.", "",
+            f"- **Identity:** {ident}",
+            f"- **Palette:** {pal}. Rule: {spec['PALETTE'].get('rule', '')}",
+            f"- **Prompt lock (added to every image):** {st['prompt']['lock']}",
+            f"- **Recipes:** {recs}",
+            f"- **Avoid:** {st['prompt']['negative']}",
+        ]
+        with open(os.path.join(ROOT, "skills", fn), "w", encoding="utf-8") as f:
+            f.write("\n".join(body) + "\n")
+    print(f"✓ regenerated {len(cards)} style cards in skills/")
 
 
 def _show_recipes(style=None, recipe=None):

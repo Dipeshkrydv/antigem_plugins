@@ -64,12 +64,14 @@ Every AI agent (Antigravity, Claude Code, Gemini CLI, Cursor, Windsurf, or termi
 
 5. **Abolition of Character Mode (Anti-Illusion & Zero AI Morphing Mandate)**:
    - Multi-pose 2D cartoon avatars, puppet lip-flaps, and character walking modes are **COMPLETELY ELIMINATED** to prevent AI face/body inconsistencies, uncanny puppet motion, and multi-pose visual distortion ("illusion issue").
-   - The studio EXCLUSIVELY produces authentic, broadcast-grade explainers across the 5 core styles:
-     1. **Vox Documentary Explainer**
-     2. **Sticker / Stickman Hybrid**
-     3. **Hand-Drawn Doodle & Sketchbook**
-     4. **Suspense Noir / Crime Documentary**
-     5. **Retro 8-Bit Arcade**
+   - The studio EXCLUSIVELY produces authentic, broadcast-grade explainers across the 6 official styles
+     (full spec of each, palette hex, fonts, motion, prompt lock and recipes: **STYLES.md**, generated from `styles/*.py`):
+     1. **Vox / Box Paper Collage** (`vox`)
+     2. **Stickman Storytelling** (`stickman`)
+     3. **Sticker Hybrid** (`sticker`)
+     4. **Suspense Noir / Crime Thriller** (`noir`)
+     5. **Hand-Drawn Doodle** (`doodle`)
+     6. **Retro 8-Bit Arcade** (`arcade`)
    - Narrative pacing and visual engagement are driven 100% through authentic environmental scenes, forensic evidence cutouts, archival documents, vector badges, and kinetic typography. Never introduce animated cartoon hosts.
 
 6. **Zero API Key Leaks & Security Mandate**:
@@ -158,12 +160,13 @@ You are **Antigravity**, acting as the **Senior Video Editor, Motion Designer, a
 - **Zero Dummy Questions Mandate**: Never ask the user to manually open tabs, click UI buttons, or switch windows in Google Flow.
 
 #### 💬 STEP 1: Video Style ONLY (Skip if already provided)
-Present ONLY the 5 Video Styles with visual references:
-- **1. Vox Documentary Explainer** (Waxy tactile paper, animated vector clocks, trajectory maps, forensic callouts)
-- **2. Sticker / Stickman Hybrid** (Bold ink stickmen, vibrant pop-in cutout stickers, drop shadows)
-- **3. Hand-Drawn Doodle & Sketchbook** (Warm textured paper, pastel yellow/blue/red accents, circled notes, wobbly arrows)
-- **4. Suspense Noir / Crime Documentary** (Dark chiaroscuro shadows, one or two "CLASSIFIED" stamps max, red string boards, whole scene images)
-- **5. Retro 8-Bit Arcade** (Pixel-art badges, arcade HP bars, coin counters, CRT scanlines)
+Present ONLY the 6 official Video Styles (spec of each: STYLES.md):
+- **1. Vox / Box Paper Collage** (`vox`): halftone B&W cut-outs on crumpled paper, ONE spot colour per scene, giant numerals, highlighter headlines
+- **2. Stickman Storytelling** (`stickman`): expressive white-head stickman in muted hand-drawn scenes, one saturated hero colour
+- **3. Sticker Hybrid** (`sticker`): pop-art vinyl die-cut stickers on paper / cutting mat, punchy and satirical
+- **4. Suspense Noir / Crime Thriller** (`noir`): full-bleed chiaroscuro cinema, case files, redactions, red-string boards
+- **5. Hand-Drawn Doodle** (`doodle`): crayon doodles on warm #F8F6EF paper, strict 3-crayon palette, drawn-on reveals
+- **6. Retro 8-Bit Arcade** (`arcade`): the story as a 16-bit game: stages, sprites, bosses, score counters, RPG dialogue
 *STOP and wait for the user's response. Do NOT mention topic, duration, ratio, or language yet.*
 
 #### 💬 STEP 2: Topic ONLY (Skip if already provided)
@@ -290,10 +293,10 @@ All work happens inside a PROJECT folder made with `python studio.py new <folder
   (`*accent*`, `_highlight_`, `[box]`, `~underline~`, `^alt^`), gradients and per-chapter accent colours. No two
   consecutive scenes may use the same layout.
 
-- **Browse styles first:** `python studio.py styles` lists the 5 engines and their recipes;
+- **Browse styles first:** `python studio.py styles` lists the style engines and their recipes;
   `python studio.py recipes <style>` prints JSON scene templates ready to paste. Drop a new
   `styles/<name>.py` to add a style (engine auto-loads it).
-- Pick the style pack that fits: `noir` (crime/history), `cinematic`, `documentary` (Vox paper), `sticker`, `box`.
+- Pick one of the 6 official styles (`vox`, `stickman`, `sticker`, `noir`, `doodle`, `arcade`); see STYLES.md. `python studio.py styles --lint` must pass after any style change.
 
 ---
 

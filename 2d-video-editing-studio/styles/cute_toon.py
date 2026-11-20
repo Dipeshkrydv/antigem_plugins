@@ -47,7 +47,7 @@ STYLE = {
     },
     "prompt": {
         "clarity": ("one clear readable subject, appealing rounded shapes, clean outline, warm bright harmonious colours, "
-                    "soft simple background with clean negative space for a Hindi headline"),
+                    "soft simple background with clean negative space for a headline"),
         "medium": "cute 2D illustrated storybook scene, modern animated-series background art, soft cel shading",
         "lighting": "soft warm daylight, gentle shading, no harsh shadows",
         "palette": "warm cream, coral red, sunflower yellow, sky blue, leafy green",

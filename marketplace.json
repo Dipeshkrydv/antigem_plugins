@@ -1,7 +1,7 @@
 {
   "name": "antigem-plugins",
   "displayName": "Antigem Official Plugins",
-  "description": "Official Antigem plugins repository: 2D Video Editing Studio (v3.3.1), Facebook Automation & SEO Studio (v1.7.0), and Meta Suite Page Management (v2.3.0).",
+  "description": "Official Antigem plugins repository: 2D Video Editing Studio (v3.4.0), Facebook Automation & SEO Studio (v1.7.0), and Meta Suite Page Management (v2.3.0).",
   "owner": {
     "name": "Dipesh Kr Yadav",
     "url": "https://github.com/Dipeshkrydv"
@@ -11,8 +11,8 @@
       "name": "2d-video-editing-studio",
       "source": "./2d-video-editing-studio",
       "displayName": "2D Video Editing Studio",
-      "description": "Senior Video Editor & Autonomous 2D Production Engine (v3.3.1): Google Flow Agent Mode & Batch Dispatch, Anti-Offline Server Shield, 52-89 FPS High-Speed Render Presets, Instant Help CLI, 15-Minute Timeline Scaling Laws, Broadcast Vox explainers, Bento Box data cards, Stickman storytelling, and Multi-Domain Google Flow Bridge.",
-      "version": "3.3.1",
+      "description": "Senior Video Editor & Autonomous 2D Production Engine (v3.4.0): 6 Official Fully-Specified Styles (Vox/Box Paper, Stickman, Sticker, Noir, Hand-Drawn Doodle, Retro Arcade) with Recipe-Driven Autopilot Edits, Voice-Synced Asset Placement (no dummy/stale assets), Google Flow Agent Mode & Batch Dispatch, Anti-Offline Server Shield, 52-89 FPS High-Speed Render Presets, Instant Help CLI, 15-Minute Timeline Scaling Laws, Broadcast Vox explainers, Bento Box data cards, Stickman storytelling, and Multi-Domain Google Flow Bridge.",
+      "version": "3.4.0",
       "logo": "assets/logo.png",
       "icon": "icon.png",
       "author": {

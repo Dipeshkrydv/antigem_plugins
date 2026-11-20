@@ -46,7 +46,7 @@ STYLES = {
             "boxes": ["label", "pill", "torn", "marker", "neon"], "accent3": (120, 170, 210),
         },
         "prompt": {
-            "clarity": "one dominant focal subject, minimal uncluttered background, strong silhouette and rim light, one bold blood-red or amber accent against dark tones, clean dark negative space for a Hindi headline",
+            "clarity": "one dominant focal subject, minimal uncluttered background, strong silhouette and rim light, one bold blood-red or amber accent against dark tones, clean dark negative space for a headline",
             "medium": "cinematic photoreal historical film still, matte-painting detail",
             "lighting": "low-key chiaroscuro, hard practical light sources, deep crushed shadows, volumetric haze",
             "palette": "desaturated teal-blue shadows, warm amber practical highlights, touches of blood red",
@@ -71,7 +71,7 @@ STYLES = {
             "boxes": ["pill", "neon", "outline", "marker"], "accent3": (240, 240, 240),
         },
         "prompt": {
-            "clarity": "one dominant focal subject, minimal uncluttered background, strong silhouette, one bold warm accent colour, clean negative space for a Hindi headline",
+            "clarity": "one dominant focal subject, minimal uncluttered background, strong silhouette, one bold warm accent colour, clean negative space for a headline",
             "medium": "cinematic photoreal film still, shot on ARRI Alexa",
             "lighting": "motivated natural light, soft key with strong rim light, atmospheric haze",
             "palette": "teal and orange grade, rich contrast, natural skin tones",
@@ -96,7 +96,7 @@ STYLES = {
             "boxes": ["marker", "torn", "tag", "sticky", "pill"], "accent3": (41, 128, 185),
         },
         "prompt": {
-            "clarity": "one dominant focal subject, minimal clean composition, flat readable shapes, one bold red or yellow accent, clean paper-coloured negative space for a Hindi headline",
+            "clarity": "one dominant focal subject, minimal clean composition, flat readable shapes, one bold red or yellow accent, clean paper-coloured negative space for a headline",
             "medium": "editorial collage illustration with archival photo textures, Vox explainer style",
             "lighting": "even soft light, gentle paper texture",
             "palette": "warm cream paper, ink black, signal red and mustard yellow accents",
@@ -145,7 +145,7 @@ STYLES = {
             "boxes": ["pill", "label", "outline", "neon"], "accent3": (34, 197, 94),
         },
         "prompt": {
-            "clarity": "one dominant focal subject, minimal premium composition, strong contrast, one electric accent colour, clean negative space for a Hindi headline",
+            "clarity": "one dominant focal subject, minimal premium composition, strong contrast, one electric accent colour, clean negative space for a headline",
             "medium": "premium editorial photograph",
             "lighting": "soft studio key light, clean gradients",
             "palette": "graphite, white, electric indigo accent",
@@ -166,11 +166,55 @@ STYLES["crime"] = STYLES["noir"]
 # style (visual language, prompt defaults, extra layouts, scene recipes).
 # A style file wins over the built-in with the same name, so dropping a new
 # styles/*.py into a project adds / replaces a style without touching the engine.
+# The SIX official, fully specified styles (what agents offer the user). Everything else in STYLES
+# (box, kinetic, toon, cinematic) is a helper look: still usable by name, never advertised.
+OFFICIAL = ["vox", "stickman", "sticker", "noir", "doodle", "arcade"]
+SPEC_FIELDS = ("PALETTE", "TYPE", "MOTION", "RECIPES", "BEAT_S", "MIX", "MENU", "ACCENTS", "DESIGN")
+USE_FOR_TAGS = ("hook", "number", "compare", "list", "person", "place", "object", "reveal", "quote", "outro")
+
 RECIPES = {}      # style name -> dict of named scene templates
 DESIGN = {}       # style name -> free-text design/engagement notes
 EXAMPLES = {}     # style name -> list of example scene JSONs
 _CANON = {}       # alias -> canonical name (what list_styles() reports)
 PLANS = {}        # style name -> asset plan (beat length, image mix, shot/asset menus, accents)
+SPECS = {}        # style name -> {"PALETTE":..., "TYPE":..., "MOTION":..., "LABEL":..., "module": canonical}
+
+
+def hex_rgb(v):
+    """'#F8F6EF' -> (248, 246, 239). Tuples pass through."""
+    if isinstance(v, (tuple, list)):
+        return tuple(v)
+    v = str(v).lstrip("#")
+    return tuple(int(v[j:j + 2], 16) for j in (0, 2, 4))
+
+
+# PALETTE role -> look key(s) it drives. A style's look colours are DERIVED from its PALETTE, so the
+# hex values printed in STYLES.md are exactly the colours the renderer uses (no doc/code drift).
+PALETTE_TO_LOOK = {"canvas": ("bg",), "ink": ("ink",), "muted": ("muted",),
+                   "accent1": ("accent",), "accent2": ("accent2",), "accent3": ("accent3",),
+                   "stamp": ("stamp_color",), "string": ("string_color",)}
+
+
+def _apply_palette(style, palette):
+    look = style.setdefault("look", {})
+    for role, keys in PALETTE_TO_LOOK.items():
+        if role in palette:
+            for k in keys:
+                look[k] = hex_rgb(palette[role]["hex"] if isinstance(palette[role], dict) else palette[role])
+    if "panel" in palette:
+        p = palette["panel"]
+        rgb = hex_rgb(p["hex"] if isinstance(p, dict) else p)
+        look["panel"] = rgb + (int(p.get("alpha", 240)) if isinstance(p, dict) else 240,)
+
+
+def canonical(name):
+    return _CANON.get(name, name)
+
+
+def recipes_for(style, tag=None):
+    """[(recipe_name, recipe)] of a style, optionally only those tagged `use_for: tag`."""
+    rec = RECIPES.get(style) or RECIPES.get(canonical(style)) or {}
+    return [(k, r) for k, r in rec.items() if tag is None or tag in r.get("use_for", ())]
 
 # How many images a video needs depends on the STYLE: a Vox collage or noir doc changes picture every ~2.5 s and
 # needs a dedicated image for most beats; a kinetic-type or box/stat video is mostly typography and needs few.
@@ -242,6 +286,8 @@ def _load_style_modules():
         if not hasattr(mod, "STYLE"):
             continue
         canonical = getattr(mod, "NAME", mod_name)
+        if hasattr(mod, "PALETTE"):
+            _apply_palette(mod.STYLE, mod.PALETTE)
         STYLES[canonical] = mod.STYLE
         _CANON[canonical] = canonical
         for alias in getattr(mod, "ALIASES", ()):
@@ -269,6 +315,9 @@ def _load_style_modules():
                 DESIGN[k] = mod.DESIGN
             if hasattr(mod, "EXAMPLES"):
                 EXAMPLES[k] = mod.EXAMPLES
+            SPECS[k] = {"module": canonical, "LABEL": getattr(mod, "LABEL", canonical),
+                        "_defined": [f for f in SPEC_FIELDS if hasattr(mod, f)],
+                        **{f: getattr(mod, f) for f in ("PALETTE", "TYPE", "MOTION") if hasattr(mod, f)}}
 
 
 _load_style_modules()
@@ -291,3 +340,79 @@ def list_styles():
         head = next((n for n in names if _CANON.get(n) == n), min(names, key=len))
         out.append((head, sorted(x for x in names if x != head)))
     return sorted(out)
+
+
+# ---- spec lint: the contract every OFFICIAL style must keep (run by selftest and `studio.py styles --lint`)
+PROMPT_KEYS = ("lock", "clarity", "medium", "lighting", "palette", "camera", "mood", "quality", "negative", "asset_medium")
+BANNED_IN_PROMPTS = ("hindi", "casually explained", "alan becker", "vox", "johnny harris", "netflix", "nintendo", "mario",
+                     "pokemon", "pokémon", "sega", "disney", "pixar", "marvel")
+REQUIRED_TAGS = ("hook", "number", "compare", "outro")
+
+
+def lint_official():
+    """[(style, problem)] for every broken rule of the official style contract. Empty list = all good."""
+    import re
+    import sys
+    lay = sys.modules.get("layouts")
+    probs = []
+    for name in OFFICIAL:
+        P = lambda m: probs.append((name, m))          # noqa: E731
+        if name not in STYLES:
+            P("not loaded")
+            continue
+        st, spec = STYLES[name], SPECS.get(name, {})
+        missing = [f for f in SPEC_FIELDS if f not in spec.get("_defined", [])]
+        if missing:
+            P(f"module lacks {', '.join(missing)}")
+        pal = spec.get("PALETTE", {})
+        for role in ("canvas", "ink", "muted", "accent1", "accent2", "accent3"):
+            if role not in pal:
+                P(f"PALETTE has no {role!r}")
+        for role, keys in PALETTE_TO_LOOK.items():
+            if role in pal:
+                want = hex_rgb(pal[role]["hex"] if isinstance(pal[role], dict) else pal[role])
+                for k in keys:
+                    if tuple(st["look"].get(k, ())) != want:
+                        P(f"look[{k!r}] {st['look'].get(k)} != PALETTE {role} {want}")
+        pr = st.get("prompt", {})
+        for k in PROMPT_KEYS:
+            if not pr.get(k):
+                P(f"prompt has no {k!r}")
+        blob = " ".join(str(v) for v in pr.values()).lower()
+        for bad in BANNED_IN_PROMPTS:
+            if re.search(rf"\b{re.escape(bad)}\b", blob):
+                P(f"prompt mentions {bad!r} (language / creator / brand names do not belong in image prompts)")
+        neg, am = str(pr.get("negative", "")).lower(), str(pr.get("asset_medium", "")).lower()
+        for w in ("border", "frame", "text"):
+            if f"no {w}" in neg and re.search(rf"(?<!no )(?<!no white ){w}", am):
+                P(f"asset_medium asks for a {w} the negative prompt forbids")
+        rec = RECIPES.get(name, {})
+        if len(rec) < 8:
+            P(f"only {len(rec)} recipes (need 8+)")
+        tags = {t for r in rec.values() for t in r.get("use_for", ())}
+        for t in REQUIRED_TAGS:
+            if t not in tags:
+                P(f"no recipe tagged use_for {t!r}")
+        for rn, r in rec.items():
+            bad = [t for t in r.get("use_for", ()) if t not in USE_FOR_TAGS]
+            if not r.get("use_for"):
+                P(f"recipe {rn}: no use_for tags")
+            if bad:
+                P(f"recipe {rn}: unknown tags {bad}")
+            if lay is None:
+                continue
+            for tab_name, tab in (("16:9", lay.L169), ("9:16", lay.L916)):
+                ln = r["layout"]
+                own = f"{canonical(name)}.{ln}"
+                slots = tab.get(ln if "." in ln else (own if own in tab else ln))
+                if slots is None:
+                    P(f"recipe {rn}: layout {ln!r} missing in {tab_name}")
+                    continue
+                if tab_name == "16:9":
+                    for d in r.get("items", []):
+                        if d.get("slot") and d["slot"] not in slots:
+                            P(f"recipe {rn}: slot {d['slot']!r} not in layout {ln!r} (16:9)")
+        plan = PLANS.get(name, {})
+        if abs(sum(plan.get("mix", {}).values()) - 1) > 0.05:
+            P("MIX does not sum to 1")
+    return probs

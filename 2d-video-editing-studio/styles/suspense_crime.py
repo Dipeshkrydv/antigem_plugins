@@ -1,8 +1,13 @@
 # -*- coding: utf-8 -*-
-"""Suspense / crime documentary — true-crime noir engine.
+"""Suspense Noir / Crime Thriller — true-crime noir engine.
 
-The visual language of Netflix "Making a Murderer", "The Jinx", Serial, Casefile, Dateline,
-"Don't F**k with Cats", CSI cold opens. Deep noir photography, red-string evidence boards,
+IDENTITY
+  A prestige true-crime documentary. Full-bleed cinematic chiaroscuro photography carries most beats; the case
+  is assembled on top of it with case-file tags, redaction bars that slide away on the reveal word, polaroids on
+  a red-string board and forensic cut-outs. Slow, tense, investigative; every frame feels like evidence.
+
+The visual language of prestige true-crime documentary series and investigative podcasts turned into video:
+cold opens, case files, deep noir photography, red-string evidence boards,
 polaroid portraits pinned to cork, redaction bars that slide to reveal, CCTV framing with
 timestamps, forensic callouts tagged like exhibits, cinema letterbox and 35mm grain.
 
@@ -47,7 +52,35 @@ heavy 35mm grain, matte-painting detail.
 """
 
 NAME = "noir"
-ALIASES = ["crime", "suspense", "truecrime", "suspense_crime"]
+LABEL = "Suspense Noir / Crime Thriller"
+ALIASES = ["crime", "suspense", "truecrime", "suspense_crime", "thriller"]
+
+PALETTE = {
+    "canvas":  {"hex": "#0A0B0E", "use": "near-black cinema base"},
+    "ink":     {"hex": "#ECE8DE", "use": "warm off-white type"},
+    "muted":   {"hex": "#8A8C94", "use": "case-file grey"},
+    "accent1": {"hex": "#D7263D", "use": "evidence blood-red: stamps, strings, one word in a title"},
+    "accent2": {"hex": "#F2A541", "use": "amber: timestamps, reveals, practical light"},
+    "accent3": {"hex": "#78AAD2", "use": "cold cyan rim light"},
+    "stamp":   {"hex": "#CD2630", "use": "heavy ink red stamps (max 2 per video)"},
+    "string":  {"hex": "#C41E2D", "use": "evidence string"},
+    "panel":   {"hex": "#0E1016", "alpha": 225, "use": "dossier cards"},
+    "rule":    "cold cyan shadows + warm amber highlights; blood-red ONLY on stamps, strings and one title word",
+}
+
+TYPE = {
+    "title": "vintage", "label": "mono", "number": "display", "caption": "caption",
+    "max_words": {"title": 6, "label": 4, "keyword": 3},
+    "boxes": ["cctv", "timestamp", "redact_bar", "label", "torn"],
+    "case": "upper",
+}
+
+MOTION = {
+    "entrances": ["fade", "rise", "slam", "wipe"],
+    "camera": ["push_in", "drift", "still"],
+    "transitions": ["dip", "fade", "luma_wipe"],
+    "never": ["whip", "bouncy pop", "sticker wobble"],
+}
 
 _NEG = ("no text, no letters, no captions, no watermark, no logo, no signature, no UI, "
         "no borders, no frames, no split screen, no collage, no cartoon, no illustration, "
@@ -79,11 +112,13 @@ STYLE = {
         "boxes": ["cctv", "timestamp", "redact_bar", "label", "torn"],
     },
     "prompt": {
+        "lock": ("cinematic photoreal true-crime documentary still on 35mm anamorphic film, low-key chiaroscuro from a single hard "
+                 "practical light, desaturated teal shadows and warm amber highlights, heavy film grain, the same grade in every image"),
         "clarity": (
             "ONE dominant focal subject, pitch-black negative space on one side, "
             "a single hard practical light source (desk lamp / interrogation bulb / torch / headlights), "
             "cold teal shadows with warm amber highlights, one BLOOD-RED accent only, "
-            "crushed shadows, heavy atmosphere, Hindi headline area kept pitch dark"
+            "crushed shadows, heavy atmosphere, the headline area kept pitch dark"
         ),
         "medium": "cinematic photoreal true-crime documentary still, 35mm anamorphic film, matte-painting background depth",
         "lighting": "low-key chiaroscuro, SINGLE hard practical light source, deep crushed shadows, volumetric smoke/dust haze",
@@ -155,6 +190,11 @@ LAYOUTS_16_9 = {
     },
 }
 LAYOUTS_9_16 = {
+    "cctv_grid": {
+        "tag": (0.07, 0.07, 0.86, 0.03),
+        "a": (0.04, 0.11, 0.45, 0.27), "b": (0.51, 0.11, 0.45, 0.27),
+        "c": (0.04, 0.40, 0.45, 0.27), "d": (0.51, 0.40, 0.45, 0.27),
+    },
     "cinematic_full": {
         "tag": (0.07, 0.08, 0.86, 0.03),
         "stamp": (0.50, 0.60, 0.42, 0.08),
@@ -189,10 +229,11 @@ LAYOUTS_9_16 = {
     },
 }
 
+# Recipes are TEMPLATES: core/auto_edit.py fills every name / text / cue from the voice line it is used for.
 RECIPES = {
     # Cold open: giant redacted title + ticking case file + stamp
     "cold_open": {
-        "layout": "cold_open", "bg": "SCENE_BG", "camera": "push_in", "transition": "dip",
+        "use_for": ["hook", "reveal"], "layout": "cold_open", "bg": "SCENE_BG", "camera": "push_in", "transition": "dip",
         "items": [
             {"type": "kicker", "text": "CASE FILE #NEP-1903 // SEALED"},
             {"type": "redact", "text": "WHO ORDERED THE MASSACRE?", "reveal": "WORD"},
@@ -201,7 +242,7 @@ RECIPES = {
     },
     # Evidence board: 4 polaroids + red strings + CONSPIRACY stamp
     "evidence_board": {
-        "layout": "evidence_board", "bg": "SCENE_BG", "camera": "drift", "transition": "dip",
+        "use_for": ["list", "person"], "layout": "evidence_board", "bg": "SCENE_BG", "camera": "drift", "transition": "dip",
         "items": [
             {"type": "kicker", "text": "EVIDENCE // SUSPECTS"},
             {"type": "photo", "src": "SRC_A", "caption": "SUSPECT A", "slot": "a", "frame": "polaroid"},
@@ -216,7 +257,7 @@ RECIPES = {
     },
     # Prime suspect face: centred portrait + two forensic callouts + PRIME SUSPECT stamp
     "prime_suspect": {
-        "layout": "interrogation", "bg": "SCENE_BG", "camera": "push_in", "transition": "dip",
+        "use_for": ["person", "reveal"], "layout": "interrogation", "bg": "SCENE_BG", "camera": "push_in", "transition": "dip",
         "items": [
             {"type": "kicker", "text": "PRIME SUSPECT"},
             {"type": "photo", "src": "SRC_FACE", "frame": "polaroid", "slot": "center",
@@ -229,11 +270,52 @@ RECIPES = {
     },
     # Witness quote (lower third slab + italic quote)
     "witness_quote": {
-        "layout": "quote", "bg": "SCENE_BG", "camera": "still", "transition": "fade",
+        "use_for": ["quote"], "layout": "quote", "bg": "SCENE_BG", "camera": "still", "transition": "fade",
         "items": [
             {"type": "kicker", "text": "WITNESS STATEMENT // 1947 BS"},
             {"type": "title", "text": "\"QUOTE *HERE*\"", "font": "serif"},
             {"type": "lower_third", "text": "WITNESS NAME", "sub": "role, date"},
+        ],
+    },
+    # Full-bleed cinematic scene: the photograph carries the beat, one discreet case tag
+    "cinematic_scene": {
+        "use_for": ["place", "hook", "object"], "layout": "cinematic_full", "bg": "SCENE_BG", "camera": "push_in", "transition": "dip",
+        "items": [
+            {"type": "keyword", "text": "LOCATION", "box": "cctv", "slot": "tag", "at": "WORD"},
+        ],
+    },
+    # CCTV grid: four time-stamped frames of the same night
+    "cctv_grid": {
+        "use_for": ["list", "place"], "layout": "cctv_grid", "bg": "dark", "camera": "still", "transition": "dip",
+        "items": [
+            {"type": "photo", "src": "SRC_A", "slot": "a", "frame": "card", "at": "WORD"},
+            {"type": "photo", "src": "SRC_B", "slot": "b", "frame": "card", "at": "WORD"},
+            {"type": "photo", "src": "SRC_C", "slot": "c", "frame": "card", "at": "WORD"},
+            {"type": "photo", "src": "SRC_D", "slot": "d", "frame": "card", "at": "WORD"},
+        ],
+    },
+    # Two sides of the case facing each other
+    "two_suspects": {
+        "use_for": ["compare"], "layout": "duo", "bg": "SCENE_BG", "camera": "drift", "transition": "dip",
+        "items": [
+            {"type": "title", "text": "*WHO* LIED?", "at": "WORD"},
+            {"type": "photo", "src": "SRC_A", "slot": "left", "frame": "polaroid", "caption": "A", "at": "WORD"},
+            {"type": "photo", "src": "SRC_B", "slot": "right", "frame": "polaroid", "caption": "B", "at": "WORD"},
+        ],
+    },
+    # The number that matters: a single counter over a dark scene
+    "case_number": {
+        "use_for": ["number"], "layout": "focus", "bg": "SCENE_BG", "camera": "push_in", "transition": "dip",
+        "items": [
+            {"type": "counter", "to": 1846, "plain": True, "slot": "stamp", "at": "WORD"},
+            {"type": "photo", "src": "SRC_DETAIL", "slot": "center", "frame": "polaroid", "at": "WORD"},
+        ],
+    },
+    # Verdict / outro: a redacted statement that resolves
+    "verdict": {
+        "use_for": ["outro", "reveal", "quote"], "layout": "redacted_statement", "bg": "SCENE_BG", "camera": "still", "transition": "fade",
+        "items": [
+            {"type": "redact", "text": "THE CASE IS STILL OPEN", "reveal": "WORD"},
         ],
     },
 }

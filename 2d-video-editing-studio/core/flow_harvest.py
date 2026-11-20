@@ -31,10 +31,16 @@ def get_elements_list(elements_tsv="ELEMENTS.tsv"):
         return list(csv.DictReader(f, delimiter="\t"))
 
 
-def get_search_folders(custom_folder=None):
+def get_search_folders(custom_folder=None, with_scope=False):
+    """Folders to look in. with_scope=True returns (folder, trusted) pairs: trusted folders belong to THIS
+    project (passed explicitly / FLOW_DOWNLOADS); everything else is shared (~/Downloads, its sub-folders,
+    even "<project name>/" -- every project called my_video shares it) and may hold same-named images
+    from OTHER videos."""
     folders = []
+    trusted = set()
     if custom_folder and os.path.isdir(custom_folder):
         folders.append(os.path.abspath(custom_folder))
+        trusted.add(os.path.abspath(custom_folder))
 
     project_folder = re.sub(r"[^A-Za-z0-9_-]+", "_", os.path.basename(os.getcwd())).strip("_").lower() or "voxdoc"
     dl_base = os.path.expanduser("~/Downloads")
@@ -47,15 +53,29 @@ def get_search_folders(custom_folder=None):
     ]
     if os.environ.get("FLOW_DOWNLOADS"):
         candidates.insert(0, os.environ["FLOW_DOWNLOADS"])
+        trusted.add(os.path.abspath(os.environ["FLOW_DOWNLOADS"]))
     try:
         candidates.extend(glob.glob(os.path.join(dl_base, "*", "")))
     except Exception:
         pass
 
     for c in candidates:
+        c = os.path.abspath(c)
         if os.path.isdir(c) and c not in folders:
-            folders.append(os.path.abspath(c))
+            folders.append(c)
+    if with_scope:
+        return [(f, f in trusted) for f in folders]
     return folders
+
+
+def _project_started():
+    """When this project folder was created (studio.py new makes elements/ first)."""
+    ts = []
+    for p in ("elements", "elements/raw", "LINES.tsv"):
+        if os.path.exists(p):
+            st = os.stat(p)
+            ts.append(getattr(st, "st_birthtime", None) or st.st_mtime)
+    return min(ts) if ts else 0.0
 
 
 def harvest_from_folder(src_folder=None, elements_tsv="ELEMENTS.tsv"):
@@ -66,7 +86,7 @@ def harvest_from_folder(src_folder=None, elements_tsv="ELEMENTS.tsv"):
         print("flow_harvest: No ELEMENTS.tsv found.")
         return 0
 
-    folders = get_search_folders(src_folder)
+    folders = get_search_folders(src_folder, with_scope=True)
     manifest = {"jobs": {}}
     if os.path.exists(MANIFEST):
         try:
@@ -75,6 +95,7 @@ def harvest_from_folder(src_folder=None, elements_tsv="ELEMENTS.tsv"):
             pass
     jobs = manifest.setdefault("jobs", {})
 
+    project_t0 = _project_started()
     copied = 0
     for el in elements:
         el_name = el.get("name") or el.get("id")
@@ -97,8 +118,13 @@ def harvest_from_folder(src_folder=None, elements_tsv="ELEMENTS.tsv"):
         escaped = re.escape(el_name)
         pat = re.compile(rf"^{escaped}(?:\s*\(\d+\))?(?:_\d+)?\.(?:png|webp|jpg|jpeg)$", re.IGNORECASE)
 
+        # A shared folder (~/Downloads, other projects' folders) only counts if the file was written
+        # AFTER this asset was sent to Flow -- otherwise "bg_city.png" from last week's video would be
+        # taken as this video's bg_city. Never-dispatched assets: only files newer than this project.
+        t_sent = (jobs.get(el_name) or {}).get("t")
+        not_before = float(t_sent) - 2 if t_sent else project_t0
         found = None
-        for folder in folders:
+        for folder, trusted in folders:
             if not os.path.exists(folder):
                 continue
             try:
@@ -107,6 +133,8 @@ def harvest_from_folder(src_folder=None, elements_tsv="ELEMENTS.tsv"):
                     if pat.match(fname):
                         p = os.path.join(folder, fname)
                         if os.path.isfile(p) and os.path.getsize(p) > 1024:
+                            if not trusted and os.path.getmtime(p) < not_before:
+                                continue
                             matches.append(p)
                 if matches:
                     # Pick newest

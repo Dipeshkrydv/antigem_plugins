@@ -301,7 +301,7 @@ class Item:
 
         if self.type == "asset":
             im = kit.trim(im.convert("RGBA"))
-            im = kit.fit_into(im, w * 0.84, avail_h * 0.84)
+            im = kit.fit_into(im, w * 0.84, avail_h * 0.84, pixel=bool(look.get("pixel")))
             if ht:
                 im = dot(im)
             ground = d.get("ground", look.get("ground", False))
@@ -323,7 +323,7 @@ class Item:
                 im = im.crop((int(cx0 * im.width), int(cy0 * im.height), int(cx1 * im.width), int(cy1 * im.height)))
             aspect = d.get("aspect", 0.82 if frame == "polaroid" else w / max(1, avail_h))
             im = kit.photo_crop(im, aspect)
-            im = kit.fit_into(im, w * 0.80, avail_h * 0.74 if frame == "polaroid" else avail_h * 0.86)
+            im = kit.fit_into(im, w * 0.80, avail_h * 0.74 if frame == "polaroid" else avail_h * 0.86, pixel=bool(look.get("pixel")))
             if ht:
                 im = dot(im)
             if frame == "polaroid":
@@ -731,6 +731,11 @@ class Engine:
                 self.warnings.append(f"scene {sd.get('id', i + 1)}: cue {raw_at!r} auto-aligned to {t0:.2f}s")
             prev_t0 = t0
             layout = sd.get("layout", "hero")
+            # a bare layout name resolves inside the scene's OWN style first: sticker and stickman both define
+            # "row3" / "flatlay" and the bare name used to go to whichever style file happened to load first
+            own = f"{styles.canonical(self.style_name)}.{layout}"
+            if "." not in layout and own in self.slots:
+                layout = own
             if layout not in self.slots:
                 self.warnings.append(f"scene {i + 1}: unknown layout {layout!r} -> 'hero'")
                 layout = "hero"
@@ -885,7 +890,7 @@ class Engine:
                 cw, ch = im.width, im.width / ar
             cx0, cy0 = (im.width - cw) / 2, (im.height - ch) / 2
             x0, y0, x1, y1 = rect
-            im = im.resize((self.W, self.H), Image.LANCZOS,
+            im = im.resize((self.W, self.H), Image.NEAREST if self.look.get("pixel") else Image.LANCZOS,
                            box=(cx0 + x0 * cw, cy0 + y0 * ch, cx0 + x1 * cw, cy0 + y1 * ch))
             im = Image.alpha_composite(im.convert("RGBA"), self._scrim(sc["layout"])).convert("RGB")
         else:

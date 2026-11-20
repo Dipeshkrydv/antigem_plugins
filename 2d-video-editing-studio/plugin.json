@@ -1,8 +1,8 @@
 {
   "name": "2d-video-editing-studio",
   "displayName": "2D Video Editing Studio",
-  "version": "3.3.1",
-  "description": "Master Autonomous 2D Video Director & Production Engine (v3.3.1): Google Flow Agent Mode & Batch Dispatch, Anti-Offline Server Shield, 52-89 FPS High-Speed Render Presets, Instant Help CLI, 15-Minute Timeline Scaling Laws, Broadcast Vox explainers, Bento Box data cards, Stickman storytelling, and Multi-Domain Google Flow Bridge.",
+  "version": "3.4.0",
+  "description": "Master Autonomous 2D Video Director & Production Engine (v3.4.0): 6 Official Fully-Specified Styles (Vox/Box Paper, Stickman, Sticker, Noir, Hand-Drawn Doodle, Retro Arcade) with Recipe-Driven Autopilot Edits, Voice-Synced Asset Placement (no dummy/stale assets), Google Flow Agent Mode & Batch Dispatch, Anti-Offline Server Shield, 52-89 FPS High-Speed Render Presets, Instant Help CLI, 15-Minute Timeline Scaling Laws, Broadcast Vox explainers, Bento Box data cards, Stickman storytelling, and Multi-Domain Google Flow Bridge.",
   "logo": "icon.png",
   "author": {
     "name": "Dipesh Kr Yadav",

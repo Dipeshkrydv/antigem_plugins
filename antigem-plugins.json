@@ -5,8 +5,8 @@
       "path": "2d-video-editing-studio",
       "id": "2d-video-editing-studio",
       "name": "2D Video Editing Studio",
-      "version": "3.3.1",
-      "description": "Senior Video Editor & Autonomous 2D Production Engine (v3.3.1): Google Flow Agent Mode & Batch Dispatch, Anti-Offline Server Shield, 52-89 FPS High-Speed Render Presets, Instant Help CLI, 15-Minute Timeline Scaling Laws, Broadcast Vox explainers, Bento Box data cards, Stickman storytelling, and Multi-Domain Google Flow Bridge.",
+      "version": "3.4.0",
+      "description": "Senior Video Editor & Autonomous 2D Production Engine (v3.4.0): 6 Official Fully-Specified Styles (Vox/Box Paper, Stickman, Sticker, Noir, Hand-Drawn Doodle, Retro Arcade) with Recipe-Driven Autopilot Edits, Voice-Synced Asset Placement (no dummy/stale assets), Google Flow Agent Mode & Batch Dispatch, Anti-Offline Server Shield, 52-89 FPS High-Speed Render Presets, Instant Help CLI, 15-Minute Timeline Scaling Laws, Broadcast Vox explainers, Bento Box data cards, Stickman storytelling, and Multi-Domain Google Flow Bridge.",
       "icon": "icon.png",
       "logo": "assets/logo.png"
     },

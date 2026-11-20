@@ -246,6 +246,14 @@ def main():
             return f"{len(names)} styles: {', '.join(names)}"
         check("layouts + style engines", engine)
 
+        def styles_spec():
+            import layouts, styles  # noqa: F401
+            probs = styles.lint_official()
+            assert not probs, "; ".join(f"{s}: {m}" for s, m in probs[:12]) + (f" (+{len(probs) - 12} more)" if len(probs) > 12 else "")
+            n_rec = sum(len(styles.RECIPES.get(s, {})) for s in styles.OFFICIAL)
+            return f"{len(styles.OFFICIAL)} official styles fully specified ({', '.join(styles.OFFICIAL)}), {n_rec} recipes"
+        check("style specs (6 official styles)", styles_spec)
+
         # ---------------------------------------------------------------- workflow
         def newproj():
             sh([STUDIO, "new", p], tmp)

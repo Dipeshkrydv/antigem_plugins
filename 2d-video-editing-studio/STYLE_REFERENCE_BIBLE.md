@@ -5,6 +5,11 @@ This document is the **ground truth aesthetic standard** for Deepesh Mobile Stud
 
 Every AI Agent, Prompt Builder, Storyboard Director, and Editor MUST adhere to these exact visual recipes and editorial structures.
 
+> **Authoritative numbers live in `STYLES.md`** (generated from `styles/*.py` by `python studio.py styles --doc`):
+> palette hex values, fonts, motion rules, the per-style prompt *lock* and the recipe list. This bible explains the
+> *why* and the look; when a colour or rule here differs from STYLES.md, STYLES.md wins. The prompt engine already
+> appends each style's lock to every Flow prompt, so never paste creator / channel / brand names into prompts.
+
 ---
 
 # 1. 🖊️ STICKMAN STYLE: The Modern Storytelling & Explainer Archetype
@@ -65,7 +70,7 @@ Modern YouTube explainers (in the lineage of Casually Explained, Alan Becker, Mi
 
 ### 1.3 Master Prompt Formula for Google Flow (Stickman)
 ```text
-A modern 2D animation storytelling illustration of [CHARACTER_ACTION], [OUTFIT_DESCRIPTION, e.g. wearing an oversized grey hoodie with drawstrings and dark stick legs], clean white circle head with expressive [EMOTION, e.g. curious raised eyebrow and smirk], thick black ink contour outlines, 2D vector cel shading. [BACKGROUND_DESCRIPTION, e.g. muted monochrome slate grey canyon with a fork in the road and wooden signpost], selective color contrast with the character popping vibrantly, clean paper texture, Alan Becker and Casually Explained editorial style, 9:16 vertical, masterpiece, crisp lines.
+A modern 2D animation storytelling illustration of [CHARACTER_ACTION], [OUTFIT_DESCRIPTION, e.g. wearing an oversized grey hoodie with drawstrings and dark stick legs], clean white circle head with expressive [EMOTION, e.g. curious raised eyebrow and smirk], thick black ink contour outlines, 2D vector cel shading. [BACKGROUND_DESCRIPTION, e.g. muted monochrome slate grey canyon with a fork in the road and wooden signpost], selective color contrast with the character popping vibrantly, clean paper texture, modern comic storytelling style, 9:16 vertical, masterpiece, crisp lines.
 ```
 
 ---
@@ -82,7 +87,7 @@ Vox, Johnny Harris, MagnatesMedia, and Polymatter use **tactile paper collage, S
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│  Warm Tactile Paper Canvas (#F4ECE1) / Grid Pattern    │
+│  Warm Tactile Paper Canvas (#F4F0E6) / Grid Pattern    │
 │                                                        │
 │   [ 1966 ]  ← Minimal Monospaced Date Chip             │
 │                                                        │
@@ -128,20 +133,13 @@ Vox, Johnny Harris, MagnatesMedia, and Polymatter use **tactile paper collage, S
    - Headline in clean Helvetica: `"As a small, growing business"`. The visual directly mirrors the spoken concept!
 
 ### 2.2 Color Palette & Textures
-- **Background Canvases**:
-  - `Warm Paper`: `#F4ECE1` to `#EDE6D8` with faint fiber noise.
-  - `Graph/Grid Paper`: Off-white paper with 32px subtle green or grey isometric grid lines.
-  - `Cutting Mat`: Deep forest green `#1B3B2B` with white cutting grid lines.
-  - `Dark Investigation`: Charcoal slate `#12151C` with subtle white coordinate grid (+).
-- **Accent Highlighters**:
-  - Fluorescent Yellow: `#FFE600` (translucent marker sweep).
-  - Safety Orange: `#FF6D00` (burnt orange circular background orbs).
-  - Terminal Green: `#00E676` (forensic map borders and pushpins).
-  - Censor Red: `#E53935` (trendline arrows and comparison fulcrums).
+The exact canvas, ink and spot-colour hex values (orange / mustard / navy, one per scene) are in **STYLES.md → Vox / Box
+Paper Collage → Palette**. Surfaces available to EDIT.json: `paper` / `crumple` (crumpled white), `grid` (graph paper),
+`kraft`, `mat` (green cutting mat), `chalk` (chalkboard), `white`.
 
 ### 2.3 Master Prompt Formula for Google Flow (Vox Style)
 ```text
-High-end editorial documentary collage illustration of [SUBJECT, e.g. vintage CIA headquarters architecture in high-contrast black and white halftone print], layered with [PROPS, e.g. sacks overflowing with 100-dollar bills and a floating official seal badge], set against [BACKGROUND, e.g. a warm cream tactile paper canvas #F4ECE1 with subtle isometric graph paper grid], accompanied by [GRAPHIC_MOTIF, e.g. a bold burnt-orange circular sun orb behind the building and dotted red perspective trajectory lines], Swiss modernist graphic design, Johnny Harris and Vox Borders editorial collage aesthetic, 16:9 widescreen or 9:16 vertical, ultra sharp, archival museum print quality.
+High-end editorial documentary collage illustration of [SUBJECT, e.g. vintage CIA headquarters architecture in high-contrast black and white halftone print], layered with [PROPS, e.g. sacks overflowing with 100-dollar bills and a floating official seal badge], set against [BACKGROUND, e.g. a warm cream tactile paper canvas #F4F0E6 with subtle isometric graph paper grid], accompanied by [GRAPHIC_MOTIF, e.g. a bold burnt-orange circular sun orb behind the building and dotted red perspective trajectory lines], Swiss modernist graphic design, editorial paper-collage aesthetic, 16:9 widescreen or 9:16 vertical, ultra sharp, archival museum print quality.
 ```
 
 ---

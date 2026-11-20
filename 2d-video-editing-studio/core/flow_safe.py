@@ -501,6 +501,7 @@ def main():
             log(f"regenerating {n}")
         man.save()
 
+    all_names = [r["name"] for r in rows]          # full ELEMENTS.tsv order (stable across --only / re-runs)
     if a.only:
         rows = [r for r in rows if r["name"] in a.only]
 
@@ -584,12 +585,21 @@ def main():
         log(f"⚡ Flow Connector Extension connected! Queuing {len(pending)} pending asset(s) in parallel (batch=4, 1.2s gap)...")
         import glob
         import subprocess
-        folder_name = os.path.basename(os.path.abspath(".")) + "_flow"
+        # Per-PROJECT download folder: two projects both called "my_video" used to share one folder,
+        # so images of an older video were picked up as this video's assets.
+        proj = os.path.abspath(".")
+        folder_name = (re.sub(r"[^A-Za-z0-9_-]+", "_", os.path.basename(proj)).strip("_") or "project") \
+            + "_" + hashlib.sha1(proj.encode("utf-8")).hexdigest()[:6] + "_flow"
         downloads_dir = os.path.expanduser(f"~/Downloads/{folder_name}")
         os.makedirs(downloads_dir, exist_ok=True)
+        # Stable index per asset = its row in ELEMENTS.tsv (not its position in this run's pending queue,
+        # which shifts on every re-run and made file "3_*.png" of run 1 land on a different asset in run 2).
+        stable_idx = {n: i for i, n in enumerate(all_names, 1)}
+        sent_at = {}
         model_slug = "nano-banana-pro" if "pro" in a.model.lower() else ("nano-banana-lite" if "lite" in a.model.lower() else "nano-banana-2")
-        for idx, row in enumerate(pending, 1):
+        for row in pending:
             name = row["name"]
+            idx = stable_idx[name]
             if done_path(name):
                 continue
             raw_prompt = row["prompt"].strip()
@@ -611,16 +621,17 @@ def main():
             if row.get("ref") and done_path(row["ref"]):
                 cmd.extend(["--images", os.path.abspath(done_path(row["ref"]))])
             try:
+                sent_at[name] = time.time()
                 subprocess.run(cmd, capture_output=True, text=True, timeout=15)
-                man.set(name, hash=row["h"], status="inflight", t=int(time.time()))
+                man.set(name, hash=row["h"], status="inflight", t=int(sent_at[name]))
                 fg.mark_submitted()
-                log(f"  [+] Queued [{idx}/{len(pending)}] {name} to Flow Connector")
+                log(f"  [+] Queued [#{idx}] {name} to Flow Connector")
             except Exception as ex:
                 log(f"  [!] Flow Connector queue warning for {name}: {ex}")
             time.sleep(0.35)
 
         t_end = time.time() + a.wait
-        idx_map = {idx: row for idx, row in enumerate(pending, 1)}
+        idx_map = {stable_idx[row["name"]]: row for row in pending if row["name"] in sent_at}
         while idx_map and time.time() < t_end:
             try:
                 fh.harvest_from_folder(elements_tsv=a.elements)
@@ -637,6 +648,11 @@ def main():
                 matches = []
                 for ext in ("*.png", "*.jpg", "*.jpeg", "*.webp"):
                     matches.extend(glob.glob(os.path.join(downloads_dir, f"{idx}_*{ext[1:]}")))
+                # only a file written AFTER this asset was sent can be its render (no stale images)
+                t_sent = sent_at.get(name, 0) - 2
+                matches = [m for m in matches if os.path.getmtime(m) >= t_sent]
+                tagged = [m for m in matches if name.lower() in os.path.basename(m).lower()]
+                matches = tagged or matches
                 if matches:
                     latest = max(matches, key=os.path.getctime)
                     if os.path.getsize(latest) > 1024:

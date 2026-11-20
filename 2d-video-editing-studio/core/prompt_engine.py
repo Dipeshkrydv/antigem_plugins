@@ -146,9 +146,9 @@ ROT = {
                ("insert shot of hands at work", "85mm", "over the hands", "slow push-in")],
 }
 SIZE_CYCLE = ["wide", "medium", "close", "detail", "medium", "close"]
-TEXT_SPACE = ["main subject on the right third, darker empty left half reserved for a Hindi headline",
-              "main subject on the left third, darker empty right half reserved for a Hindi headline",
-              "main subject in the lower two thirds, clean dark upper third reserved for a Hindi headline",
+TEXT_SPACE = ["main subject on the right third, darker empty left half reserved for a headline",
+              "main subject on the left third, darker empty right half reserved for a headline",
+              "main subject in the lower two thirds, clean dark upper third reserved for a headline",
               "main subject centred, quiet dark margins on every side for text overlays"]
 
 
@@ -184,6 +184,7 @@ def build(shot, style, world, idx=0):
                 f"{rows} row{'s' if rows > 1 else ''} by {cols} columns, read left to right, top to bottom, each object "
                 f"fully isolated with wide empty margins, no object touching or overlapping another. Objects: {objs}. "
                 f"Same lighting, scale logic and style for all objects" + (f", period {era}" if era else "") +
+                (f", {sp['lock']}" if sp.get("lock") else "") +
                 f", {sp['quality']}, {SHEET_BG}, no text, no numbers, no labels, no watermark")
     if kind == "asset":
         asset_light = shot.get("lighting") or sp.get("lighting", "soft even studio light from the upper left")
@@ -198,6 +199,7 @@ def build(shot, style, world, idx=0):
             "one bold readable object with a strong clear silhouette, instantly recognisable at small size",
             f"details: {', '.join(shot['details'])}" if shot.get("details") else "",
             asset_light,
+            sp.get("lock", ""),           # style lock: every image of the video shares one visual language
             sp["quality"], MAGENTA, "no text, no letters, no watermark",
         ]
         return ", ".join(b for b in bits if b)
@@ -251,7 +253,8 @@ def build(shot, style, world, idx=0):
             f"Sound: {shot['sound']}." if shot.get("sound") else "",
             "Physically plausible motion, stable anatomy, no morphing, no sudden cuts."
         ]
-    sections += [f"Style: {sp['quality']}.", f"Avoid: {sp['negative']}."]
+    sections += [f"Style lock: {sp['lock']}." if sp.get("lock") else "",
+                 f"Style: {sp['quality']}.", f"Avoid: {sp['negative']}."]
     return " ".join(s for s in sections if s)
 
 
@@ -271,7 +274,8 @@ def character_rows(shot, style, world):
         same = ("" if p == "idle" else " Same character as the reference image: identical face, hairstyle, outfit, colours, "
                 "line weight and body proportions; only the pose and expression change.")
         out.append((f"{shot['name']}_{p}",
-                    f"{medium}. Character: {look}.{pers} Pose: {desc}.{same} Character design sheet quality, "
+                    f"{medium}. Character: {look}.{pers} Pose: {desc}.{same}"
+                    + (f" Style lock: {sp['lock']}." if sp.get("lock") else "") + " Character design sheet quality, "
                     f"the character fills about 85% of the image height. {CHAR_BG}.",
                     None if p == "idle" else f"{shot['name']}_idle"))
     return out
@@ -384,6 +388,7 @@ def main():
     rows = []
     seen_prompt, seen_name = {}, {}
     beats = []
+    renamed = 0
     for i, s in enumerate(spec["shots"]):
         s = auto_heal_shot(s, style, world, i)
         errs = validate(s, style)
@@ -412,7 +417,10 @@ def main():
         else:
             aspect = s.get("aspect", "1:1" if kind == "asset" else spec.get("aspect", "16:9"))
         if s["name"] in seen_name:
-            s["name"] = f"{s['name']}_{i + 1}"
+            new_name = f"{s['name']}_{i + 1}"
+            print(f"  ↻ duplicate shot name {s['name']!r} -> {new_name!r} (SHOTS.json updated so the edit uses the same name)")
+            s["name"] = spec["shots"][i]["name"] = new_name
+            renamed += 1
         prompt = build(s, style, world, i)
         if prompt in seen_prompt:
             prompt = f"{prompt} (Shot angle variation #{i + 1})"
@@ -427,6 +435,9 @@ def main():
     print(f"✓ {len(rows)} shots valid")
     if a.check:
         return
+    if renamed:     # keep SHOTS.json == ELEMENTS.tsv names, else EDIT.json points at images that never exist
+        with open(a.shots, "w", encoding="utf-8") as f:
+            json.dump(spec, f, ensure_ascii=False, indent=1)
     with open(a.out, "w", encoding="utf-8") as f:
         f.write("id\tname\tprompt\tkind\taspect_ratio\tparts\tref\n")
         for n, p, k, ar, parts, ref in rows:
