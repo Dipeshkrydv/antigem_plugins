@@ -5,19 +5,21 @@
       "path": "2d-video-editing-studio",
       "id": "2d-video-editing-studio",
       "name": "2D Video Editing Studio",
-      "version": "3.4.0",
-      "description": "Senior Video Editor & Autonomous 2D Production Engine (v3.4.0): 6 Official Fully-Specified Styles (Vox/Box Paper, Stickman, Sticker, Noir, Hand-Drawn Doodle, Retro Arcade) with Recipe-Driven Autopilot Edits, Voice-Synced Asset Placement (no dummy/stale assets), Google Flow Agent Mode & Batch Dispatch, Anti-Offline Server Shield, 52-89 FPS High-Speed Render Presets, Instant Help CLI, 15-Minute Timeline Scaling Laws, Broadcast Vox explainers, Bento Box data cards, Stickman storytelling, and Multi-Domain Google Flow Bridge.",
+      "version": "3.5.0",
+      "description": "Senior Video Editor & Autonomous 2D Production Engine (v3.5.0): 6 Official Styles (Vox/Box Paper, Stickman, Sticker, Noir, Hand-Drawn Doodle, Retro Arcade), Recipe-Driven Autopilot Edits, Voice-Synced Asset Placement, built-in DeepX Google Flow asset engine (login check → one Agent/Standard question → autopilot; Agent Mode ≤24 prompts per part back-to-back; automatic Agent fallback on unusual-activity blocks), Anti-Offline Server Shield, high-speed render presets and 15-minute timeline scaling.",
       "icon": "icon.png",
-      "logo": "assets/logo.png"
+      "logo": "assets/logo.png",
+      "toolCount": 95
     },
     {
       "path": "facebook-automation",
       "id": "facebook-automation",
       "name": "Facebook Automation & SEO Studio",
-      "version": "1.7.0",
-      "description": "Pre-Trained Phone (Desktop-on-Phone www.facebook.com & Mobile Touch m.facebook.com) and Desktop Facebook Automation Engine (v1.7.0): Dedicated Feed Posts (Text/Photo/Carousel/Video), Anti-Comment Firewall (strictly never posts into comments), Reels (/reels/create + automatic mobile fallback + video event dispatch), Stories (/stories/create Photo/Video with overlay story_text & Text Story), Real Video/Reel Thumbnail & Cover Uploader, Multiline Formatted Caption Engine (Title + Description + Bullets + CTA + 3-6 #Hashtags), and Zero-Overthinking 1-Call Dispatch.",
+      "version": "1.8.0",
+      "description": "Pre-Trained Phone (Desktop-on-Phone www.facebook.com & Mobile Touch m.facebook.com) and Desktop Facebook Automation Engine (v1.8.0): Dedicated Feed Posts (Text/Photo/Carousel/Video), Anti-Comment Firewall (strictly never posts into comments), Reels (/reels/create + automatic mobile fallback + video event dispatch), Stories (/stories/create Photo/Video with overlay story_text & Text Story), Real Video/Reel Thumbnail & Cover Uploader, Multiline Formatted Caption Engine (Title + Description + Bullets + CTA + 3-6 #Hashtags), and Zero-Overthinking 1-Call Dispatch, and built-in DeepX Google Flow engine for AI thumbnails, Reel covers and post designs (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
       "icon": "icon.png",
-      "logo": "icon.png"
+      "logo": "icon.png",
+      "toolCount": 34
     },
     {
       "path": "meta-suite-automation",
@@ -33,11 +35,11 @@
       "path": "deepx-google-flow",
       "id": "deepx-google-flow",
       "name": "DeepX Google Flow Studio",
-      "version": "1.0.0",
-      "description": "DeepX Google Flow Studio (v1.0.0): the full DeepX Google Flow extension as an AntiGem MCP plugin (no side panel). Asks Agent Mode vs Standard mode before every generation, Agent Mode auto-splits >24 prompts into ≤24-item parts pasted back-to-back with 100% autopilot approvals, Standard mode auto-switches to Agent Mode on Google 'unusual activity / extension' blocks. Nano Banana 2.1/Pro, Omni Flash 1.2, Veo 3.1, storyboard analyzer, characters, references, scene chaining, upscale and all deepx_*/flow_* tools.",
+      "version": "1.1.0",
+      "description": "DeepX Google Flow Studio (v1.1.0): the complete DeepX Flow extension as an AntiGem MCP plugin — no side panel. Checks Google login, asks Agent Mode vs Standard mode before every generation; Agent Mode auto-splits big batches into ≤24-item parts pasted back-to-back with 100% autopilot approvals; Standard mode runs on AntiGem's native Flow engine and auto-switches to Agent Mode when Google shows an unusual-activity / extension block. Includes storyboard analyzer, characters, references, scene chaining, upscale, downloads and all deepx_* / flow_* tools.",
       "icon": "icon.png",
       "logo": "assets/logo.png",
-      "toolCount": 89
+      "toolCount": 90
     }
   ]
 }

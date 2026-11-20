@@ -27,7 +27,7 @@ export class FlowClient {
     try {
       const ui = await this.js(tab.id, 's.ui()');
       if (ui.ready && !ui.projectId) {
-        const p = await this.createProject(tab.id, 'Studio Project');
+        const p = await this.createProject(tab.id, 'DeepX Flow Project');
         if (p?.projectId) await this.page(tab.id, p.projectId);
       }
     } catch (_) {}

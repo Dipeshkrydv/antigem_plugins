@@ -1,14 +1,14 @@
 ---
-name: Google Flow Rapid Parallel Dispatch
-description: Autonomous parallel visual asset generation through Google Flow Nano Banana with rate guard pacing and zero manual clicks.
-version: 3.1.0
+name: Google Flow Asset Engine (DeepX)
+description: Built-in DeepX Google Flow engine for every 2D Studio asset. Login check, one Agent/Standard question, then autopilot; Agent Mode ≤24 prompts per part back-to-back; automatic Agent fallback on unusual-activity blocks.
+version: 3.5.0
 ---
 
-# Google Flow Rapid Parallel Asset Dispatch
+# Google Flow Asset Engine (built-in DeepX)
 
-## Execution Protocol
-- **Slotted Parallel Concurrency Pool**: Maintains 2 to 3 concurrent in-flight generation slots on Google Flow cloud cluster, providing 2x-3x parallel speedup while strictly preventing "unusual activity" rate limit flags.
-- **Humanized Jitter & Guard Pacing**: Uses adaptive 1.2s pacing with micro-jitter (0.2s-0.5s) to eliminate robotic fingerprinting.
-- **Auto-Recovery**: If a transient rate warning is encountered, automatically cools off for 15s, resets the pacing ledger, and safely resumes without crashing or user intervention.
-- **Zero Manual Friction**: Images generate in parallel on Google Flow and are autonomously harvested directly into `elements/raw/` and keyed into `elements/cut/`.
-- **$0 Cost**: Operates directly through logged-in Google Flow Chrome/Kiwi session with DeepX Bridge.
+- **Only path for assets:** `studio_generate_assets {project_dir, generation_mode}` (or `deepx_generate` for one-off images or videos). No other Flow extension, no `flow-auto`, no 8792 bridge, no manual pasting or downloading.
+- **Order:** `deepx_check_login` (on `LOGIN_REQUIRED`, give the user the one sign-in message and stop) → last question "with Agent Mode or without Agent Mode?" → generate on autopilot → poll `deepx_job_status` (30 s) → `python studio.py key`.
+- **Agent Mode:** switches Flow to Agent with "Confirm before generating: Never", syncs the DeepX consistency instructions, and pastes prompts in parts of ≤24 back-to-back. Flow Agent questions and credit cards are answered automatically. New media are matched to asset names and saved to `elements/raw/`.
+- **Without Agent:** AntiGem native composer with a request guard and exact settings. If Google shows "unusual activity" / an extension / a captcha, the remaining and blocked assets are re-sent through Agent Mode automatically. For 15 minutes after a block, new requests go straight to Agent Mode.
+- **Zero duplicates:** existing `elements/cut|raw/<name>` files are skipped, identical prompts are generated once and copied, and referenced assets are generated after their reference.
+- **$0 cost:** uses the user's signed-in Google Flow account in the AntiGem browser.

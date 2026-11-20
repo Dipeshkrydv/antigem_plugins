@@ -73,7 +73,13 @@ Every Feed Post, Photo, Carousel, Feed Video, and Reel caption MUST preserve cle
      > *"Would you like to provide a custom thumbnail image for this video/reel, or should I generate a high-CTR thumbnail for you using the AI Image Model?"*
 3. **AI Image Model ONLY (STRICTLY ZERO PYTHON)**:
    - **NEVER** use Python (`PIL`, `Pillow`, `OpenCV`, `matplotlib`, `ThumbnailEngine`, or `FreeMediaEngine`)!
-   - Call `fb_thumbnail_prompt(topic=..., title_hook=..., subtitle=..., archetype=..., aspect_ratio=...)` and generate using the AI Image Model (`image-generator` subagent, `flow_generate_image`, `deepx_generate_image`, or `meigen` `generate_image`), then pass the resulting image path as `thumbnail_path`.
+   - Call `fb_thumbnail_prompt(topic=..., title_hook=..., subtitle=..., archetype=..., aspect_ratio=...)`, then generate with this plugin's **built-in DeepX Google Flow engine** (the ONLY image engine; never another Flow extension, subagent or manual Google Flow steps):
+     1. `deepx_generate {prompt: <ai_image_model_prompt>, media_type:"image", aspect_ratio:"16:9" (feed video) or "9:16" (Reel cover), download:true}`.
+        - `LOGIN_REQUIRED` → tell the user its one message (sign in to Google in the Flow tab of the AntiGem browser) and stop until they reply. If logged in it continues by itself.
+        - `ASK_GENERATION_MODE` → ask ONE multiple-choice question: **"Agent Mode or Standard mode (without Agent)?"** Then call again with `generation_mode`.
+     2. Poll `deepx_job_status {job_id, wait_seconds:30}` until `done`, then pass `files[0].path` as `thumbnail_path` (or in `media_paths` for an AI post design).
+     - Standard mode switches to Agent Mode automatically if Google shows an "unusual activity" / extension error. Do not stop or retry by hand.
+4. **AI Post Designs / Images / Short Clips:** use the same `deepx_generate` flow (`media_type:"video"` for clips). Batches of more than 24 prompts are split into parts of ≤24 automatically in Agent Mode.
 
 ---
 

@@ -15,7 +15,7 @@ description: "Algorithmic Facebook SEO, viral copy, and AI Image Model thumbnail
    - When uploading a Video or Reel without a `thumbnail_path`, always ask the user if they want to provide a thumbnail image or have you generate one.
 4. **AI Image Model ONLY for Thumbnails (Strictly Zero Python)**:
    - When the user asks you to generate the thumbnail yourself, **NEVER use Python (`PIL`, `Pillow`, `OpenCV`, `matplotlib`, `ThumbnailEngine`, or `FreeMediaEngine`)** to draw or create thumbnails!
-   - **ONLY use the AI Image Model** (`image-generator` subagent, Google Flow Nano Banana Pro `flow_generate_image` / `deepx_generate_image`, or `meigen` `generate_image`) using the detailed prompt from `fb_thumbnail_prompt(topic=..., title_hook=..., subtitle=..., archetype=..., aspect_ratio=...)`:
+   - **ONLY use this plugin's built-in DeepX Google Flow engine** (`deepx_generate`: Google login check → ask "Agent Mode or Standard mode (without Agent)?" → `download:true` → poll `deepx_job_status` → `files[0].path` as `thumbnail_path`) with the detailed prompt from `fb_thumbnail_prompt(topic=..., title_hook=..., subtitle=..., archetype=..., aspect_ratio=...)`. Never use another Flow extension or tell the user to generate in Google Flow manually:
      - **Visual Hierarchy**: Giant dominant 3D headline (`title_hook`) with a horizontal electric-gold-to-crimson gradient fill + smaller secondary `subtitle` inside a translucent dark glass card container with a glowing neon border.
      - **Dramatic Lighting**: Radial warm-gold spotlight pool behind the focal subject, razor-sharp cyan/amber rim lighting, 8K surface micro-textures, and cinematic vignette shading.
 5. **Outbound Link Reach Protection**:

@@ -1,7 +1,7 @@
 ================================================================================
   v3.2 ENGINE (ANTI-OFFLINE SERVER SHIELD & HIGH-SPEED PRESETS)
   python studio.py new ~/videos/my_video   then run the steps it prints.
-  Google Flow: ALWAYS generate with `python studio.py generate` (rate-guarded).
+  Google Flow: built-in DeepX engine -> MCP studio_generate_assets (or `python studio.py generate --mode agent|standard`).
 ================================================================================
 
 ================================================================================
@@ -55,7 +55,8 @@ This package unifies the industry's best explainer and animation engines:
 
 8. STRICT GOOGLE FLOW ASSET GENERATION LAW:
    - Compulsory Google Flow asset generation (`Banana Nano 2.1` / `Banana Nano Pro` / `Imagen 3`)
-   - Pre-flight bridge status check (`deepx_status`) with automatic user connection reminder prompt
+   - Google login check (`deepx_check_login`) -> one question (with / without Agent Mode) -> autopilot
+   - Agent Mode: <=24 prompts per part back-to-back; auto Agent fallback on unusual-activity blocks
 
 --------------------------------------------------------------------------------
 ANDROID (TERMUX) QUICKSTART:
@@ -80,7 +81,7 @@ DESKTOP CLI WORKFLOW:
 3. Plan & Prompts:
      python studio.py plan && python studio.py prompts
 4. Generate Flow assets & key:
-     python studio.py generate && python studio.py key
+     python studio.py generate --mode agent && python studio.py key
 5. QA check & sheet:
      python studio.py check && python studio.py sheet
 6. Render:

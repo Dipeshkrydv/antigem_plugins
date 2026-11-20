@@ -1,10 +1,10 @@
 # 🎬 Deepesh Autonomous Studios & AntiGem Plugins Repository
 
 [![AntiGem Compatible](https://img.shields.io/badge/AntiGem-Plugins_Ready-brightgreen.svg)](https://github.com/Dipeshkrydv/2d-video-editing-skill)
-[![2D Engine](https://img.shields.io/badge/2D_Video_Studio-v3.4.0_(6_Styles_%26_Voice_Sync)-blue.svg)](./2d-video-editing-studio)
-[![Facebook Engine](https://img.shields.io/badge/Facebook_Automation-v1.7.0-blue.svg)](./facebook-automation)
+[![2D Engine](https://img.shields.io/badge/2D_Video_Studio-v3.5.0_(6_Styles_%26_Voice_Sync)-blue.svg)](./2d-video-editing-studio)
+[![Facebook Engine](https://img.shields.io/badge/Facebook_Automation-v1.8.0-blue.svg)](./facebook-automation)
 [![Meta Suite](https://img.shields.io/badge/Meta_Suite_Page_Management-v2.1.0-purple.svg)](./meta-suite-automation)
-[![DeepX Flow](https://img.shields.io/badge/DeepX_Google_Flow_Studio-v1.0.0_(Agent_Mode_%26_Auto_Fallback)-orange.svg)](./deepx-google-flow)
+[![DeepX Flow](https://img.shields.io/badge/DeepX_Google_Flow_Studio-v1.1.0_(Agent_Mode_%26_Auto_Fallback)-orange.svg)](./deepx-google-flow)
 [![Platform](https://img.shields.io/badge/Platform-Android_(Termux)_%7C_Linux_%7C_macOS_%7C_Windows-purple.svg)]()
 
 > Official production-grade plugin suite for **AntiGem**, **Android (Termux)**, and **Desktop**. Includes the **2D Video Editing Studio (v3.4.0: 6 Official Styles & Voice-Synced Assets)**, **Facebook Automation & SEO Studio (v1.7.0)**, **Meta Suite Page Management (v2.1.0)**, and **DeepX Google Flow Studio (v1.0.0)**.
@@ -13,7 +13,12 @@
 
 ## 🚀 What's New in This Universal Update
 
-### 0. DeepX Google Flow Studio (v1.0.0) — NEW
+### 0. DeepX engine now built into 2D Studio (v3.5.0) & Facebook Automation (v1.8.0)
+- The old Google Flow paths (`flow-auto`, the 8792 DeepX Chrome bridge, external image tools) are replaced by the built-in **DeepX Google Flow engine**.
+- **2D Video Editing Studio:** `studio_generate_assets` checks the Google login, asks the last question (*with Agent Mode or without*), then generates every ELEMENTS.tsv asset on autopilot into `elements/raw/<name>`.
+- **Facebook Automation:** AI thumbnails, Reel covers and post designs through `deepx_generate` with the same login check, mode question and automatic Agent fallback.
+
+### 0b. DeepX Google Flow Studio (v1.1.0)
 - The DeepX Google Flow Chrome extension, rebuilt as an AntiGem plugin: every feature is an MCP tool and a skill, with no side panel, bridge or setup.
 - **Mode question first:** before any generation the assistant asks *Agent Mode or Standard mode (without Agent)?*, then calls `deepx_generate` instantly.
 - **Agent Mode 24-per-part queue:** 25 to 5000 prompts are split into parts of ≤24 and pasted back-to-back into Google Flow Agent, with auto-approvals and auto-answered Agent questions.
@@ -57,10 +62,10 @@
 
 | Order | Plugin Name | Directory | Version | Core Capabilities |
 |:---:|---|---|:---:|---|
-| **1** | **2D Video Editing Studio** | [`2d-video-editing-studio/`](./2d-video-editing-studio) | `3.4.0` | **Anti-Offline Server Shield**, Direct In-Memory Streaming, High-Speed Render Presets (`--fast`, `--turbo`, `--1080p`), Vox Documentary, Stickman Storytelling, Die-Cut Pop-Art Stickers, Crime Noir, 8-Bit Arcade, 25 fonts, and Google Flow rapid parallel dispatch. |
-| **2** | **Facebook Automation & SEO Studio** | [`facebook-automation/`](./facebook-automation) | `1.7.0` | Dedicated Feed Posts (Photo/Carousel/Video), Anti-Comment Firewall, Reels (`/reels/create` + mobile fallback + event dispatch), Stories, Real Thumbnail/Cover Uploader, and Multiline Formatted Captions. |
+| **1** | **2D Video Editing Studio** | [`2d-video-editing-studio/`](./2d-video-editing-studio) | `3.5.0` | **Anti-Offline Server Shield**, Direct In-Memory Streaming, High-Speed Render Presets (`--fast`, `--turbo`, `--1080p`), Vox Documentary, Stickman Storytelling, Die-Cut Pop-Art Stickers, Crime Noir, 8-Bit Arcade, 25 fonts, and Google Flow rapid parallel dispatch. |
+| **2** | **Facebook Automation & SEO Studio** | [`facebook-automation/`](./facebook-automation) | `1.8.0` | Dedicated Feed Posts (Photo/Carousel/Video), Anti-Comment Firewall, Reels (`/reels/create` + mobile fallback + event dispatch), Stories, Real Thumbnail/Cover Uploader, and Multiline Formatted Captions. |
 | **3** | **Meta Suite Page Management** | [`meta-suite-automation/`](./meta-suite-automation) | `2.1.0` | Enterprise Meta Business Suite Facebook Page management, 6-Step Sequential Order Execution Rule, dual-mode native & local queue scheduler, custom Reel covers & video thumbnails, DeepX Google Flow AI bridge, and anti-ad organic shield. |
-| **4** | **DeepX Google Flow Studio** | [`deepx-google-flow/`](./deepx-google-flow) | `1.0.0` | The full DeepX Google Flow extension as an MCP plugin (no side panel): **asks Agent Mode vs Standard mode before every generation**, Agent Mode **auto-splits >24 prompts into ≤24-item parts pasted back-to-back** with 100% autopilot approvals, Standard mode **auto-switches to Agent Mode on Google "unusual activity / extension" blocks**, Nano Banana 2.1/Pro, Omni Flash 1.2, Veo 3.1, storyboard analyzer, characters, references, scene chaining, upscale, 89 tools. |
+| **4** | **DeepX Google Flow Studio** | [`deepx-google-flow/`](./deepx-google-flow) | `1.1.0` | The full DeepX Google Flow extension as an MCP plugin (no side panel): **asks Agent Mode vs Standard mode before every generation**, Agent Mode **auto-splits >24 prompts into ≤24-item parts pasted back-to-back** with 100% autopilot approvals, Standard mode **auto-switches to Agent Mode on Google "unusual activity / extension" blocks**, Nano Banana 2.1/Pro, Omni Flash 1.2, Veo 3.1, storyboard analyzer, characters, references, scene chaining, upscale, 89 tools. |
 
 ---
 

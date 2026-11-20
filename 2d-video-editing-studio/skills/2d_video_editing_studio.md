@@ -1,7 +1,7 @@
 ---
 name: 2D Video Editing Studio
 description: Master Autonomous Video Director & Production Engine (v3.2) for broadcast-quality 2D explainers, documentaries, and animations with Anti-Offline Server Shield, direct in-memory FFmpeg streaming, and high-speed render presets.
-version: 3.2.0
+version: 3.5.0
 ---
 
 # 2D Video Editing Studio — Master Video Director (v3.2)
@@ -33,7 +33,7 @@ python studio.py selftest --quick
 - **Voiceover**: `CARTESIA_API_KEY=... python studio.py voice --voice anuj`
 - **Shot Planning**: `python studio.py plan`
 - **Prompt Validation**: `python studio.py prompts`
-- **Asset Generation**: `python studio.py generate` (Google Flow parallel rapid dispatch)
+- **Asset Generation**: MCP `studio_generate_assets {project_dir}` (built-in DeepX Google Flow engine; terminal: `python studio.py generate --mode agent|standard`). See the Asset Generation section below.
 - **Cutout Keying**: `python studio.py key` (Die-cut contours + warm shadows)
 - **Edit Validation & Sheet**: `python studio.py check && python studio.py sheet`
 - **Audio Mix**: `python studio.py mix` (Voice + ducked music + SFX hits at -14 LUFS)
@@ -45,8 +45,18 @@ python studio.py selftest --quick
   ```
 - **1-Command Autopilot**:
   ```bash
-  CARTESIA_API_KEY=... python3 studio.py autopilot --voice anuj --lang hi --fast
+  CARTESIA_API_KEY=... python3 studio.py autopilot --voice anuj --lang hi --fast --mode agent   # --mode = user's last answer
   ```
+
+## Google Flow Asset Generation (built-in DeepX engine, ONLY path)
+Never use any other Google Flow extension, `flow-auto`, or the old `ws://127.0.0.1:8792` bridge. Never tell the user to paste prompts, generate or download in Google Flow by hand.
+1. **Login check:** `deepx_check_login`. If it returns `LOGIN_REQUIRED`, tell the user its one message (sign in to Google in the Flow tab of the AntiGem browser) and stop until they reply. If logged in, continue silently.
+2. **Last question:** after the script and voice setup, ask one multiple-choice question: **"Generate the visual assets with Agent Mode or without Agent Mode?"** No questions after this; the rest is autopilot.
+3. After `python studio.py prompts` has written ELEMENTS.tsv, call **`studio_generate_assets {project_dir, generation_mode}`** (`agent` = with Agent Mode, `standard` = without). Poll `deepx_job_status {job_id, wait_seconds:30}` until done. Files land in `elements/raw/<name>.<ext>`.
+   - Agent Mode: prompts are pasted into Google Flow Agent, ≤24 per part, back-to-back, auto-approved.
+   - Without Agent: exact per-asset generation. On a Google "unusual activity" / extension error it switches to Agent Mode automatically. Do not cancel or stop.
+   - `missing` not empty → call it again (only missing assets are generated). `all_done` → continue.
+4. Continue: `python studio.py key` → `check` → `mix` → `render`. (CLI autopilot: `python studio.py autopilot ... --mode agent|standard`.)
 
 ## Exact Timeline Script & Duration Calibration Protocol
 

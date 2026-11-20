@@ -81,9 +81,9 @@ music, ambience and SFX placed on words, mixed to -14 LUFS.
 ### Tools
 - Python 3.11+ with numpy, pillow, scipy, soundfile, faster-whisper; ffmpeg
   with libass
-- **Google Flow** (Nano Banana) for the PNG art, through `flow-auto` and the
-  Flow Connector extension. Any image generator works if it can paint on flat
-  magenta.
+- **Google Flow** (Nano Banana) for the PNG art, through the plugin's built-in
+  DeepX Google Flow engine (`studio_generate_assets`: login check, Agent Mode or
+  Standard mode, automatic Agent fallback). No extension or manual steps.
 - Voice: Kokoro (English and others, local), Indic Parler-TTS on Kaggle
   (Hindi and Indian languages), or ElevenLabs. See vox-doc-sound.
 

@@ -1,10 +1,10 @@
-// Adapted from flow_mcp/deepx-mcp/src/storyboard-analyzer.js. Local files come from chrome.antigem.
 // DeepX Storyboard Architect & Intelligent Script Breakdown Engine
 // Analyzes raw inputs (prompts, Hindi/multilingual scripts, stories, bullet points)
 // Automatically isolates protagonist entities (Vehicles, Animals, Characters, Products)
 // Supports dynamic Named Entity Recognition (NER) for arbitrary character names in English, Hindi, and multilingual scripts
 // Generates standardized @handles, master reference prompts, and cinematic multi-scene storyboards
 
+// Browser/AntiGem port: local asset lookup uses an index filled from chrome.antigem.listFiles.
 let localAssetIndex = [];
 export function setLocalAssetIndex(files) { localAssetIndex = files || []; }
 
@@ -45,6 +45,13 @@ export const STYLE_PRESETS = {
     modifier: "gemini multimodal director style, ultra-high dynamic range 4k anamorphic capture, purposeful narrative visual rhythm, cinematic camera choreography with motivated depth of field",
     lighting: "dramatic naturalistic golden hour and practical atmospheric bounce lighting",
     badge: "🧠 Gemini Director"
+  },
+  hindi_2d_documentary: {
+    id: "hindi_2d_documentary",
+    name: "2D Spy & Intelligence Documentary",
+    modifier: "vibrant 2D animated cartoon, Disney-Pixar movie-still character design, Japanese anime cel-shading, bold clean linework, saturated cinematic color grading, semi-realistic cartoon proportions — NOT photorealistic, NOT gritty ink-wash comic-book style, NOT desaturated, NOT 3D",
+    lighting: "saturated cinematic animated lighting with bold cel-shaded shadows, crisp edge contrast, and soft ambient rim glow",
+    badge: "🕵️ 2D Spy Documentary"
   }
 };
 
@@ -59,6 +66,9 @@ export function detectStylePreset(text) {
   }
   if (/\b(?:gemini\s*samples|gemini\s*director|multimodal\s*director|shot\s*choreography|visual\s*rhythm)\b/i.test(lower)) {
     return "gemini_multimodal";
+  }
+  if (/\b(?:2d\s*animation|2d\s*documentary|disney[- ]?pixar|anime\s*cel[- ]?shading|isi\s*vs\s*raw|isi|raw\s*agent|doval|ajit\s*doval|operation\s*sindoor|spy\s*documentary|hindi\s*documentary|cel[- ]?shaded)\b/i.test(lower)) {
+    return "hindi_2d_documentary";
   }
   return null;
 }
@@ -141,7 +151,12 @@ const CHARACTER_PATTERNS = [
   { match: /(?:secret\s+|stealth\s+)agent/iu, triggers: ["secret agent", "stealth agent"], name: "Stealth Agent", handle: "stealth_agent", desc: "Crisp-suited clandestine intelligence operative with subtle earpiece and composed lethal demeanor" },
   { match: /rohan|रोहन/iu, triggers: ["rohan", "रोहन"], name: "Rohan", handle: "rohan", desc: "Charismatic young Indian protagonist with determined eyes, sharp expressive facial features, and contemporary styling" },
   { match: /arjun|अर्जुन/iu, triggers: ["arjun", "अर्जुन"], name: "Arjun", handle: "arjun", desc: "Athletic hero protagonist with sharp jawline, commanding posture, and resolute eyes" },
-  { match: /kaito/iu, triggers: ["kaito"], name: "Kaito", handle: "kaito", desc: "Intense disciplined hero with focused gaze, sleek dark hair, and sharp contemporary attire" }
+  { match: /kaito/iu, triggers: ["kaito"], name: "Kaito", handle: "kaito", desc: "Intense disciplined hero with focused gaze, sleek dark hair, and sharp contemporary attire" },
+  { match: /(?<![#@_\p{L}\p{N}])(?:kisaan|kisan|farmer|किसान)(?![_\p{L}\p{N}])/iu, triggers: ["kisaan", "kisan", "किसान", "farmer"], name: "Kisaan", handle: "kisaan", desc: "Dedicated Indian farmer with weathered rustic kurta, authentic rural facial expression, and humble resilient demeanor" },
+  { match: /(?<![#@_\p{L}\p{N}])(?:ajit\s+doval|doval|अजीत\s*डोभाल|डोभाल)(?![_\p{L}\p{N}])/iu, triggers: ["ajit doval", "doval", "अजीत डोभाल", "डोभाल"], name: "Ajit Doval", handle: "ajit_doval", desc: "Distinguished intelligence chief Ajit Doval with sharp calculating gaze, classic dark spectacles, and authoritative presence" },
+  { match: /(?<![#@_\p{L}\p{N}])(?:spy|raw\s+agent|isi\s+agent|secret\s+operative|जासूस|गुप्तचर)(?![_\p{L}\p{N}])/iu, triggers: ["raw agent", "isi agent", "secret operative", "जासूस", "गुप्तचर", "spy"], name: "Intelligence Operative", handle: "spy_operative", desc: "Clandestine intelligence operative with composed lethal demeanor, sharp observant gaze, and tactical attire" },
+  { match: /(?<![#@_\p{L}\p{N}])(?:soldier|fauji|सैनिक|फौजी|warrior|योद्धा)(?![_\p{L}\p{N}])/iu, triggers: ["soldier", "fauji", "सैनिक", "फौजी", "warrior", "योद्धा"], name: "Soldier", handle: "soldier", desc: "Resolute disciplined soldier with strong heroic stance and authentic tactical field uniform" },
+  { match: /(?<![#@_\p{L}\p{N}])(?:detective|inspector|police|cop|पुलिस)(?![_\p{L}\p{N}])/iu, triggers: ["detective", "inspector", "police", "cop", "पुलिस"], name: "Detective", handle: "detective", desc: "Sharp-eyed investigative detective in trench coat with focused analytical expression" }
 ];
 
 const PRODUCT_PATTERNS = [
@@ -201,9 +216,10 @@ const ENGLISH_NER_EXCLUSIONS = new Set([
 
 // Search for local matching assets in workspace
 function findLocalAsset(handle) {
-  const candidates=[handle,`photo_${handle}`,`character_${handle}`,`hero_${handle}`,handle.replace(/_/g,'-')];
-  const file=localAssetIndex.find(f=>candidates.some(n=>['.jpg','.jpeg','.png','.webp'].some(e=>f.name?.toLowerCase()===n.toLowerCase()+e)));
-  return file?{exists:true,filePath:file.path,fileName:file.name}:{exists:false,filePath:null,fileName:null};
+  const candidates = [handle, `photo_${handle}`, `character_${handle}`, `hero_${handle}`, handle.replace(/_/g, "-")];
+  const exts = [".jpg", ".jpeg", ".png", ".webp"];
+  const file = localAssetIndex.find(f => f && f.isFile !== false && candidates.some(n => exts.some(e => String(f.name || "").toLowerCase() === (n + e).toLowerCase())));
+  return file ? { exists: true, filePath: file.path, fileName: file.name } : { exists: false, filePath: null, fileName: null };
 }
 
 // Extract all entities from text input with universal 4-class detection and dynamic NER
@@ -479,7 +495,6 @@ export function segmentRawInputIntoScenes(rawInput, targetSceneCount = null) {
   return scenes.length > 0 ? scenes : [text];
 }
 
-// Master Storyboard Synthesizer
 export function analyzeAndBreakdownScript(args) {
   const {
     raw_input: rawInput,
@@ -488,12 +503,19 @@ export function analyzeAndBreakdownScript(args) {
     genre_or_style: genreOrStyle,
     style_preset: stylePresetArg,
     pacing = "cinematic",
-    protagonist_override: protagonistOverride
+    protagonist_override: protagonistOverride,
+    no_references: noReferencesArg = false
   } = args;
 
   if (!rawInput || typeof rawInput !== "string") {
     throw new Error("raw_input string is required for storyboard analysis");
   }
+
+  const explicitNoRef = Boolean(
+    noReferencesArg ||
+    args.noReferences ||
+    /\b(?:no\s+references?|without\s+references?|do\s+not\s+take\s+reference|text[- ]only)\b/i.test(rawInput)
+  );
 
   const selectedPresetKey = stylePresetArg || detectStylePreset(rawInput) || "cinematic";
   const activePreset = STYLE_PRESETS[selectedPresetKey] || STYLE_PRESETS.cinematic;
@@ -606,11 +628,20 @@ export function analyzeAndBreakdownScript(args) {
       }
     }
 
-    // If no entities matched this specific scene, only anchor to primaryProtagonist if scene has pronoun/reference
-    if (entitiesInScene.length === 0 && primaryProtagonist) {
-      const hasPronounOrRef = /\b(he|she|they|his|her|him|वह|उसने|उसका|उसकी)\b/iu.test(promptWithMentions);
-      if (hasPronounOrRef) {
+    // Universal Protagonist Anchoring: Every scene in a story must inherit the primary protagonist unless explicitNoRef
+    if (primaryProtagonist && !explicitNoRef) {
+      if (!entitiesInScene.includes(primaryProtagonist)) {
         entitiesInScene.push(primaryProtagonist);
+      }
+      // Replace pronoun with @handle if present
+      if (!promptWithMentions.includes(`@${primaryProtagonist}`)) {
+        const pronounObjRegex = /\b(his|her|their|उसका|उसकी|उनके)\b/iu;
+        const pronounSubjRegex = /\b(he|she|they|him|वह|उसने|उन्होंने)\b/iu;
+        if (pronounObjRegex.test(promptWithMentions)) {
+          promptWithMentions = promptWithMentions.replace(pronounObjRegex, `@${primaryProtagonist}'s`);
+        } else if (pronounSubjRegex.test(promptWithMentions)) {
+          promptWithMentions = promptWithMentions.replace(pronounSubjRegex, `@${primaryProtagonist}`);
+        }
       }
     }
 
@@ -634,11 +665,16 @@ export function analyzeAndBreakdownScript(args) {
       cameraText = "Cinematic wide interior establishing shot, slowly pushing in with motivated atmospheric lighting";
     }
 
+    // Ensure the primary protagonist @handle is explicitly anchored in the prompt for Google Flow reference card binding
+    const refAnchor = (primaryProtagonist && !promptWithMentions.includes(`@${primaryProtagonist}`) && !explicitNoRef)
+      ? ` @${primaryProtagonist}`
+      : "";
+
     let fullPrompt;
     if (hasCameraDirection) {
-      fullPrompt = `${promptWithMentions}. ${template.lighting}${lightingEnhancer}${styleModifier} ${sceneTag}`;
+      fullPrompt = `${promptWithMentions}. ${template.lighting}${lightingEnhancer}${styleModifier}${refAnchor} ${sceneTag}`;
     } else {
-      fullPrompt = `${promptWithMentions}. ${cameraText}, ${template.lighting}${lightingEnhancer}${styleModifier} ${sceneTag}`;
+      fullPrompt = `${promptWithMentions}. ${cameraText}, ${template.lighting}${lightingEnhancer}${styleModifier}${refAnchor} ${sceneTag}`;
     }
 
     storyboard.push({
@@ -649,6 +685,7 @@ export function analyzeAndBreakdownScript(args) {
       prompt: fullPrompt,
       rawConcept: rawSegment,
       entitiesMentioned: entitiesInScene,
+      references: Array.from(new Set(entitiesInScene)),
       camera: template.camera,
       lighting: template.lighting,
       duration: 10,

@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "id": "deepx-google-flow",
   "name": "DeepX Google Flow Studio",
-  "version": "1.0.0",
-  "description": "DeepX Google Flow Studio (v1.0.0): the complete DeepX Flow extension as an AntiGem MCP plugin — no side panel. Asks Agent Mode vs Standard mode before every generation; Agent Mode auto-splits big batches into ≤24-item parts pasted back-to-back with 100% autopilot approvals; Standard mode runs on AntiGem's native Flow engine and auto-switches to Agent Mode when Google shows an unusual-activity / extension block. Includes storyboard analyzer, characters, references, scene chaining, upscale, downloads and all deepx_* / flow_* tools.",
+  "version": "1.1.0",
+  "description": "DeepX Google Flow Studio (v1.1.0): the complete DeepX Flow extension as an AntiGem MCP plugin — no side panel. Checks Google login, asks Agent Mode vs Standard mode before every generation; Agent Mode auto-splits big batches into ≤24-item parts pasted back-to-back with 100% autopilot approvals; Standard mode runs on AntiGem's native Flow engine and auto-switches to Agent Mode when Google shows an unusual-activity / extension block. Includes storyboard analyzer, characters, references, scene chaining, upscale, downloads and all deepx_* / flow_* tools.",
   "author": "Dipesh Kr Yadav",
   "icon": "icon.png",
   "icons": {
@@ -233,6 +233,15 @@
     {
       "name": "deepx_status",
       "description": "One-call readiness check: Google Flow tab, sign-in, project, Agent pill state, running jobs and whether standard mode was recently blocked. Opens Flow in the AntiGem browser if needed. Call at most once per session; never before deepx_generate.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "deepx_check_login",
+      "description": "Check that a Google account is signed in to Google Flow in the AntiGem browser (opens Flow if needed). If not signed in it returns LOGIN_REQUIRED with one message to tell the user; otherwise continue with the task.",
       "inputSchema": {
         "type": "object",
         "properties": {},

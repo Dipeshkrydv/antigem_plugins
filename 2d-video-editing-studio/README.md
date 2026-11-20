@@ -51,9 +51,9 @@ You can install **2D Video Editing Studio** directly inside the **AntiGem** app:
 - **Android Low Memory Killer (LMK) Protection**: Throttles memory footprint (<150 MB peak RAM) and clamps workers to prevent Termux crashes on mobile phones.
 - **Mobile Safe-Zone Guard (1080x1920 / 720x1280)**: Automatically keeps all kinetic text, forensic stamps, and graphic callouts inside safe areas—clear of camera notches, status bars, and TikTok/Reels UI buttons.
 
-### 3. 🍌 Mandatory Google Flow Asset Engine & Bridge Protocol
+### 3. 🍌 Built-in DeepX Google Flow Asset Engine
 - **Exclusive Cloud Visual Engine**: Generates isolated character cutouts, stickmen, scene illustrations, and props via Google Flow (`🍌 Nano Banana 2.1` / `🍌 Nano Banana Pro` / `Imagen 3`) on solid `#FF00FF` magenta with lossless alpha unmixing.
-- **Disconnection Alert Law**: Before generating assets, the system verifies the DeepX Flow Bridge connection (`deepx_status`). If disconnected, it safely pauses and prompts you to connect Google Flow rather than producing crude local dummy shapes.
+- **Login Check + One Question + Autopilot**: Before generating, the engine checks the Google sign-in in the AntiGem browser. If you are not signed in, it asks you once to sign in. It then asks one last question, *with Agent Mode or without Agent Mode*, and generates every asset on autopilot into `elements/raw/`. Agent Mode pastes prompts in parts of ≤24 back-to-back. Without Agent, it switches to Agent Mode automatically if Google shows an "unusual activity" error. No extension, no bridge, no manual pasting.
 
 ### 4. ⏱️ 0.000s Audio-Visual Attack Sync Engine
 - **Physical Dead-Air Stripping (`core/strict_sync.py`)**: Automatically strips leading digital silence down to audio sample 0, locking **Audio Sample 0 (0.000s)** directly to **Video Frame 0**.
@@ -109,7 +109,7 @@ You can install **2D Video Editing Studio** directly inside the **AntiGem** app:
    ```
 4. **Generate Flow Assets & Key Magenta Cutouts**:
    ```bash
-   python studio.py generate
+   python studio.py generate --mode agent    # or --mode standard
    python studio.py key
    ```
 5. **QA Check & Storyboard Contact Sheet**:

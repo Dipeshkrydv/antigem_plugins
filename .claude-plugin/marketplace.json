@@ -1,7 +1,7 @@
 {
   "name": "antigem-plugins",
   "displayName": "Antigem Official Plugins",
-  "description": "Official Antigem plugins repository: 2D Video Editing Studio (v3.4.0), Facebook Automation & SEO Studio (v1.6.0), and 3D Video Editing Part 1 (v1.1.0), and DeepX Google Flow Studio (v1.0.0).",
+  "description": "Official Antigem plugins repository: 2D Video Editing Studio (v3.5.0), Facebook Automation & SEO Studio (v1.8.0), Meta Suite Page Management (v2.3.0), and DeepX Google Flow Studio (v1.1.0).",
   "owner": {
     "name": "Dipesh Kr Yadav",
     "url": "https://github.com/Dipeshkrydv"
@@ -11,8 +11,8 @@
       "name": "2d-video-editing-studio",
       "source": "./2d-video-editing-studio",
       "displayName": "2D Video Editing Studio",
-      "description": "Senior Video Editor & Autonomous 2D Production Engine (v3.3): Anti-Offline Server Shield (flat RAM < 140MB), Direct In-Memory FFmpeg Stream, High-Speed Render Presets (--fast 720p HD mobile default, --turbo 540p ultrafast 45-55 fps, --1080p full HD), Broadcast-quality Vox explainers, Bento Box data cards, Stickman storytelling, die-cut Sticker collages, Crime Noir thrillers, and 8-bit Arcade videos with 3-Tier Google Flow Rapid Parallel Engine, 25 creative Latin/Devanagari fonts, and quintic smooth transitions.",
-      "version": "3.4.0",
+      "description": "Senior Video Editor & Autonomous 2D Production Engine (v3.5.0): 6 Official Styles (Vox/Box Paper, Stickman, Sticker, Noir, Hand-Drawn Doodle, Retro Arcade), Recipe-Driven Autopilot Edits, Voice-Synced Asset Placement, built-in DeepX Google Flow asset engine (login check → one Agent/Standard question → autopilot; Agent Mode ≤24 prompts per part back-to-back; automatic Agent fallback on unusual-activity blocks), Anti-Offline Server Shield, high-speed render presets and 15-minute timeline scaling.",
+      "version": "3.5.0",
       "author": {
         "name": "Dipesh Kr Yadav"
       },
@@ -32,8 +32,8 @@
       "name": "facebook-automation",
       "source": "./facebook-automation",
       "displayName": "Facebook Automation & SEO Studio",
-      "description": "Pre-Trained Phone (Desktop-on-Phone www.facebook.com & Mobile Touch m.facebook.com) and Desktop Facebook Automation Engine (v1.6.0): Dedicated Feed Posts (Text/Photo/Carousel/Video), Anti-Comment Firewall (strictly never posts into comments), Reels (/reels/create + automatic mobile fallback + video event dispatch), Stories (/stories/create Photo/Video with overlay story_text & Text Story), Real Video/Reel Thumbnail & Cover Uploader, Multiline Formatted Caption Engine (Title + Description + Bullets + CTA + 3-6 #Hashtags), and Zero-Overthinking 1-Call Dispatch.",
-      "version": "1.6.0",
+      "description": "Pre-Trained Phone (Desktop-on-Phone www.facebook.com & Mobile Touch m.facebook.com) and Desktop Facebook Automation Engine (v1.8.0): Dedicated Feed Posts (Text/Photo/Carousel/Video), Anti-Comment Firewall (strictly never posts into comments), Reels (/reels/create + automatic mobile fallback + video event dispatch), Stories (/stories/create Photo/Video with overlay story_text & Text Story), Real Video/Reel Thumbnail & Cover Uploader, Multiline Formatted Caption Engine (Title + Description + Bullets + CTA + 3-6 #Hashtags), and Zero-Overthinking 1-Call Dispatch, and built-in DeepX Google Flow engine for AI thumbnails, Reel covers and post designs (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
+      "version": "1.8.0",
       "author": {
         "name": "Dipesh Kr Yadav"
       },
@@ -80,8 +80,8 @@
       "name": "deepx-google-flow",
       "source": "./deepx-google-flow",
       "displayName": "DeepX Google Flow Studio",
-      "description": "DeepX Google Flow Studio (v1.0.0): the full DeepX Google Flow extension as an AntiGem MCP plugin (no side panel). Asks Agent Mode vs Standard mode before every generation, Agent Mode auto-splits >24 prompts into ≤24-item parts pasted back-to-back with 100% autopilot approvals, Standard mode auto-switches to Agent Mode on Google 'unusual activity / extension' blocks. Nano Banana 2.1/Pro, Omni Flash 1.2, Veo 3.1, storyboard analyzer, characters, references, scene chaining, upscale and all deepx_*/flow_* tools.",
-      "version": "1.0.0",
+      "description": "DeepX Google Flow Studio (v1.1.0): the complete DeepX Flow extension as an AntiGem MCP plugin — no side panel. Checks Google login, asks Agent Mode vs Standard mode before every generation; Agent Mode auto-splits big batches into ≤24-item parts pasted back-to-back with 100% autopilot approvals; Standard mode runs on AntiGem's native Flow engine and auto-switches to Agent Mode when Google shows an unusual-activity / extension block. Includes storyboard analyzer, characters, references, scene chaining, upscale, downloads and all deepx_* / flow_* tools.",
+      "version": "1.1.0",
       "logo": "assets/logo.png",
       "icon": "icon.png",
       "author": {

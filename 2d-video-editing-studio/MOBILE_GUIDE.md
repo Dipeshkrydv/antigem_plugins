@@ -54,10 +54,10 @@ This automatically installs `ffmpeg`, `python3`, `pillow`, `numpy`, and verifies
 
 When chatting with Antigravity on your phone (via web or CLI):
 
-1. **DeepX Flow Bridge Connection**:
-   - The DeepX Flow Bridge connects directly via WebSocket (`ws://127.0.0.1:8792/ws`).
-   - Open [flow.google.com](https://flow.google.com) in your browser with the extension active.
-   - Antigravity automatically detects the active canvas and uploads references in-memory without manual switching.
+1. **Google Flow (built-in DeepX engine)**:
+   - No extension or bridge needed: the plugin opens Google Flow in the AntiGem browser itself.
+   - Sign in to Google once if the assistant asks; it checks the login before generating.
+   - Assets are generated on autopilot after one question: with Agent Mode or without Agent Mode.
 2. **Tell Antigravity Your Video Idea**:
    Simply prompt Antigravity:
    > *"Make a 45-second 9:16 mobile explainer about the Mystery of the Bermuda Triangle in Hindi/English using Vox documentary style."*

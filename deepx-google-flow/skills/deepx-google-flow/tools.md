@@ -1,6 +1,6 @@
-# Tool map (89 tools)
+# Tool map (90 tools)
 
-**Primary:** `deepx_generate` (mode question first) · `deepx_job_status` · `deepx_cancel_job` · `deepx_status` · `deepx_get_options`
+**Primary:** `deepx_generate` (mode question first) · `deepx_job_status` · `deepx_cancel_job` · `deepx_check_login` · `deepx_status` · `deepx_get_options`
 
 **Agent Mode:** `deepx_flow_agent_status`, `deepx_flow_agent_toggle`, `deepx_flow_agent_configure`, `deepx_flow_agent_set_instructions`, `deepx_flow_agent_approve_all`, `deepx_flow_agent_dispatch`, `deepx_flow_agent_batch_queue` (each also has a `flow_agent_*` alias) · `deepx_get_master_instructions`
 

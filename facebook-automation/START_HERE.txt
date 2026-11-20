@@ -1,5 +1,5 @@
 ====================================================================
-  FACEBOOK AUTOMATION & SEO STUDIO (v1.1.0) — QUICK START GUIDE
+  FACEBOOK AUTOMATION & SEO STUDIO (v1.8.0) — QUICK START GUIDE
 ====================================================================
 
 Welcome to the Facebook Automation & SEO Studio plugin for AntiGem & Antigravity.
@@ -47,4 +47,8 @@ Run the setup script from your terminal:
 - fb_audit_caption  : Audit caption for algorithmic reach penalties
 - fb_comments       : Post first comment (resource link) or reply
 - fb_doctor         : Run environment & AntiGem browser self-check
+- deepx_generate    : AI thumbnails / Reel covers / post designs via the built-in
+                      DeepX Google Flow engine (login check -> Agent or Standard
+                      mode -> autopilot, auto Agent fallback on unusual activity)
+- deepx_job_status  : Poll a generation job (files[0].path = generated image)
 ====================================================================

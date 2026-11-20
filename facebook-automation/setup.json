@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "project": "Facebook Automation & SEO Studio",
-  "version": "1.6.0",
+  "version": "1.8.0",
   "status": "ready",
   "connection": {
     "server": "meta-scheduler-mcp",
@@ -12,9 +12,13 @@
     "status": "ready"
   },
   "deepxFlowBridge": {
-    "server": "deepx-flow",
-    "wsUrl": "ws://127.0.0.1:8792/ws",
-    "port": 8792,
+    "server": "built-in",
+    "engine": "DeepX Google Flow engine inside this plugin (deepx-bundle.js)",
+    "tools": [
+      "deepx_generate",
+      "deepx_job_status",
+      "deepx_check_login"
+    ],
     "status": "ready"
   },
   "accounts": {

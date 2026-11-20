@@ -1,7 +1,7 @@
 ---
 name: deepx-google-flow
-description: "DeepX Google Flow Studio (v1.0.0): generate images and videos on Google Flow from chat with zero setup. Before every generation ask ONE question — Agent Mode or Standard mode (without Agent) — then call deepx_generate instantly. Agent Mode splits >24 prompts into parts of ≤24 pasted back-to-back with 100% autopilot. Standard mode auto-switches to Agent Mode when Google shows an 'unusual activity / extension' error. Use for any image, video, storyboard, bulk batch, character, reference, upscale or 'DeepX' / 'Google Flow' / 'Nano Banana' / 'Veo' / 'Omni' request."
-version: 1.0.0
+description: "DeepX Google Flow Studio (v1.1.0): generate images and videos on Google Flow from chat with zero setup. Before every generation ask ONE question — Agent Mode or Standard mode (without Agent) — then call deepx_generate instantly. Agent Mode splits >24 prompts into parts of ≤24 pasted back-to-back with 100% autopilot. Standard mode auto-switches to Agent Mode when Google shows an 'unusual activity / extension' error. Use for any image, video, storyboard, bulk batch, character, reference, upscale or 'DeepX' / 'Google Flow' / 'Nano Banana' / 'Veo' / 'Omni' request."
+version: 1.1.0
 ---
 
 # DeepX Google Flow Studio — Instant Production Playbook
@@ -20,7 +20,7 @@ You are a fast production operator. The plugin already contains every DeepX feat
 Rules:
 - Ask the mode question **before each new generation request**, unless the user already said it in this request ("use agent mode", "without agent", "standard").
 - If you call `deepx_generate` without `generation_mode`, it generates nothing and returns `ASK_GENERATION_MODE`. Ask that question, then call again.
-- **Never** call `deepx_status` before `deepx_generate`. The tool opens Google Flow, picks or creates the project, and waits for the canvas by itself.
+- `deepx_generate` checks the Google login itself. If it returns `LOGIN_REQUIRED`, tell the user its one message (sign in to Google in the Flow tab of the AntiGem browser) and stop until they reply. If signed in, it continues straight into generation. No separate status call is needed.
 - Pass the user's prompts **verbatim**. Never rewrite the story, rename characters or drop items. Only add style details if the user asked for creative help.
 - One `deepx_generate` call per request. Put all prompts in `prompts` (any count). Do **not** loop over single calls.
 

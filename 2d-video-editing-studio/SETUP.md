@@ -20,11 +20,10 @@ pip install --upgrade pip
 pip install pillow numpy scipy soundfile faster-whisper
 ```
 
-## 4. Google Flow Bridge Connection
-Verify DeepX Flow Bridge MCP connection:
-- Ensure Google Chrome (or Kiwi Browser on Android) is running with `flow.google.com` open.
-- The DeepX bridge listens on `ws://127.0.0.1:8792/ws`.
-- Check status via the `deepx_status` tool.
+## 4. Google Flow (built-in DeepX engine)
+- Nothing to install: the 2D Studio plugin contains the DeepX Google Flow engine.
+- `deepx_check_login` opens Google Flow in the AntiGem browser and checks the Google sign-in (sign in once if asked).
+- Assets: `studio_generate_assets` (or `python studio.py generate --mode agent|standard`).
 
 ## 5. Engine Verification Check
 Run self-check on the core engine components:

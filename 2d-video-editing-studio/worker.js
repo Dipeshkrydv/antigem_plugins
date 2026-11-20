@@ -1,9 +1,11 @@
-import { FlowClient, IMAGE_MODELS, VIDEO_MODELS } from './flow-client.js';
-import { RPC } from './constants.js';
-import { createFlowWorkflows } from './flow-workflows.js';
+// 2D Video Editing Studio — AntiGem worker (v3.5.0).
+// Google Flow asset generation uses the built-in DeepX engine (deepx-core.js): login check,
+// Agent Mode / Standard mode choice, ≤24-per-part Agent queue and automatic Agent fallback.
+import { configureDeepX, deepxExecute, deepxGenerate, loginCheck, jobs, snapshot, sleep, mcpListener } from './deepx-core.js';
 
 const PLUGIN_ID = "2d-video-editing-studio";
-const PLUGIN_VERSION = "3.2.0";
+const PLUGIN_VERSION = "3.5.0";
+configureDeepX({ pluginId: PLUGIN_ID, version: PLUGIN_VERSION });
 
 const STYLES = {
   documentary: {
@@ -50,95 +52,154 @@ const STYLES = {
   }
 };
 
-const MODEL_ALIASES = {
-  'imagen-3': 'Nano Banana 2.1',
-  'imagen3': 'Nano Banana 2.1',
-  'nano-banana-2': 'Nano Banana 2.1',
-  'nano-banana-2.1': 'Nano Banana 2.1',
-  'nano banana 2': 'Nano Banana 2.1',
-  'nano-banana-pro': 'Nano Banana Pro',
-  'nano banana pro': 'Nano Banana Pro',
-  'nano-banana-lite': 'Nano Banana 2 Lite',
-  'nano-banana-2-lite': 'Nano Banana 2 Lite',
-  'nano banana 2 lite': 'Nano Banana 2 Lite',
-  'veo-3.1-fast': 'Veo 3.1 - Fast',
-  'veo-3.1-lite': 'Veo 3.1 - Lite',
-  'veo-3.1-quality': 'Veo 3.1 - Quality',
-  'omni-flash': 'Omni 1.1 Flash'
-};
 
-const client = new FlowClient(chrome), jobs = new Map();
-const finished = job => ['done','failed','cancelled'].includes(job.status);
-const snapshot = job => Object.fromEntries(Object.entries(job).filter(([key]) => !['abort','request','completion','tabId','reserved'].includes(key)));
-const workflows = createFlowWorkflows({chrome,client,execute,jobs,enqueue,normalize:request,awaitJobs,snapshot});
-const sleep = ms => new Promise(r => setTimeout(r,ms));
+// ============================================================================
+// studio_generate_assets: ELEMENTS.tsv -> Google Flow (DeepX engine) -> elements/raw/<name>.<ext>
+// ============================================================================
+const IMG_EXT = ['png', 'jpg', 'jpeg', 'webp'];
+const trimSlash = p => String(p || '').trim().replace(/\/+$/, '');
 
-function normalizeModel(rawModel, video) {
-  if (!rawModel) return video ? VIDEO_MODELS[0] : IMAGE_MODELS[0];
-  const key = String(rawModel).trim().toLowerCase();
-  if (MODEL_ALIASES[key]) return MODEL_ALIASES[key];
-  return rawModel;
+function parseTsv(text) {
+  const lines = String(text || '').replace(/\r/g, '').split('\n').filter(l => l.trim());
+  if (!lines.length) return [];
+  const head = lines[0].split('\t').map(h => h.trim());
+  return lines.slice(1).map(l => { const cells = l.split('\t'); const o = {}; head.forEach((h, i) => { o[h] = (cells[i] ?? '').trim(); }); return o; });
 }
 
-function request(args, video) {
-  const model = normalizeModel(args.model, video);
-  if (!(video ? VIDEO_MODELS : IMAGE_MODELS).includes(model)) throw new Error('Unknown Flow model: ' + model);
-  const prompt = String(args.prompt || '').trim(); if(!prompt)throw new Error('prompt is required');
-  const aspect = args.aspect_ratio || '16:9'; if(!(video?['16:9','9:16']:['16:9','4:3','1:1','3:4','9:16']).includes(aspect))throw new Error('Unsupported aspect ratio');
-  const count = args.count ?? 1; if(!Number.isInteger(count)||count<1||count>4)throw new Error('count must be 1–4; use items for different prompts');
-  const references = args.references || []; if(!Array.isArray(references)||references.some(x=>typeof x!=='string'||!x.trim()))throw new Error('references must contain image ids or paths');
-  if(args.end_frame&&!args.start_frame)throw new Error('end_frame requires start_frame'); if(video&&references.length&&args.start_frame)throw new Error('Use ingredients or start/end frames, not both');
-  if(video&&references.length&&model.includes('Quality'))throw new Error('Veo Quality does not support ingredients');
-  const duration = args.duration ?? 8, resolution = args.resolution || '720p'; if(video&&model.includes('Omni')&&(![4,6,8,10].includes(duration)||!['360p','720p'].includes(resolution)))throw new Error('Unsupported Omni duration or resolution');
-  if(video&&!model.includes('Omni')&&(duration!==8||resolution!=='720p'))throw new Error('Veo generation supports 8 seconds at 720p');
-  if(args.seed!=null)throw new Error('seed cannot be selected by the current Flow website UI');
-  return {...args,prompt,video,model,aspect,count,references,duration,resolution};
+async function bigFile(path) { try { const st = await chrome.antigem.stat({ path }); return st.isFile !== false && st.size > 1024 ? st.path : null; } catch { return null; } }
+async function donePath(dir, name) {
+  const cut = await bigFile(`${dir}/elements/cut/${name}.png`);
+  if (cut) return cut;
+  for (const e of IMG_EXT) { const p = await bigFile(`${dir}/elements/raw/${name}.${e}`); if (p) return p; }
+  return null;
+}
+async function removeRaw(dir, name) {
+  // AntiGem has no delete API: overwrite stale raw files with an empty marker so the asset is regenerated
+  for (const e of IMG_EXT) { const p = `${dir}/elements/raw/${name}.${e}`; if (await bigFile(p)) await chrome.antigem.writeFile({ path: p, data: '' }).catch(() => {}); }
 }
 
-function enqueue(req) {
-  const job={job_id:crypto.randomUUID().slice(0,8),status:'queued',stage:'waiting in queue',type:req.video?'video':'image',model:req.model,prompt:req.prompt?.slice(0,200)||'',files:[],request:req,abort:new AbortController()};
-  jobs.set(job.job_id,job);if(jobs.size>2000)for(const [id,j] of jobs){if(finished(j))jobs.delete(id);if(jobs.size<=2000)break;}
-  const submission=client.exclusive(async()=>{if(job.abort.signal.aborted)return null;job.status='running';return req.action ? client.submitEdit(job) : client.submit(job);});
-  job.completion=submission.then(async sub=>{if(sub)await client.collect(job,sub);}).catch(error=>{if(job.status!=='cancelled'){job.status='failed';job.stage='failed';job.error=error.message;}});
-  return job;
+function studioAskMode(pendingCount, groups) {
+  return {
+    action_required: 'ASK_GENERATION_MODE', generated: false, pending_assets: pendingCount,
+    question: `Generate the ${pendingCount} visual asset(s) with Google Flow Agent Mode, or Standard mode (without Agent)?`,
+    options: [
+      { value: 'agent', label: 'With Agent Mode', description: `All prompts pasted into Google Flow Agent in parts of ≤24 back-to-back (${Math.ceil(pendingCount / 24)} part(s)); auto-approved; fastest for big asset lists.` },
+      { value: 'standard', label: 'Without Agent Mode', description: 'Exact per-asset generation (model, ratio, references, one file per asset); auto-switches to Agent Mode if Google shows an unusual-activity / extension error.' }
+    ],
+    groups,
+    agent_instruction: 'This is the LAST question of the production. Ask it with your multiple-choice question tool, then call studio_generate_assets again with the same project_dir plus generation_mode. Everything after this runs on autopilot.'
+  };
 }
 
-async function awaitJobs(selected,seconds=45){if(!selected.length)return[];await Promise.race([Promise.all(selected.map(j=>j.completion)),sleep(Math.max(0,Math.min(50,seconds))*1000)]);return selected.length===1?snapshot(selected[0]):selected.map(snapshot);}
+async function studioGenerateAssets(args) {
+  const dir = trimSlash(args.project_dir);
+  if (!dir) throw new Error('project_dir is required (the video project folder containing ELEMENTS.tsv).');
+  const tsvPath = `${dir}/${args.elements || 'ELEMENTS.tsv'}`;
+  let text;
+  try { text = await chrome.antigem.readFile({ path: tsvPath }); }
+  catch { throw new Error(`Missing ${tsvPath}. Run \`python studio.py prompts\` in the project first.`); }
+  let rows = parseTsv(text).filter(r => r.kind !== 'video').map(r => ({
+    name: String(r.name || r.id || '').trim(), prompt: String(r.prompt || '').trim(), kind: r.kind || '',
+    aspect: r.aspect_ratio || (r.kind === 'bg' ? '16:9' : '1:1'), ref: String(r.ref || '').trim()
+  })).filter(r => r.name && r.prompt);
+  const regen = new Set(args.regen || []);
+  if (args.only?.length) rows = rows.filter(r => args.only.includes(r.name));
+  for (const n of regen) await removeRaw(dir, n);
 
-async function readBlob(tabId, result, filename) {
-  if(!result?.len)throw new Error('Flow export contains no file');
-  try{for(let at=0;at<result.len;at+=512*1024){const data=await client.js(tabId,`s.blobChunk(${JSON.stringify(result.key)},${at},${512*1024})`);await chrome.antigem.writeFile({path:filename,data,encoding:'base64',append:at>0});}return(await chrome.antigem.stat({path:filename})).path;}finally{await client.js(tabId,`s.blobDrop(${JSON.stringify(result.key)})`);}
-}
+  const pending = [], twins = [], doneAlready = [];
+  const leaderByKey = new Map();
+  for (const r of rows) {
+    if (!regen.has(r.name) && await donePath(dir, r.name)) { doneAlready.push(r.name); continue; }
+    const key = `${r.aspect}|${r.prompt}`;
+    if (leaderByKey.has(key)) { twins.push({ name: r.name, of: leaderByKey.get(key) }); continue; }
+    leaderByKey.set(key, r.name); pending.push(r);
+  }
+  if (!pending.length && !twins.length) return { all_done: true, generated: false, total: rows.length, message: `All ${rows.length} assets already exist in elements/ — zero Google Flow calls. Continue with \`python studio.py key\`.` };
 
-async function execute(tool,args={}) {
-  // 2D Studio Native Director Tools
-  if (tool === "studio_status") {
-    let flowReady = false;
-    let flowAccount = null;
-    try {
-      const tabId = await client.tab();
-      const ui = await client.js(tabId, 's.ui()');
-      flowReady = Boolean(ui?.ready);
-      flowAccount = ui?.account || null;
-    } catch (_) {}
-    return {
-      id: PLUGIN_ID,
-      name: "2D Video Editing Studio",
-      version: PLUGIN_VERSION,
-      status: "ready",
-      flow_connected: flowReady,
-      flow_account: flowAccount,
-      supported_styles: Object.keys(STYLES),
-      features: {
-        audio_mix: "Cartesia TTS + automatic music ducking & SFX hits (-14 LUFS)",
-        asset_generation: "3-Tier Google Flow Parallel Engine (Flow Connector CLI + AntiGem WebView FlowClient + DeepX Bridge)",
-        rendering: "Multi-core OpenCV + PIL pipeline with cached static foreground layers & smooth quintic camera/transition physics",
-        creative_fonts: "25 bundled creative Latin & Devanagari display, serif, handwritten, and monospace fonts",
-        variety_engine: "Creative Director motif limits (max 2 rubber stamps per video)"
+  const login = await loginCheck();
+  if (!login.logged_in) return login;
+
+  const mode = ['agent', 'standard'].includes(String(args.generation_mode || '').toLowerCase()) ? String(args.generation_mode).toLowerCase()
+    : /^(with[_ -]?agent|agent[_ -]?mode)$/i.test(args.generation_mode || '') ? 'agent' : /^(without[_ -]?agent|no[_ -]?agent)$/i.test(args.generation_mode || '') ? 'standard' : null;
+  const byAspect = {}; pending.forEach(r => { byAspect[r.aspect] = (byAspect[r.aspect] || 0) + 1; });
+  if (!mode) return studioAskMode(pending.length, byAspect);
+
+  const job = {
+    job_id: crypto.randomUUID().slice(0, 8), type: 'workflow', kind: 'studio_assets', mode, status: 'running',
+    stage: `generating ${pending.length} asset(s) in ${mode === 'agent' ? 'Agent Mode' : 'Standard mode'}`,
+    project_dir: dir, total: pending.length + twins.length, already_done: doneAlready.length, saved: [], missing: [], child_job_ids: [],
+    request: args, abort: new AbortController()
+  };
+  jobs.set(job.job_id, job);
+  job.completion = (async () => {
+    const save = async (row, file) => {
+      if (!file?.path) return false;
+      const ext = (file.path.split('.').pop() || 'jpg').toLowerCase();
+      const dst = `${dir}/elements/raw/${row.name}.${IMG_EXT.includes(ext) ? ext : 'jpg'}`;
+      await chrome.antigem.copyFile({ from: file.path, to: dst });
+      job.saved.push(row.name);
+      return dst;
+    };
+    // Phase 1: assets whose reference is ready (or none); phase 2: assets that reference a phase-1 asset
+    const phase1 = [], phase2 = [];
+    for (const r of pending) (!r.ref || mode === 'agent' || await donePath(dir, r.ref) || !pending.some(p => p.name === r.ref) ? phase1 : phase2).push(r);
+    for (const phase of [phase1, phase2]) {
+      if (!phase.length) continue;
+      const groups = new Map();
+      for (const r of phase) {
+        const refPath = mode === 'standard' && r.ref ? await donePath(dir, r.ref) : null;
+        const key = `${r.aspect}|${refPath || ''}`;
+        if (!groups.has(key)) groups.set(key, { aspect: r.aspect, refPath, rows: [] });
+        groups.get(key).rows.push(r);
       }
+      for (const g of groups.values()) {
+        job.abort.signal.throwIfAborted();
+        job.stage = `${mode === 'agent' ? 'Agent Mode' : 'Standard mode'}: ${g.rows.length} asset(s) at ${g.aspect}`;
+        const res = await deepxGenerate({
+          prompts: g.rows.map(r => r.prompt), generation_mode: mode, media_type: 'image', aspect_ratio: g.aspect,
+          image_model: args.model || 'Nano Banana 2.1', references: g.refPath ? [g.refPath] : [], download: true,
+          expand_bulk: false, skip_login_check: true, wait_seconds: 0, style_lock: args.style_lock
+        });
+        const child = jobs.get(res.job_id);
+        if (!child) throw new Error(res.error || 'Generation could not start');
+        job.child_job_ids.push(child.job_id);
+        const onAbort = () => { child.abort.abort(); };
+        job.abort.signal.addEventListener('abort', onAbort, { once: true });
+        await child.completion;
+        job.abort.signal.removeEventListener('abort', onAbort);
+        const perItem = child.mode === 'agent' ? (child.items || []) : (child.scenes || []);
+        for (let i = 0; i < g.rows.length; i++) {
+          const ok = await save(g.rows[i], perItem[i]?.files?.[0]).catch(() => false);
+          if (!ok) job.missing.push(g.rows[i].name);
+        }
+        if (child.fallback_job_id) job.switched_to_agent = true;
+      }
+    }
+    for (const t of twins) {
+      const src = await donePath(dir, t.of);
+      if (src) { const ext = src.split('.').pop(); await chrome.antigem.copyFile({ from: src, to: `${dir}/elements/raw/${t.name}.${ext}` }); job.saved.push(t.name); }
+      else job.missing.push(t.name);
+    }
+    job.status = job.missing.length && !job.saved.length ? 'failed' : 'done';
+    job.stage = `saved ${job.saved.length}/${job.total} asset(s) to elements/raw/${job.switched_to_agent ? ' (standard mode was blocked → switched to Agent Mode automatically)' : ''}${job.missing.length ? `; ${job.missing.length} not matched — run studio_generate_assets again (only missing ones are generated)` : ''}`;
+    job.next_step = job.missing.length ? 'Call studio_generate_assets again with the same project_dir and generation_mode to fill the missing assets, then run `python studio.py key`.' : 'Run `python studio.py key` and continue the autopilot (check → mix → render).';
+  })().catch(e => { job.status = job.abort.signal.aborted ? 'cancelled' : 'failed'; job.stage = job.status; job.error = e.message; });
+  await Promise.race([job.completion, sleep(Math.max(0, Math.min(40, args.wait_seconds ?? 20)) * 1000)]);
+  return { ...snapshot(job), poll: `deepx_job_status {"job_id":"${job.job_id}","wait_seconds":30}` };
+}
+
+async function execute(tool, args = {}) {
+  if (tool === 'studio_status') {
+    const login = await loginCheck({ force: true }).catch(e => ({ logged_in: false, error: e.message }));
+    return {
+      id: PLUGIN_ID, name: '2D Video Editing Studio', version: PLUGIN_VERSION, status: 'ready',
+      flow_connected: !!login.logged_in, flow_account: login.account || null,
+      ...(login.logged_in ? {} : { action_required: 'LOGIN_REQUIRED', message: login.message }),
+      supported_styles: Object.keys(STYLES),
+      asset_engine: 'DeepX Google Flow engine (built in): Agent Mode or Standard mode, auto Agent fallback on unusual-activity blocks'
     };
   }
-
+  if (tool === 'studio_generate_assets') return studioGenerateAssets(args);
   if (tool === "studio_list_styles") {
     if (args.style && STYLES[args.style]) {
       return { style: args.style, details: STYLES[args.style] };
@@ -186,116 +247,8 @@ async function execute(tool,args={}) {
     };
   }
 
-  // Google Flow & DeepX Rapid Flow Workflows
-  if(tool.startsWith("deepx_")||["flow_get_options","flow_analyze_script","flow_batch_generate","flow_storyboard","flow_character_pipeline","flow_list_characters","flow_generate_character","flow_upload_character","flow_rename_character","flow_attach_references","flow_chain_scene","flow_download_media","flow_eval_script"].includes(tool)){const value=await workflows.call(tool,args);if(!value?.__unhandled)return value;}
-  if(tool==='flow_generate_image'||tool==='flow_generate_video'){
-    const items=args.items?.length?args.items:[args];if(items.length>500)throw new Error('At most 500 items per call');
-    const budget=args.max_credits==null?null:{limit:args.max_credits,used:0};if(budget&&(!Number.isFinite(budget.limit)||budget.limit<0))throw new Error('max_credits must be non-negative');
-    const requests=items.map(item=>request({...args,...(typeof item==='string'?{prompt:item}:item),budget},tool==='flow_generate_video'));
-    if(args.new_project){const project=await client.exclusive(async()=>{const tabId=await client.tab();const p=await client.createProject(tabId,args.title);await client.page(tabId,p.projectId);return p;});for(const req of requests){req.project_id=project.projectId;req.new_project=false;}}
-    if(requests.length>1){
-      const tab=await client.tab();await client.begin(tab);
-      const selected=requests.map(enqueue);
-      Promise.all(selected.map(job=>job.completion)).finally(()=>client.end(tab)).catch(console.error);
-      return awaitJobs(selected,args.wait_seconds??45);
-    }
-    return awaitJobs(requests.map(enqueue),args.wait_seconds??45);
-  }
-  if(tool==='flow_get_job'){const ids=[...(args.job_ids||[]),...(args.job_id?[args.job_id]:[])];if(!ids.length)throw new Error('job_id or job_ids required');const selected=ids.map(id=>{const job=jobs.get(id);if(!job)throw new Error('Unknown job_id: '+id);return job;});return awaitJobs(selected,args.wait_seconds??45);}
-  if(tool==='flow_cancel'){let count=0;const selected=new Set(args.job_id?[args.job_id]:[...jobs.keys()]);for(const id of selected)for(const child of jobs.get(id)?.child_job_ids||[])selected.add(child);for(const job of jobs.values())if(!finished(job)&&selected.has(job.job_id)){job.status='cancelled';job.stage='cancelled';job.abort.abort();count++;}return{cancelled:count};}
-  if(['flow_edit_image','flow_edit_video','flow_extend_video','flow_upscale_image','flow_upscale_video'].includes(tool)){
-    if(!args.media_id)throw new Error('media_id required');const video=tool.endsWith('video'),action=tool.includes('upscale')?'upscale_'+(video?'video':'image'):tool.includes('extend')?'extend':'edit';
-    if(!tool.includes('upscale')&&!args.prompt?.trim())throw new Error('prompt required');
-    const req={...args,action,video,references:args.references||[],resolution:args.resolution||(video?'720p':'2K'),aspect:args.aspect_ratio};
-    return awaitJobs([enqueue(req)],args.wait_seconds??45);
-  }
-  if(tool==='flow_status'){
-    const tabId=await client.tab(),ui=await client.js(tabId,'s.ui()');return{logged_in:ui.ready,account:ui.account,project_id:ui.projectId,settings:ui.settingsText,queued_jobs:[...jobs.values()].filter(j=>j.status==='queued').length,running_jobs:[...jobs.values()].filter(j=>j.status==='running').map(snapshot),extension:chrome.runtime.id};
-  }
-  if(tool==='flow_list_models')return client.rpc(await client.tab(),RPC.MODELS,[],'models');
-  if(tool==='flow_list_projects')return client.rpc(await client.tab(),RPC.PROJECTS,['projects/*',args.limit??20,null,null,null,null,[1]],'projects');
-  if(tool==='flow_get_settings')return client.js(await client.tab(),'s.ui().settingsText');
-  if(tool==='flow_get_media'){const tabId=await client.tab();if(!args.media_id)throw new Error('media_id required');const file=await client.file(tabId,args.media_id);if(args.view&&file.type==='image')return{content:[{type:'text',text:JSON.stringify(file)},{type:'image',data:await chrome.antigem.readFile({path:file.path,encoding:'base64'}),mimeType:'image/jpeg'}]};return file;}
-  if(tool==='flow_agent_status'){
-    const tabId=await client.tab();
-    const ui=await client.js(tabId,'s.ui()');
-    return {
-      agent_on: Boolean(ui?.agentOn),
-      has_instructions: Boolean(ui?.agentInstructions),
-      project_id: ui?.projectId || null,
-      account: ui?.account || null
-    };
-  }
-  if(tool==='flow_agent_toggle'){
-    const tabId=await client.tab();
-    const result=await client.evaluate(tabId, async (enable) => {
-      const s=window.__agFlow;
-      if(!s) return { ok: false, error: 'Flow helper not loaded' };
-      const pill=s.agentPill();
-      if(!pill) return { ok: false, error: 'Agent mode toggle not found in Flow UI' };
-      const currentlyOn = pill.getAttribute('aria-pressed') === 'true';
-      if(Boolean(enable) !== currentlyOn) {
-        pill.click();
-      }
-      return { ok: true, agent_on: pill.getAttribute('aria-pressed') === 'true' };
-    }, [args.enable ?? true]);
-    return result;
-  }
-  if(tool==='flow_agent_dispatch'){
-    const tabId=await client.tab();
-    const storyboard=args.storyboard_text || args.prompts_text || args.script_text || '';
-    if(!storyboard.trim()) throw new Error('storyboard_text is required');
-    await client.evaluate(tabId, async () => {
-      const s=window.__agFlow;
-      if(!s) return;
-      const pill=s.agentPill();
-      if(pill && pill.getAttribute('aria-pressed') !== 'true') pill.click();
-    });
-    const sent=await client.evaluate(tabId, async (text) => {
-      const s=window.__agFlow;
-      if(!s) return { ok: false, error: 'Flow helper not loaded' };
-      return s.setPrompt(text);
-    }, [storyboard]);
-    return {
-      dispatched: true,
-      characters: storyboard.length,
-      status: 'submitted to Google Flow Agent',
-      agent_mode: true
-    };
-  }
-  if(tool==='flow_list_media'||tool==='flow_get_last_media'){
-    const tabId=await client.tab();
-    let project=args.project_id||(await client.js(tabId,'s.ui()')).projectId;
-    if(!project){
-      try { project=await client.project(tabId); } catch(_) {}
-    }
-    if(!project)throw new Error('No active project found in Flow. Please click into a project or create one.');
-    let media=await client.contents(tabId,project);media=media.filter(m=>(args.include_trashed||!m.trashed)&&(!args.type||m.type===args.type)&&(!args.pending_only||m.pending)&&(!args.query||`${m.title} ${m.prompt}`.toLowerCase().includes(args.query.toLowerCase())));
-    if(tool==='flow_get_last_media'){const history=client.history.filter(m=>!args.type||m.type===args.type).toReversed();const seen=new Set(history.map(m=>m.media_id));return[...history,...media.toReversed().filter(m=>!seen.has(m.mediaId))].slice(0,args.count??1);}
-    return media;
-  }
-  if(tool==='flow_video_status'){const tabId=await client.tab();if(!args.media_ids?.length)throw new Error('media_ids required');const statuses=await client.statusVideos(tabId,args.media_ids);return Promise.all(statuses.map(async m=>({...m,state:m.status===3?'done':[1,2,6].includes(m.status)?'pending':'failed',...(m.status===3&&args.download!==false?await client.file(tabId,m.mediaId):{})})));}
-  return client.exclusive(async()=>{
-    const tabId=await client.tab();await client.begin(tabId);
-    try{
-      if(tool==='flow_create_project'){const p=await client.createProject(tabId,args.title);if(args.open!==false)await client.page(tabId,p.projectId);return p;}
-      if(tool==='flow_open_project'){if(!args.project_id)throw new Error('project_id required');await client.page(tabId,args.project_id);return{project_id:args.project_id};}
-      if(tool==='flow_rename_project')return client.rpc(tabId,RPC.RENAME_PROJECT,[`projects/${args.project_id}`,[args.title],[['project_title']],[null,22]],'renamed');
-      if(tool==='flow_upload_media'){if(!args.file_paths?.length)throw new Error('file_paths required');await client.project(tabId,args.project_id);const output=[];for(const file of args.file_paths)output.push({file,media_id:await client.resolveReference(tabId,file)});return output;}
-      if(tool==='flow_rename_media'){const m=await client.media(tabId,args.media_id);return client.rpc(tabId,RPC.RENAME_WORKFLOW,[[m.workflowId,null,null,[args.title],m.projectId],[['metadata.display_name']]],'ok');}
-      if(tool==='flow_trash_media'||tool==='flow_restore_media'){if(!args.media_ids?.length)throw new Error('media_ids required');const entries=[];for(const id of args.media_ids){const m=await client.media(tabId,id);entries.push([m.workflowId,null,null,[null,null,tool==='flow_trash_media'],m.projectId]);}await client.rpc(tabId,RPC.UPDATE_WORKFLOWS,[entries,[['metadata.archived']]],'ok');return{updated:entries.length};}
-      if(tool==='flow_lock_tab'){await chrome.antigem.automation({tabId,locked:!!args.locked});return{locked:!!args.locked};}
-      if(tool==='flow_extract_frame'){const video=await client.file(tabId,args.media_id);const result=await chrome.antigem.mediaFrame({path:video.path,at_seconds:args.at_seconds});if(args.upload){await client.project(tabId,args.project_id);result.media_id=await client.resolveReference(tabId,result.path);}return result;}
-      if(tool==='flow_video_to_gif'){const result=await client.rpc(tabId,RPC.GIF,[null,args.media_id],'gif',120000);return{path:await readBlob(tabId,result,`~/flow-media/flow_${args.media_id}.gif`)};}
-      if(tool==='flow_combine_videos'){if(!args.clips?.length)throw new Error('clips required');const clips=[];for(const clip of args.clips){let end=clip.end;if(end==null){const file=await client.file(tabId,clip.media_id);end=(await chrome.antigem.mediaInfo({path:file.path})).duration;}clips.push([clip.media_id,null,clip.start==null?[]:[clip.start],[end]]);}const started=await client.rpc(tabId,RPC.CONCAT,[clips],'concatStart');const result=await client.wait(async()=>{const r=await client.rpc(tabId,RPC.CONCAT_STATUS,[[[started.job]]],'concatStatus');return r.state===3&&r.len&&r;},300000,2000);const file=await readBlob(tabId,result,`~/flow-media/combined_${Date.now()}.mp4`);return{path:file,...(args.upload_back?{media_id:await client.resolveReference(tabId,file)}:{})};}
-      if(tool==='flow_create_scene'){if(!args.media_ids?.length)throw new Error('media_ids required');const medias=await Promise.all(args.media_ids.map(id=>client.media(tabId,id)));if(medias.some(m=>m.projectId!==medias[0].projectId))throw new Error('Scene media must belong to the same project');return client.rpc(tabId,RPC.CREATE_SCENE,[`projects/${medias[0].projectId}`,medias.map(m=>m.workflowId),null,args.aspect_ratio==='9:16'?1:2],'scene');}
-      throw new Error('Unknown Studio/Flow tool: '+tool);
-    }finally{await client.end(tabId);}
-  });
+
+  return deepxExecute(tool, args);
 }
 
-chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
-  if(message.type!=='mcp_tool_call')return;
-  execute(message.tool,message.args||{}).then(sendResponse,error=>sendResponse({isError:true,content:[{type:'text',text:error.message}]}));
-  return true;
-});
+chrome.runtime.onMessage.addListener(mcpListener(execute));

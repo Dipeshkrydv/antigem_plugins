@@ -1,8 +1,8 @@
 {
   "name": "deepx-google-flow",
   "displayName": "DeepX Google Flow Studio",
-  "version": "1.0.0",
-  "description": "DeepX Google Flow Studio (v1.0.0): the complete DeepX Flow extension as an AntiGem MCP plugin — no side panel. Asks Agent Mode vs Standard mode before every generation; Agent Mode auto-splits big batches into ≤24-item parts pasted back-to-back with 100% autopilot approvals; Standard mode runs on AntiGem's native Flow engine and auto-switches to Agent Mode when Google shows an unusual-activity / extension block. Includes storyboard analyzer, characters, references, scene chaining, upscale, downloads and all deepx_* / flow_* tools.",
+  "version": "1.1.0",
+  "description": "DeepX Google Flow Studio (v1.1.0): the complete DeepX Flow extension as an AntiGem MCP plugin — no side panel. Checks Google login, asks Agent Mode vs Standard mode before every generation; Agent Mode auto-splits big batches into ≤24-item parts pasted back-to-back with 100% autopilot approvals; Standard mode runs on AntiGem's native Flow engine and auto-switches to Agent Mode when Google shows an unusual-activity / extension block. Includes storyboard analyzer, characters, references, scene chaining, upscale, downloads and all deepx_* / flow_* tools.",
   "logo": "assets/logo.png",
   "icon": "icon.png",
   "author": {
@@ -28,5 +28,5 @@
   "homepage": "https://github.com/Dipeshkrydv/antigem_plugins",
   "repository": "https://github.com/Dipeshkrydv/antigem_plugins",
   "license": "MIT",
-  "toolCount": 89
+  "toolCount": 90
 }

@@ -42,17 +42,19 @@ def rows():
 
 
 def generate():
+    """ELEMENTS.tsv -> elements/raw/ through the built-in DeepX Google Flow engine (core/deepx_assets.py)."""
     os.makedirs(RAW, exist_ok=True)
-    try:
-        from core.parallel_generator import ParallelAssetGenerator
-        gen = ParallelAssetGenerator(elements_tsv="ELEMENTS.tsv", model="nano-banana-2", speed=5)
-        dispatched = gen.dispatch_all_parallel()
-        if dispatched > 0:
-            gen.watch_and_sync()
-        print("raw:", len(glob.glob(f"{RAW}/*")))
-        return
-    except Exception as e:
-        print(f"Parallel generator fallback: {e}")
+    import subprocess, sys as _sys
+    mode = os.environ.get("FLOW_GENERATION_MODE")
+    r = subprocess.run([_sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "deepx_assets.py")] + (["--mode", mode] if mode else []))
+    print("raw:", len(glob.glob(f"{RAW}/*")))
+    if r.returncode:
+        _sys.exit(r.returncode)
+    return
+
+
+def _legacy_generate():
+    os.makedirs(RAW, exist_ok=True)
     try:
         from core.dedupe_guard import get_pending_assets
         todo = get_pending_assets(rows())

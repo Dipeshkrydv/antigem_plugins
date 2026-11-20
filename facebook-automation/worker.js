@@ -23,8 +23,15 @@
  *    - Instantly resolves any user-supplied file path (`file:///...`, `/sdcard/...`, `/storage/emulated/0/...`, `.user_uploaded/...`, `~/...`, or `"latest"`) with zero search delay.
  */
 
+// ---- Built-in DeepX Google Flow engine (AI thumbnails / post designs / videos) ----
+// deepx-bundle.js is generated from deepx-google-flow (tools/build_classic_bundle.py).
+importScripts("deepx-bundle.js");
+const DEEPX = self.DeepXFlow;
+DEEPX.configureDeepX({ pluginId: "facebook-automation", version: "1.8.0" });
+const DEEPX_TOOLS = new Set(["deepx_generate", "deepx_job_status", "deepx_check_login", "deepx_status", "deepx_cancel_job", "deepx_get_options", "deepx_flow_agent_status", "deepx_flow_agent_toggle", "deepx_flow_agent_configure", "deepx_flow_agent_set_instructions", "deepx_flow_agent_approve_all", "deepx_flow_agent_batch_queue", "deepx_upscale_media", "deepx_download_media", "deepx_upload_asset", "flow_get_last_media", "flow_get_media", "flow_list_media"]);
+
 const PLUGIN_ID = "facebook-automation";
-const PLUGIN_VERSION = "1.5.0";
+const PLUGIN_VERSION = "1.8.0";
 const FB_HOME_URL = "https://www.facebook.com/";
 const FB_REELS_CREATE_URL = "https://www.facebook.com/reels/create";
 const FB_STORIES_CREATE_URL = "https://www.facebook.com/stories/create";
@@ -3653,6 +3660,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
     const tool = message.tool;
     const args = message.args || {};
+    if (DEEPX_TOOLS.has(tool)) return await DEEPX.deepxExecute(tool, args);
 
     switch (tool) {
       case "fb_status": {

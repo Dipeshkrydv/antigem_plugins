@@ -10,7 +10,7 @@ Run every step from inside a PROJECT folder (create one with `new`):
   python studio.py lint                            reject duplicate / repetitive / under-covered shot lists BEFORE Flow
   python studio.py prompts                         SHOTS.json -> ELEMENTS.tsv + PROMPTS.md   (lints first, then writes prompts)
   python studio.py harvest [folder]         autonomously ingest & map downloaded assets into elements/raw/
-  python studio.py generate [--status|--regen N|--agent] ELEMENTS.tsv -> elements/raw/ (direct 3-tier or Flow Agent mode)
+  python studio.py generate --mode agent|standard [--status|--regen N]  ELEMENTS.tsv -> elements/raw/ (DeepX Google Flow engine)
   python studio.py key                             cut-outs + asset sheets (split into objects) -> elements/cut
   python studio.py mix                             cues.tsv + VO.wav -> mix.wav               (music bed + SFX, optional)
   python studio.py check                           validate EDIT.json (cues, slots, missing images, dead air)
@@ -234,7 +234,10 @@ def run_autopilot(args):
     ap.add_argument("--fast", action="store_true")
     ap.add_argument("--turbo", action="store_true")
     ap.add_argument("--1080p", "--full", dest="full_hd", action="store_true")
-    ap.add_argument("--agent", action="store_true", help="Use Google Flow Agent mode to batch paste all prompts at once")
+    ap.add_argument("--agent", action="store_true", help="Generate assets with Google Flow Agent Mode (<=24 prompts per part)")
+    ap.add_argument("--standard", action="store_true", help="Generate assets without Agent Mode (auto Agent fallback)")
+    ap.add_argument("--mode", choices=["agent", "standard"], default=None)
+    ap.add_argument("--legacy", action="store_true", help="old flow_safe / 8792 bridge path")
     a, extra_render_args = ap.parse_known_args(args)
 
     eng = os.path.join(CORE, "engine", "render.py")
@@ -248,12 +251,13 @@ def run_autopilot(args):
     _guard_template_shots()
     run(os.path.join(CORE, "prompt_engine.py"), "SHOTS.json")
 
-    if a.agent:
-        print("▶ [3/6] Dispatching all visual prompts via Google Flow Agent Mode (batch storyboard)...", flush=True)
-        run(os.path.join(CORE, "flow_agent_dispatch.py"))
-    else:
-        print(f"▶ [3/6] Generating visual assets via 3-Tier Flow Engine (--parallel {a.parallel})...", flush=True)
+    mode = "agent" if a.agent else "standard" if a.standard else (a.mode or os.environ.get("FLOW_GENERATION_MODE"))
+    if a.legacy:
+        print(f"▶ [3/6] Generating visual assets via legacy flow_safe (--parallel {a.parallel})...", flush=True)
         run(os.path.join(CORE, "flow_safe.py"), "--parallel", str(a.parallel))
+    else:
+        print(f"▶ [3/6] Generating visual assets via DeepX Google Flow engine ({mode or 'mode not chosen'})...", flush=True)
+        run(os.path.join(CORE, "deepx_assets.py"), *(["--mode", mode] if mode else []))
 
     print("▶ [4/6] Keying transparent cutouts (elements/raw -> elements/cut)...", flush=True)
     key_props()
@@ -311,10 +315,10 @@ def main():
         _guard_template_shots()
         if os.path.exists("SHOTS.json") and "--status" not in rest and "--no-lint" not in rest:
             run(os.path.join(CORE, "shot_lint.py"), "--warn-only")
-        if "--agent" in rest:
-            run(os.path.join(CORE, "flow_agent_dispatch.py"), *[x for x in rest if x not in ("--agent", "--no-lint")])
+        if "--legacy" in rest:
+            run(os.path.join(CORE, "flow_safe.py"), *[x for x in rest if x not in ("--no-lint", "--legacy")])
         else:
-            run(os.path.join(CORE, "flow_safe.py"), *[x for x in rest if x != "--no-lint"])
+            run(os.path.join(CORE, "deepx_assets.py"), *[x for x in rest if x != "--no-lint"])
     elif cmd == "key":
         key_props()
     elif cmd == "mix":

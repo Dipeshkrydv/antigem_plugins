@@ -101,6 +101,33 @@ export function buildAgentParts({ items = [], bulk = null, mediaType = 'image', 
   return { parts, total, model };
 }
 
+const wordSet = t => new Set(String(t || '').toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(w => w.length > 2));
+/** Best-effort mapping of new Flow media to the prompts that produced them (prompt/title word overlap, then order). */
+export function assignMediaToItems(prompts, media, mediaType) {
+  const assigned = prompts.map(() => []);
+  const pool = media.filter(m => !mediaType || !m.type || m.type === mediaType);
+  const iw = prompts.map(wordSet);
+  const pairs = [];
+  pool.forEach((m, mi) => {
+    const mw = wordSet(`${m.prompt || ''} ${m.title || ''}`);
+    if (!mw.size) return;
+    iw.forEach((w, ii) => {
+      let inter = 0; for (const x of mw) if (w.has(x)) inter++;
+      const score = inter / Math.max(1, Math.min(w.size, mw.size));
+      if (score >= 0.2) pairs.push({ mi, ii, score });
+    });
+  });
+  pairs.sort((a, b) => b.score - a.score);
+  const used = new Set();
+  for (const { mi, ii } of pairs) { if (used.has(mi) || assigned[ii].length) continue; assigned[ii].push(pool[mi].mediaId); used.add(mi); }
+  // Leftovers: fill still-empty items in creation order (Flow lists newest last after reversal)
+  const left = pool.filter((m, mi) => !used.has(mi));
+  const empty = assigned.map((a, i) => a.length ? -1 : i).filter(i => i >= 0);
+  if (left.length && left.length === empty.length) { empty.forEach((ii, k) => { assigned[ii].push(left[k].mediaId); used.add(pool.indexOf(left[k])); }); }
+  const unassigned = pool.filter((m, mi) => !used.has(mi)).map(m => m.mediaId);
+  return { assigned, unassigned };
+}
+
 export function createDeepXAgent({ chrome, client, jobs, awaitJobs }) {
   const instructionsSynced = new Map(); // projectId -> instructions hash
   const watchers = new Map();           // tabId -> interval
@@ -241,8 +268,8 @@ export function createDeepXAgent({ chrome, client, jobs, awaitJobs }) {
       const ui = await client.js(tabId, 's.ui()');
       if (!ui?.projectId) return { projectId: null, ids: [] };
       const items = await client.contents(tabId, ui.projectId);
-      return { projectId: ui.projectId, ids: (items || []).map(m => m.mediaId) };
-    } catch (_) { return { projectId: null, ids: [] }; }
+      return { projectId: ui.projectId, ids: (items || []).map(m => m.mediaId), items: items || [] };
+    } catch (_) { return { projectId: null, ids: [], items: [] }; }
   }
 
   /** Background Agent Mode job: prepare canvas, then paste each <=24-item part back-to-back. */
@@ -291,8 +318,18 @@ export function createDeepXAgent({ chrome, client, jobs, awaitJobs }) {
         const after = await knownMedia(tabId);
         const fresh = after.ids.filter(id => !before.ids.includes(id));
         job.media_ids = fresh;
+        const itemPrompts = plan.parts.flatMap(p => p.items || []);
+        if (itemPrompts.length) {
+          const freshMedia = after.items.filter(m => fresh.includes(m.mediaId));
+          const { assigned, unassigned } = assignMediaToItems(itemPrompts, freshMedia, mediaType);
+          job.items = itemPrompts.map((prompt, index) => ({ index, prompt: prompt.slice(0, 160), media_ids: assigned[index], files: [] }));
+          job.unassigned_media_ids = unassigned;
+          job.matched_items = job.items.filter(it => it.media_ids.length).length;
+        }
         if (opts.download && fresh.length) {
-          for (const id of fresh.slice(0, 200)) { try { job.files.push(await client.file(tabId, id)); } catch (e) { job.download_errors = (job.download_errors || 0) + 1; } }
+          const byId = new Map();
+          for (const id of fresh.slice(0, 500)) { try { const f = await client.file(tabId, id); byId.set(id, f); job.files.push(f); } catch (e) { job.download_errors = (job.download_errors || 0) + 1; } }
+          for (const it of job.items || []) it.files = it.media_ids.map(id => byId.get(id)).filter(Boolean);
         }
         job.status = 'done';
         job.stage = `done: ${plan.parts.length} part(s), ${plan.total} item(s) sent to Flow Agent${fresh.length ? `, ${fresh.length} new media in project` : ''}`;

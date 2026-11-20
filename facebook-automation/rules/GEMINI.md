@@ -38,7 +38,7 @@
 - **Mandatory Title & Hashtags**:
   - Every post, reel, and video must have a punchy viral **Title** and **3 to 6 targeted `#Hashtags`**.
 - **AI Image Model ONLY for Thumbnails**:
-  - Never render thumbnails with Python `PIL`/`OpenCV`. Use DeepX Google Flow / AI Image Model with 3D gradient text, volumetric lighting, and translucent glass cards.
+  - Never render thumbnails with Python `PIL`/`OpenCV`. Use the built-in DeepX Google Flow engine (`deepx_generate`: login check → Agent/Standard question → `download:true` → `files[0].path`) with 3D gradient text, volumetric lighting, and translucent glass cards. Never ask the user to generate in Google Flow manually.
 
 ---
 
