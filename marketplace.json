@@ -1,7 +1,7 @@
 {
   "name": "antigem-plugins",
   "displayName": "Antigem Official Plugins",
-  "description": "Official Antigem plugins repository: 2D Video Editing Studio (v3.4.0), Facebook Automation & SEO Studio (v1.7.0), and Meta Suite Page Management (v2.3.0).",
+  "description": "Official Antigem plugins repository: 2D Video Editing Studio (v3.4.0), Facebook Automation & SEO Studio (v1.7.0), Meta Suite Page Management (v2.3.0), and DeepX Google Flow Studio (v1.0.0).",
   "owner": {
     "name": "Dipesh Kr Yadav",
     "url": "https://github.com/Dipeshkrydv"
@@ -80,6 +80,31 @@
         "video thumbnail"
       ],
       "toolCount": 24
+    },
+    {
+      "name": "deepx-google-flow",
+      "source": "./deepx-google-flow",
+      "displayName": "DeepX Google Flow Studio",
+      "description": "DeepX Google Flow Studio (v1.0.0): the full DeepX Google Flow extension as an AntiGem MCP plugin (no side panel). Asks Agent Mode vs Standard mode before every generation, Agent Mode auto-splits >24 prompts into ≤24-item parts pasted back-to-back with 100% autopilot approvals, Standard mode auto-switches to Agent Mode on Google 'unusual activity / extension' blocks. Nano Banana 2.1/Pro, Omni Flash 1.2, Veo 3.1, storyboard analyzer, characters, references, scene chaining, upscale and all deepx_*/flow_* tools.",
+      "version": "1.0.0",
+      "logo": "assets/logo.png",
+      "icon": "icon.png",
+      "author": {
+        "name": "Dipesh Kr Yadav"
+      },
+      "homepage": "https://github.com/Dipeshkrydv/antigem_plugins",
+      "keywords": [
+        "google-flow",
+        "deepx",
+        "agent-mode",
+        "nano-banana",
+        "veo",
+        "omni-flash",
+        "batch-generation",
+        "storyboard",
+        "antigem"
+      ],
+      "toolCount": 89
     }
   ]
 }

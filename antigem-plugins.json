@@ -28,6 +28,16 @@
       "icon": "icon.png",
       "logo": "assets/logo.png",
       "toolCount": 24
+    },
+    {
+      "path": "deepx-google-flow",
+      "id": "deepx-google-flow",
+      "name": "DeepX Google Flow Studio",
+      "version": "1.0.0",
+      "description": "DeepX Google Flow Studio (v1.0.0): the full DeepX Google Flow extension as an AntiGem MCP plugin (no side panel). Asks Agent Mode vs Standard mode before every generation, Agent Mode auto-splits >24 prompts into ≤24-item parts pasted back-to-back with 100% autopilot approvals, Standard mode auto-switches to Agent Mode on Google 'unusual activity / extension' blocks. Nano Banana 2.1/Pro, Omni Flash 1.2, Veo 3.1, storyboard analyzer, characters, references, scene chaining, upscale and all deepx_*/flow_* tools.",
+      "icon": "icon.png",
+      "logo": "assets/logo.png",
+      "toolCount": 89
     }
   ]
 }

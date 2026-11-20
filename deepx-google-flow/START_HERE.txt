@@ -1,0 +1,20 @@
+====================================================================
+  DEEPX GOOGLE FLOW STUDIO (v1.0.0): ANTIGEM PLUGIN QUICK START
+====================================================================
+1. Install: AntiGem → Settings → Custom AntiGem Plugins → Repositories →
+   add  Dipeshkrydv/antigem_plugins  → install "DeepX Google Flow Studio"
+   (or Install ZIP of this folder).
+2. MCP: MCP settings → Custom AntiGem Plugin MCP → choose
+   "DeepX Google Flow Studio".
+3. Sign in to Google once in the Flow tab that opens in the AntiGem browser.
+4. In chat, just ask: "Generate 50 images of ..." / "Make videos from this script".
+   The assistant asks ONE question (Agent Mode or Standard mode) and starts.
+
+   - Agent Mode: >24 prompts are split into parts of ≤24, pasted back-to-back,
+     with auto-approval of credit cards and auto-answers to Flow Agent questions.
+   - Standard mode: exact model/ratio/count. If Google shows an
+     "unusual activity / extension" error, it switches to Agent Mode itself.
+
+No side panel, no WebSocket bridge, no setup script, no lock: everything runs
+as MCP tools inside AntiGem.
+====================================================================
