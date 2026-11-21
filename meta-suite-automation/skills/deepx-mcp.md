@@ -1,7 +1,7 @@
 ---
 name: deepx-mcp
-description: "DeepX Google Flow Studio & DeepX MCP (v1.2.2): generate images and videos on Google Flow from chat with zero setup. Supports instant 11ms MCP tool execution, Google Flow Agent panel recognition, and 100% user script fidelity. Before every generation ask ONE question — Agent Mode or Standard mode (without Agent) — then call deepx_generate instantly. Agent Mode splits >24 prompts into parts of ≤24 pasted back-to-back with 100% autopilot. Standard mode auto-switches to Agent Mode when Google shows an 'unusual activity / extension' error. Use for any image, video, storyboard, bulk batch, character, reference, asset search, upscale or 'DeepX' / 'Google Flow' / 'deepx mcp' / 'deepx-mcp' / 'Nano Banana' / 'Veo' / 'Omni' request."
-version: 1.2.2
+description: "DeepX Google Flow Studio & DeepX MCP (v1.2.3): generate images and videos on Google Flow from chat with zero setup. Supports instant 11ms MCP tool execution, Google Flow Agent panel recognition, and 100% user script fidelity. Before every generation ask ONE question — Agent Mode or Standard mode (without Agent) — then call deepx_generate instantly. Agent Mode splits >24 prompts into parts of ≤24 pasted back-to-back with 100% autopilot. Standard mode auto-switches to Agent Mode when Google shows an 'unusual activity / extension' error. Use for any image, video, storyboard, bulk batch, character, reference, asset search, upscale or 'DeepX' / 'Google Flow' / 'deepx mcp' / 'deepx-mcp' / 'Nano Banana' / 'Veo' / 'Omni' request."
+version: 1.2.3
 ---
 
 # DeepX Google Flow Studio — Instant Production Playbook

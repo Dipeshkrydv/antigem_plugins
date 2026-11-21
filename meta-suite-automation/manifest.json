@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "id": "meta-suite-automation",
   "name": "Meta Suite Page Management",
-  "version": "2.7.0",
-  "description": "Master Autonomous Meta Suite Production Engine (v2.7.0): Facebook Page management that really posts AS your Page (auto Page discovery + profile switch, default Page), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
+  "version": "2.7.1",
+  "description": "Master Autonomous Meta Suite Production Engine (v2.7.1): Facebook Page management that really posts AS your Page (auto Page discovery + profile switch, default Page), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check \u2192 Agent/Standard question \u2192 autopilot, automatic Agent fallback on unusual-activity blocks).",
   "author": "Dipesh Kr Yadav",
   "icon": "icon.png",
   "icons": {
@@ -880,7 +880,7 @@
     },
     {
       "name": "fb_thumbnail_prompt",
-      "description": "Craft an ultra-detailed, creative Master Art Direction prompt for generating a high-CTR clickbait thumbnail using an AI Image Model (Nano Banana Pro / Google Flow / image-generator subagent). STRICT MANDATE: NEVER use Python (PIL/Pillow/OpenCV) to generate thumbnails! Always pass this tool's prompt to the AI Image Model to render the thumbnail. Then generate the image with deepx_generate in THIS plugin (Google login check → ask Agent Mode or Standard → download:true) and pass files[0].path as thumbnail_path.",
+      "description": "Craft an ultra-detailed, creative Master Art Direction prompt for generating a high-CTR clickbait thumbnail using an AI Image Model (Nano Banana Pro / Google Flow / image-generator subagent). STRICT MANDATE: NEVER use Python (PIL/Pillow/OpenCV) to generate thumbnails! Always pass this tool's prompt to the AI Image Model to render the thumbnail. Then generate the image with deepx_generate in THIS plugin (Google login check \u2192 ask Agent Mode or Standard \u2192 download:true) and pass files[0].path as thumbnail_path.",
       "inputSchema": {
         "properties": {
           "topic": {
@@ -1048,7 +1048,7 @@
     },
     {
       "name": "deepx_meta_generate_design",
-      "description": "Generate high-converting social designs and photo cards on Google Flow  (🍌 Nano Banana 2.1). Built-in DeepX Google Flow engine: checks the Google Flow login first (LOGIN_REQUIRED → tell the user to sign in, stop), asks Agent Mode vs Standard once (ASK_GENERATION_MODE), downloads the result; poll deepx_job_status and use files[0].path. Standard mode auto-switches to Agent Mode on Google 'unusual activity' blocks. Never tell the user to generate in Google Flow manually.",
+      "description": "Generate high-converting social designs and photo cards on Google Flow  (\ud83c\udf4c Nano Banana 2.1). Built-in DeepX Google Flow engine: checks the Google Flow login first (LOGIN_REQUIRED \u2192 tell the user to sign in, stop), asks Agent Mode vs Standard once (ASK_GENERATION_MODE), downloads the result; poll deepx_job_status and use files[0].path. Standard mode auto-switches to Agent Mode on Google 'unusual activity' blocks. Never tell the user to generate in Google Flow manually.",
       "inputSchema": {
         "properties": {
           "prompt": {
@@ -1090,7 +1090,7 @@
     },
     {
       "name": "deepx_meta_generate_thumbnail",
-      "description": "Generate an agency-grade high-CTR viral thumbnail for Facebook/Instagram  Google Flow. Built-in DeepX Google Flow engine: checks the Google Flow login first (LOGIN_REQUIRED → tell the user to sign in, stop), asks Agent Mode vs Standard once (ASK_GENERATION_MODE), downloads the result; poll deepx_job_status and use files[0].path. Standard mode auto-switches to Agent Mode on Google 'unusual activity' blocks. Never tell the user to generate in Google Flow manually.",
+      "description": "Generate an agency-grade high-CTR viral thumbnail for Facebook/Instagram  Google Flow. Built-in DeepX Google Flow engine: checks the Google Flow login first (LOGIN_REQUIRED \u2192 tell the user to sign in, stop), asks Agent Mode vs Standard once (ASK_GENERATION_MODE), downloads the result; poll deepx_job_status and use files[0].path. Standard mode auto-switches to Agent Mode on Google 'unusual activity' blocks. Never tell the user to generate in Google Flow manually.",
       "inputSchema": {
         "properties": {
           "topic": {
@@ -1139,7 +1139,7 @@
     },
     {
       "name": "deepx_meta_generate_video",
-      "description": "Generate vertical Reels or video ads on Google Flow via Veo 3.1 . Built-in DeepX Google Flow engine: checks the Google Flow login first (LOGIN_REQUIRED → tell the user to sign in, stop), asks Agent Mode vs Standard once (ASK_GENERATION_MODE), downloads the result; poll deepx_job_status and use files[0].path. Standard mode auto-switches to Agent Mode on Google 'unusual activity' blocks. Never tell the user to generate in Google Flow manually.",
+      "description": "Generate vertical Reels or video ads on Google Flow via Veo 3.1 . Built-in DeepX Google Flow engine: checks the Google Flow login first (LOGIN_REQUIRED \u2192 tell the user to sign in, stop), asks Agent Mode vs Standard once (ASK_GENERATION_MODE), downloads the result; poll deepx_job_status and use files[0].path. Standard mode auto-switches to Agent Mode on Google 'unusual activity' blocks. Never tell the user to generate in Google Flow manually.",
       "inputSchema": {
         "properties": {
           "prompt": {
@@ -1248,7 +1248,7 @@
     },
     {
       "name": "deepx_generate",
-      "description": "AI images/videos for Facebook (thumbnails, Reel covers, post designs, short clips) through the built-in DeepX Google Flow engine. Checks the Google Flow login first (LOGIN_REQUIRED → tell the user to sign in, stop). If generation_mode is missing it returns ASK_GENERATION_MODE: ask 'Agent Mode or Standard mode (without Agent)?' and call again. Pass download:true and use files[0].path from deepx_job_status as thumbnail_path/media_paths. Standard mode auto-switches to Agent Mode on Google 'unusual activity' blocks; Agent Mode sends ≤24 prompts per part back-to-back. Never ask the user to generate in Google Flow manually.",
+      "description": "AI images/videos for Facebook (thumbnails, Reel covers, post designs, short clips) through the built-in DeepX Google Flow engine. Checks the Google Flow login first (LOGIN_REQUIRED \u2192 tell the user to sign in, stop). If generation_mode is missing it returns ASK_GENERATION_MODE: ask 'Agent Mode or Standard mode (without Agent)?' and call again. Pass download:true and use files[0].path from deepx_job_status as thumbnail_path/media_paths. Standard mode auto-switches to Agent Mode on Google 'unusual activity' blocks; Agent Mode sends \u226424 prompts per part back-to-back. Never ask the user to generate in Google Flow manually.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1277,7 +1277,7 @@
             "items": {
               "type": "string"
             },
-            "description": "List of prompts, one output item each (any length; Agent Mode splits into parts of ≤24, Standard mode accepts ≤500)."
+            "description": "List of prompts, one output item each (any length; Agent Mode splits into parts of \u226424, Standard mode accepts \u2264500)."
           },
           "script_text": {
             "type": "string",
@@ -1316,7 +1316,7 @@
           },
           "count": {
             "type": "integer",
-            "description": "Standard mode: outputs per prompt (1–4).",
+            "description": "Standard mode: outputs per prompt (1\u20134).",
             "minimum": 1,
             "maximum": 4
           },
@@ -1391,7 +1391,7 @@
           },
           "wait_seconds": {
             "type": "integer",
-            "description": "Seconds to wait before returning (0–45). Poll deepx_job_status afterwards.",
+            "description": "Seconds to wait before returning (0\u201345). Poll deepx_job_status afterwards.",
             "minimum": 0,
             "maximum": 45
           },
@@ -1422,7 +1422,7 @@
           },
           "wait_seconds": {
             "type": "integer",
-            "description": "0–50 seconds to wait.",
+            "description": "0\u201350 seconds to wait.",
             "minimum": 0,
             "maximum": 50
           }
@@ -1575,7 +1575,7 @@
     },
     {
       "name": "deepx_flow_agent_batch_queue",
-      "description": "Agent Mode bulk queue for 1–5000 items (ranges like 1 to 1000, '100 images of X', or long prompt lists): ≤24 items per part, back-to-back, autopilot approvals. Returns a job.",
+      "description": "Agent Mode bulk queue for 1\u20135000 items (ranges like 1 to 1000, '100 images of X', or long prompt lists): \u226424 items per part, back-to-back, autopilot approvals. Returns a job.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1592,7 +1592,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Explicit prompt list (split into parts of ≤24)."
+            "description": "Explicit prompt list (split into parts of \u226424)."
           },
           "media_type": {
             "type": "string",
@@ -1672,7 +1672,7 @@
           },
           "wait_seconds": {
             "type": "integer",
-            "description": "Seconds to wait before returning (0–45).",
+            "description": "Seconds to wait before returning (0\u201345).",
             "minimum": 0,
             "maximum": 45
           }
@@ -1704,7 +1704,7 @@
           },
           "wait_seconds": {
             "type": "integer",
-            "description": "0–45.",
+            "description": "0\u201345.",
             "minimum": 0,
             "maximum": 45
           }

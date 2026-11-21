@@ -4,7 +4,7 @@ description: >-
   Autonomous Meta Business Suite Page Management Autopilot. Use when the user requests to post, publish, or schedule anything (photos, reels, videos, stories, announcements, text posts) to managed Facebook Pages via Meta Business Suite, or mentions 'manage page', 'page scheduler', 'meta suite', 'schedule post to page', 'meta bridge', 'page automation', or 'handle my facebook page'. Enforces permanent one-time setup, zero-tab prompts (never ask the user to open tabs, switch windows, or click UI buttons), automatic media generation for zero-friction posts, authentic page grounding via Meta Business Suite (target_type: "page", target_id: "me" or explicit page ID), viral SEO hooks and hashtags, and continuous background dispatch via SQLite WAL and WebSocket bridge.
 ---
 
-# Meta Business Suite Page Autopilot (v2.7.0)
+# Meta Business Suite Page Autopilot (v2.7.1)
 
 This skill governs the high-speed, zero-interruption execution pipeline of the Meta Suite AntiGem plugin (its MCP tools drive the AntiGem browser directly; scheduled posts are stored in the plugin and published by its built-in 1-minute scheduler) to manage connected **Facebook Pages via Meta Business Suite** autonomously in the background.
 

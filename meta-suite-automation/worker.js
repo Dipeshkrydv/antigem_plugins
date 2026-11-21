@@ -1,5 +1,5 @@
 /**
- * AntiGem WebView MCP Service Worker for Meta Suite Page Management (v2.7.0)
+ * AntiGem WebView MCP Service Worker for Meta Suite Page Management (v2.7.1)
  * Built on the Facebook Automation precision engine + Meta Suite layer (managed Page routing,
  * queue manager, viral SEO, algorithm audit, trend radar, DeepX Google Flow media).
  *
@@ -31,7 +31,7 @@
 // deepx-bundle.js is generated from deepx-google-flow (tools/build_classic_bundle.py).
 importScripts("deepx-bundle.js");
 const DEEPX = self.DeepXFlow;
-DEEPX.configureDeepX({ pluginId: "meta-suite-automation", version: "2.7.0" });
+DEEPX.configureDeepX({ pluginId: "meta-suite-automation", version: "2.7.1" });
 const DEEPX_TOOLS = new Set(["deepx_generate", "deepx_job_status", "deepx_check_login", "deepx_status", "deepx_cancel_job", "deepx_get_options", "deepx_flow_agent_status", "deepx_flow_agent_toggle", "deepx_flow_agent_configure", "deepx_flow_agent_set_instructions", "deepx_flow_agent_approve_all", "deepx_flow_agent_batch_queue", "deepx_upscale_media", "deepx_download_media", "deepx_upload_asset", "flow_get_last_media", "flow_get_media", "flow_list_media"]);
 
 const PLUGIN_ID = "meta-suite-automation";

@@ -1,7 +1,7 @@
 ---
 name: Google Flow Asset Engine (DeepX)
 description: Built-in DeepX Google Flow engine for every 2D Studio asset. Login check, one Agent/Standard question, then autopilot; Agent Mode ≤24 prompts per part back-to-back; automatic Agent fallback on unusual-activity blocks.
-version: 3.5.0
+version: 3.5.3
 ---
 
 # Google Flow Asset Engine (built-in DeepX)

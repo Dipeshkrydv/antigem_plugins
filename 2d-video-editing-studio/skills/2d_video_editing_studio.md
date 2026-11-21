@@ -1,7 +1,7 @@
 ---
 name: 2D Video Editing Studio
 description: Master Autonomous Video Director & Production Engine (v3.2) for broadcast-quality 2D explainers, documentaries, and animations with Anti-Offline Server Shield, direct in-memory FFmpeg streaming, and high-speed render presets.
-version: 3.5.0
+version: 3.5.3
 ---
 
 # 2D Video Editing Studio — Master Video Director (v3.2)

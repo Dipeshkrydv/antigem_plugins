@@ -1,10 +1,10 @@
 ---
 name: facebook-automation
-description: "Pre-Trained Phone (Desktop-on-Phone www.facebook.com & Mobile Touch m.facebook.com) and Desktop Facebook Automation Engine (v1.6.0). Anti-Comment Firewall (strictly never posts into comments), Dedicated Feed Posts (Text/Photo/Carousel/Video), Reels (/reels/create + automatic mobile fallback + video event dispatch), Stories (/stories/create Photo/Video with overlay story_text & Text Story), Real Thumbnail/Cover Uploader (Edit Video -> Thumbnail & Reel Cover panel), Multiline Formatted Caption Engine (Title + Description + Bullets + CTA + 3-6 #Hashtags), and Zero-Overthinking 1-Call Dispatch."
-version: 1.6.0
+description: "Pre-Trained Phone (Desktop-on-Phone www.facebook.com & Mobile Touch m.facebook.com) and Desktop Facebook Automation Engine (v1.8.3). Anti-Comment Firewall (strictly never posts into comments), Dedicated Feed Posts (Text/Photo/Carousel/Video), Reels (/reels/create + automatic mobile fallback + video event dispatch), Stories (/stories/create Photo/Video with overlay story_text & Text Story), Real Thumbnail/Cover Uploader (Edit Video -> Thumbnail & Reel Cover panel), Multiline Formatted Caption Engine (Title + Description + Bullets + CTA + 3-6 #Hashtags), and Zero-Overthinking 1-Call Dispatch."
+version: 1.8.3
 ---
 
-# Facebook Automation & SEO Studio — Phone (Mobile + Desktop-on-Phone) & Desktop Precision Engine (v1.6.0)
+# Facebook Automation & SEO Studio — Phone (Mobile + Desktop-on-Phone) & Desktop Precision Engine (v1.8.3)
 
 ## ⚡ 0. ZERO OVERTHINKING, ZERO FILE-PROBING & EXACT 1-CALL ROUTING LAW
 
