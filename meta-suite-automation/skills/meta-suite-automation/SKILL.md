@@ -1,9 +1,39 @@
 ---
 name: meta-suite-automation
-description: "Master Autonomous Meta Suite Production Engine (v2.7.1). Enterprise Meta Business Suite Facebook Page management and scheduling engine. Enforces 1-click publishing & scheduling of Page Reels (9:16), Long Videos (16:9), Photos, Stories, and Announcements with custom video thumbnails/covers, in-memory DataTransfer injection, <100ms synthetic clipboard paste, anti-ad organic shield, anti-comment box firewall, and 100% script-fidelity DeepX Google Flow AI media generation."
+description: "Master Autonomous Meta Suite Production Engine (v2.8.0). Enterprise Meta Business Suite Facebook Page management and scheduling engine. Enforces 1-click publishing & scheduling of Page Reels (9:16), Long Videos (16:9), Photos, Stories, and Announcements with custom video thumbnails/covers, in-memory DataTransfer injection, <100ms synthetic clipboard paste, anti-ad organic shield, anti-comment box firewall, and 100% script-fidelity DeepX Google Flow AI media generation."
 ---
 
-# Master Meta Suite Page Management Engine (v2.7.1)
+# Master Meta Suite Page Management Engine (v2.8.0)
+
+## ⚡ v2.8.0 — META BUSINESS SUITE ENGINE (overrides anything below that disagrees)
+
+Every Page upload now runs **inside Meta Business Suite** (`business.facebook.com`), driven by the plugin itself.
+It never uses the facebook.com composer, never switches profile, never needs native taps, and **locks the screen** while it works.
+
+**Hard rules for the agent**
+1. **Never use browser MCP tools (`browser_*`) to post, schedule, or tap anything for this Page.** Call this plugin's tools only.
+2. **Never upload to the Page through facebook.com.** `fb_publish*` / `fb_schedule` already go to Business Suite.
+3. **Assets (thumbnails, post designs, short clips) are made instantly with the built-in DeepX Google Flow engine:** `deepx_meta_generate_thumbnail`, `deepx_meta_generate_design`, `deepx_meta_generate_video` (or `deepx_generate`). Then pass `files[0].path` from `deepx_job_status` as `media_paths` / `thumbnail_path`.
+4. Don't think long, and don't probe the page. Call the tool directly; it already knows every Business Suite screen.
+
+**Tool → Business Suite flow**
+| Need | Call | What the plugin does in Business Suite |
+|---|---|---|
+| Text / photo / carousel (1-10 images) | `fb_publish(post_type, media_paths, title, caption, hashtags)` | Home → Create post → Add photo/video → caption (pasted, verified in the live preview) → ad switch OFF → Publish |
+| Reel 9:16 **or** long video 16:9 | `fb_publish_reel(video_path, thumbnail_path, title, caption, hashtags)` (or `fb_publish` with a video) | Home → Create reel (Meta now publishes every video as a reel; the ratio is kept) → Add Video → description → **Thumbnail → Upload image** (custom thumbnail) → Next → Next → Share now / Schedule → Share |
+| Story | `fb_publish_story(media_path)` | Home → Create story → Add photo/video → Share now / Schedule → Share |
+| Schedule | Add `schedule_time_iso` (15 min to 29 days ahead) to any of the above, or call `fb_schedule` | Business Suite's own scheduler: date field plus hour/minute/AM-PM fields, read back and verified. The post appears in **Planner**; AntiGem does not need to stay open |
+| Also post to Story | `share_to_story: true` | Turns on "Share to Facebook Story" |
+| Test without posting | `dry_run: true` | Fills the whole composer but does not press Publish/Share/Schedule |
+
+**Long uploads:** if the tool returns `status: "running"` with a `job_id`, call `fb_publish_status {job_id, wait_seconds: 45}` until `done`/`failed`. Do not start another upload meanwhile.
+**Page id:** Business Suite uses its own `asset_id` for the Page (found automatically and cached); `target_id: "me"` is fine.
+**Diagnostics (only when a run fails):** `meta_bs_inspect` and `meta_bs_eval` read the Business Suite screen from inside the plugin.
+
+**Standard production recipe (photo post):** `deepx_meta_generate_design` (×N, poll `deepx_job_status`) → `fb_audit_caption` → `fb_publish(post_type: "carousel" | "photo", ...)`.
+**Reel / long video recipe:** video file (or `deepx_meta_generate_video`) → `deepx_meta_generate_thumbnail` (16:9 for long video, 9:16 for reel covers) → `fb_publish_reel(..., thumbnail_path)`.
+
+---
 
 The definitive autonomous production, publishing, and scheduling engine dedicated 100% to **Facebook Page Management via Meta Business Suite**. Zero delays. Zero questions. Zero friction.
 
@@ -38,7 +68,7 @@ result = fb_status()
 | :--- | :--- | :--- | :--- |
 | **Meta Business Suite Page** | Managed Facebook Page | `target_type: "page"`, `target_id: "me"` (or `<page_id>`) | Dedicated Page composer, organic reach, multi-page selection |
 
-- **Dynamic Page Discovery & Acting as the Page**: Managed Pages are discovered automatically (`meta_list_pages`; cached). Before every Page post, Reel or Story the engine opens the Page and **switches the Facebook session into the Page** (New Pages Experience "Switch"), so content is published AS the Page, never on the personal profile. If it cannot switch, it stops with a clear error instead of posting in the wrong place.
+- **Dynamic Page Discovery & Acting as the Page**: Managed Pages are discovered automatically (`meta_list_pages`; cached). Before every Page post, Reel or Story the engine opens the Page and **publishes through Meta Business Suite for that Page (no profile switch needed).
 - **Target Selection**: `target_id="me"` = default Page (first managed Page, or the one set with `meta_set_default_page`). Use a Page URL, username or numeric ID when managing several Pages.
 
 ---

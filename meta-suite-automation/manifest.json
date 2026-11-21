@@ -1,27 +1,10 @@
 {
-  "manifest_version": 3,
-  "id": "meta-suite-automation",
-  "name": "Meta Suite Page Management",
-  "version": "2.7.1",
-  "description": "Master Autonomous Meta Suite Production Engine (v2.7.1): Facebook Page management that really posts AS your Page (auto Page discovery + profile switch, default Page), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check \u2192 Agent/Standard question \u2192 autopilot, automatic Agent fallback on unusual-activity blocks).",
   "author": "Dipesh Kr Yadav",
-  "icon": "icon.png",
-  "icons": {
-    "16": "icon.png",
-    "32": "icon.png",
-    "48": "icon.png",
-    "128": "icon.png"
+  "background": {
+    "service_worker": "worker.js"
   },
-  "permissions": [
-    "tabs",
-    "scripting",
-    "debugger",
-    "cookies",
-    "storage",
-    "alarms",
-    "downloads",
-    "antigemFiles"
-  ],
+  "description": "Master Autonomous Meta Suite Production Engine (v2.8.0): Facebook Page management that posts through Meta Business Suite (business.facebook.com composer, native scheduling, Reels thumbnails, screen locked while working), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
+  "entrypoint": "mcp_server/server.py",
   "host_permissions": [
     "*://*.business.facebook.com/*",
     "*://*.facebook.com/*",
@@ -39,13 +22,29 @@
     "https://graph.facebook.com/*",
     "https://graph-video.facebook.com/*"
   ],
-  "background": {
-    "service_worker": "worker.js"
+  "icon": "icon.png",
+  "icons": {
+    "128": "icon.png",
+    "16": "icon.png",
+    "32": "icon.png",
+    "48": "icon.png"
   },
-  "worker": "worker.js",
+  "id": "meta-suite-automation",
+  "keywords": [
+    "meta",
+    "meta business suite",
+    "facebook pages",
+    "page management",
+    "social automation",
+    "deepx",
+    "google flow",
+    "scheduler",
+    "reels",
+    "video thumbnail"
+  ],
+  "manifest_version": 3,
   "mcp_tools": [
     {
-      "name": "fb_status",
       "description": "\n    Check Meta Suite and Facebook Automation status, verify bridge connectivity, and active login session.\n    MANDATORY LITERAL FIRST TOOL CALL on any Meta Suite or Facebook task (<100ms).\n    Returns ready status, logged_in state, active accounts, discovered pages, and queued jobs.\n    ",
       "inputSchema": {
         "properties": {
@@ -57,10 +56,10 @@
         },
         "title": "fb_statusArguments",
         "type": "object"
-      }
+      },
+      "name": "fb_status"
     },
     {
-      "name": "fb_login_status",
       "description": "\n    Open Facebook (https://www.facebook.com/) in the browser if not already open,\n    detect current active login session, and persist one-time login state.\n    IMPORTANT: If logged_in is false, tell the user once to sign in inside the open browser tab and STOP immediately.\n    ",
       "inputSchema": {
         "properties": {
@@ -72,18 +71,13 @@
         },
         "title": "fb_login_statusArguments",
         "type": "object"
-      }
+      },
+      "name": "fb_login_status"
     },
     {
-      "name": "fb_open_browser",
       "description": "\n    Explicitly open and focus Facebook in the browser (feed, reels, stories, page, or business_suite)\n    and check one-time login readiness.\n    ",
       "inputSchema": {
         "properties": {
-          "view": {
-            "default": "feed",
-            "title": "View",
-            "type": "string"
-          },
           "target_id": {
             "anyOf": [
               {
@@ -95,15 +89,20 @@
             ],
             "default": null,
             "title": "Target Id"
+          },
+          "view": {
+            "default": "feed",
+            "title": "View",
+            "type": "string"
           }
         },
         "title": "fb_open_browserArguments",
         "type": "object"
-      }
+      },
+      "name": "fb_open_browser"
     },
     {
-      "name": "fb_publish",
-      "description": "\n    ONE-TOUCH META BUSINESS SUITE PAGE PUBLISHER (Page Posts, Photos, Carousels, Videos, Reels, Stories):\n    Dedicated strictly to Facebook Page Management via Meta Business Suite (business.facebook.com).\n    MANDATORY RULES:\n    1. ZERO OVERTHINKING: Call `fb_publish`, `fb_publish_reel`, or `fb_publish_story` directly as your FIRST tool call.\n    2. UNIFIED PHOTO + DEEP QUOTE: Pass `media_paths=[\"latest\"]` (or user file path), `title`, formatted multiline `caption` (Title -> blank line -> Quote -> Bullets -> CTA), and 3-6 `hashtags`.\n    3. FORMATTED CAPTION & HASHTAGS: Keep `\n\n` spacing between Title, Description, CTA, and `#Hashtags`.\n    4. CUSTOM VIDEO THUMBNAIL: When uploading Page Videos with `thumbnail_path`, passes `thumbnail_path` to Edit Video -> Thumbnail panel.\n    5. ORGANIC SHIELD: Strictly ensures 'Make this an ad post' is OFF.\n    ",
+      "description": "Publish to the Facebook Page through META BUSINESS SUITE (business.facebook.com composer, never the facebook.com composer, no profile switch, screen locked while it works). post_type text/photo/carousel (1-10 images in media_paths). Any video is published through the Business Suite Reels composer (Meta now publishes every video as a reel; 16:9 long-form keeps its ratio) with thumbnail_path as the custom thumbnail. Add schedule_time_iso to schedule natively in Business Suite (Planner). Generate images/thumbnails first with deepx_meta_generate_design / deepx_meta_generate_thumbnail.",
       "inputSchema": {
         "properties": {
           "caption": {
@@ -111,7 +110,7 @@
             "title": "Caption",
             "type": "string"
           },
-          "title": {
+          "first_comment": {
             "anyOf": [
               {
                 "type": "string"
@@ -121,7 +120,7 @@
               }
             ],
             "default": null,
-            "title": "Title"
+            "title": "First Comment"
           },
           "hashtags": {
             "anyOf": [
@@ -137,18 +136,6 @@
             ],
             "default": null,
             "title": "Hashtags"
-          },
-          "thumbnail_path": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Thumbnail Path"
           },
           "media_paths": {
             "anyOf": [
@@ -170,10 +157,17 @@
             "title": "Post Type",
             "type": "string"
           },
-          "target_type": {
-            "default": "page",
-            "title": "Target Type",
-            "type": "string"
+          "story_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Story Text"
           },
           "target_id": {
             "anyOf": [
@@ -187,7 +181,12 @@
             "default": "me",
             "title": "Target Id"
           },
-          "first_comment": {
+          "target_type": {
+            "default": "page",
+            "title": "Target Type",
+            "type": "string"
+          },
+          "thumbnail_path": {
             "anyOf": [
               {
                 "type": "string"
@@ -197,39 +196,7 @@
               }
             ],
             "default": null,
-            "title": "First Comment"
-          },
-          "story_text": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Story Text"
-          }
-        },
-        "title": "fb_publishArguments",
-        "type": "object"
-      }
-    },
-    {
-      "name": "fb_publish_reel",
-      "description": "\n    DEDICATED META BUSINESS SUITE PAGE REELS PUBLISHER:\n    Uploads a vertical 9:16 video as a Facebook Page Reel in Meta Business Suite:\n    - Custom Cover / Thumbnail (`thumbnail_path`): automatically uploaded in Reel Cover panel.\n    - Viral `title` + formatted multiline `caption` (`\n\n` spacing preserved) + 3-6 `#Hashtags`.\n    - Supports `video_path=\"latest\"` to pick the newest vertical video automatically.\n    ",
-      "inputSchema": {
-        "properties": {
-          "video_path": {
-            "default": "latest",
-            "title": "Video Path",
-            "type": "string"
-          },
-          "caption": {
-            "default": "",
-            "title": "Caption",
-            "type": "string"
+            "title": "Thumbnail Path"
           },
           "title": {
             "anyOf": [
@@ -242,6 +209,33 @@
             ],
             "default": null,
             "title": "Title"
+          },
+          "schedule_time_iso": {
+            "type": "string",
+            "description": "Optional. Schedule natively in Meta Business Suite (15 min to 29 days ahead), e.g. 2026-11-22T19:30:00+05:45. Omit to publish now."
+          },
+          "share_to_story": {
+            "type": "boolean",
+            "description": "Also share to the Page's Facebook Story."
+          },
+          "dry_run": {
+            "type": "boolean",
+            "description": "Fill the Business Suite composer completely but do not press Publish/Schedule."
+          }
+        },
+        "title": "fb_publishArguments",
+        "type": "object"
+      },
+      "name": "fb_publish"
+    },
+    {
+      "description": "Publish a Reel (9:16) or long-form video (16:9) through the META BUSINESS SUITE Reels composer: upload video, caption/description, custom thumbnail (thumbnail_path, e.g. from deepx_meta_generate_thumbnail), Share now or native Schedule (schedule_time_iso). Screen locked while it works.",
+      "inputSchema": {
+        "properties": {
+          "caption": {
+            "default": "",
+            "title": "Caption",
+            "type": "string"
           },
           "hashtags": {
             "anyOf": [
@@ -258,6 +252,23 @@
             "default": null,
             "title": "Hashtags"
           },
+          "target_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "me",
+            "title": "Target Id"
+          },
+          "target_type": {
+            "default": "page",
+            "title": "Target Type",
+            "type": "string"
+          },
           "thumbnail_path": {
             "anyOf": [
               {
@@ -270,12 +281,7 @@
             "default": null,
             "title": "Thumbnail Path"
           },
-          "target_type": {
-            "default": "page",
-            "title": "Target Type",
-            "type": "string"
-          },
-          "target_id": {
+          "title": {
             "anyOf": [
               {
                 "type": "string"
@@ -284,19 +290,48 @@
                 "type": "null"
               }
             ],
-            "default": "me",
-            "title": "Target Id"
+            "default": null,
+            "title": "Title"
+          },
+          "video_path": {
+            "default": "latest",
+            "title": "Video Path",
+            "type": "string"
+          },
+          "schedule_time_iso": {
+            "type": "string",
+            "description": "Optional. Schedule natively in Meta Business Suite (15 min to 29 days ahead), e.g. 2026-11-22T19:30:00+05:45. Omit to publish now."
+          },
+          "share_to_story": {
+            "type": "boolean",
+            "description": "Also share to the Page's Facebook Story."
+          },
+          "dry_run": {
+            "type": "boolean",
+            "description": "Fill the Business Suite composer completely but do not press Publish/Schedule."
+          },
+          "media_paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Alternative to video_path."
           }
         },
         "title": "fb_publish_reelArguments",
         "type": "object"
-      }
+      },
+      "name": "fb_publish_reel"
     },
     {
-      "name": "fb_publish_story",
-      "description": "\n    DEDICATED META BUSINESS SUITE PAGE STORIES PUBLISHER:\n    Publishes a Photo/Video Page Story (with optional short overlay `story_text`) or a Text Story.\n    ",
+      "description": "Publish a photo/video Story to the Page through META BUSINESS SUITE (Create story). Optional schedule_time_iso. Screen locked while it works.",
       "inputSchema": {
         "properties": {
+          "caption": {
+            "default": "",
+            "title": "Caption",
+            "type": "string"
+          },
           "media_path": {
             "anyOf": [
               {
@@ -321,16 +356,6 @@
             "default": null,
             "title": "Story Text"
           },
-          "caption": {
-            "default": "",
-            "title": "Caption",
-            "type": "string"
-          },
-          "target_type": {
-            "default": "page",
-            "title": "Target Type",
-            "type": "string"
-          },
           "target_id": {
             "anyOf": [
               {
@@ -342,26 +367,122 @@
             ],
             "default": "me",
             "title": "Target Id"
+          },
+          "target_type": {
+            "default": "page",
+            "title": "Target Type",
+            "type": "string"
+          },
+          "schedule_time_iso": {
+            "type": "string",
+            "description": "Optional. Schedule natively in Meta Business Suite (15 min to 29 days ahead), e.g. 2026-11-22T19:30:00+05:45. Omit to publish now."
+          },
+          "share_to_story": {
+            "type": "boolean",
+            "description": "Also share to the Page's Facebook Story."
+          },
+          "dry_run": {
+            "type": "boolean",
+            "description": "Fill the Business Suite composer completely but do not press Publish/Schedule."
+          },
+          "media_paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "title": "fb_publish_storyArguments",
         "type": "object"
+      },
+      "name": "fb_publish_story"
+    },
+    {
+      "name": "fb_publish_status",
+      "description": "Status of a Business Suite upload started by fb_publish / fb_publish_reel / fb_publish_story (they return job_id when the upload takes longer than ~40 s). wait_seconds (0-50) waits for completion.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "wait_seconds": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 50
+          }
+        }
       }
     },
     {
-      "name": "fb_resume_pending",
       "description": "\n    Resume and execute any pending Facebook task that was saved while waiting for the user's one-time login.\n    ",
       "inputSchema": {
         "properties": {},
         "title": "fb_resume_pendingArguments",
         "type": "object"
-      }
+      },
+      "name": "fb_resume_pending"
     },
     {
-      "name": "fb_schedule",
-      "description": "Schedule ONE Facebook Page post, reel or story. With Meta connected (fb_meta_connect) it is created in Meta's own scheduler (Business Suite > Planner) and Meta publishes it; otherwise it publishes from this device (AntiGem must be open). Pass schedule_time_iso (e.g. 2026-11-22T09:00:00+05:30); with no time it takes the next safe slot. The Page Safety Governor moves any time that breaks a rule (daily post limit, minimum gap, night hours, duplicate text) and says so in adjusted_for_safety. For more than 3 posts use fb_schedule_bulk.",
+      "description": "Schedule a Page post/photo/carousel/reel/video/story. Between 15 minutes and 29 days ahead it is handed straight to META BUSINESS SUITE's own scheduler (shows in Planner, AntiGem need not stay open); later times wait in the local safety queue and are published through Business Suite when due. ",
       "inputSchema": {
         "properties": {
+          "caption": {
+            "default": "",
+            "title": "Caption",
+            "type": "string"
+          },
+          "delivery": {
+            "description": "auto (default): Meta's own scheduler when connected, else this device.",
+            "enum": [
+              "auto",
+              "meta",
+              "device"
+            ],
+            "type": "string"
+          },
+          "hashtags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Hashtags"
+          },
+          "media_paths": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Media Paths"
+          },
+          "post_type": {
+            "default": "text",
+            "title": "Post Type",
+            "type": "string"
+          },
+          "preferred_times": {
+            "description": "Optional local HH:MM times to prefer, e.g. ['09:00','19:30']",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "run_at_timestamp": {
             "anyOf": [
               {
@@ -386,12 +507,7 @@
             "default": null,
             "title": "Schedule Time Iso"
           },
-          "caption": {
-            "default": "",
-            "title": "Caption",
-            "type": "string"
-          },
-          "title": {
+          "story_text": {
             "anyOf": [
               {
                 "type": "string"
@@ -401,59 +517,7 @@
               }
             ],
             "default": null,
-            "title": "Title"
-          },
-          "hashtags": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Hashtags"
-          },
-          "thumbnail_path": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Thumbnail Path"
-          },
-          "media_paths": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Media Paths"
-          },
-          "post_type": {
-            "default": "text",
-            "title": "Post Type",
-            "type": "string"
-          },
-          "target_type": {
-            "default": "page",
-            "title": "Target Type",
-            "type": "string"
+            "title": "Story Text"
           },
           "target_id": {
             "anyOf": [
@@ -467,7 +531,12 @@
             "default": "me",
             "title": "Target Id"
           },
-          "story_text": {
+          "target_type": {
+            "default": "page",
+            "title": "Target Type",
+            "type": "string"
+          },
+          "thumbnail_path": {
             "anyOf": [
               {
                 "type": "string"
@@ -477,73 +546,66 @@
               }
             ],
             "default": null,
-            "title": "Story Text"
+            "title": "Thumbnail Path"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
           },
           "use_native_meta_scheduler": {
             "default": true,
             "title": "Use Native Meta Scheduler",
             "type": "boolean"
-          },
-          "preferred_times": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Optional local HH:MM times to prefer, e.g. ['09:00','19:30']"
-          },
+          }
+        },
+        "title": "fb_scheduleArguments",
+        "type": "object"
+      },
+      "name": "fb_schedule"
+    },
+    {
+      "description": "Schedule many Facebook Page posts at once (1-500 per call) in ONE call. With Meta connected (fb_meta_connect), posts are created in Meta's OWN scheduler (the one behind Business Suite > Planner): Meta publishes them even when this device is off. publish_first_now=true publishes post #1 immediately and schedules the rest. The Page Safety Governor picks the times: Pages up to 30/day with a 4-week warm-up above 6/day, evenly spaced (~30 min at 30/day, never back-to-back), personal profiles max 3/day; repeated captions/images and missing files are rejected. Reels, stories, profiles and groups post from this device at their time.",
+      "inputSchema": {
+        "properties": {
           "delivery": {
-            "type": "string",
+            "description": "auto (default): Meta's scheduler when connected and supported, else this device.",
             "enum": [
               "auto",
               "meta",
               "device"
             ],
-            "description": "auto (default): Meta's own scheduler when connected, else this device."
-          }
-        },
-        "title": "fb_scheduleArguments",
-        "type": "object"
-      }
-    },
-    {
-      "name": "fb_schedule_bulk",
-      "description": "Schedule many Facebook Page posts at once (1-500 per call) in ONE call. With Meta connected (fb_meta_connect), posts are created in Meta's OWN scheduler (the one behind Business Suite > Planner): Meta publishes them even when this device is off. publish_first_now=true publishes post #1 immediately and schedules the rest. The Page Safety Governor picks the times: Pages up to 30/day with a 4-week warm-up above 6/day, evenly spaced (~30 min at 30/day, never back-to-back), personal profiles max 3/day; repeated captions/images and missing files are rejected. Reels, stories, profiles and groups post from this device at their time.",
-      "inputSchema": {
-        "type": "object",
-        "required": [
-          "posts"
-        ],
-        "properties": {
+            "type": "string"
+          },
           "posts": {
-            "type": "array",
+            "description": "The posts, in publishing order.",
             "items": {
-              "type": "object",
               "properties": {
-                "title": {
+                "caption": {
+                  "description": "Full post text. Every post must be different: duplicates are rejected.",
                   "type": "string"
                 },
-                "caption": {
-                  "type": "string",
-                  "description": "Full post text. Every post must be different: duplicates are rejected."
-                },
                 "hashtags": {
-                  "type": "array",
+                  "description": "3-6 hashtags",
                   "items": {
                     "type": "string"
                   },
-                  "description": "3-6 hashtags"
+                  "type": "array"
                 },
                 "media_paths": {
-                  "type": "array",
                   "items": {
                     "type": "string"
-                  }
-                },
-                "thumbnail_path": {
-                  "type": "string"
+                  },
+                  "type": "array"
                 },
                 "post_type": {
-                  "type": "string",
                   "enum": [
                     "text",
                     "photo",
@@ -551,67 +613,86 @@
                     "video",
                     "reel",
                     "story"
-                  ]
+                  ],
+                  "type": "string"
                 },
                 "schedule_time_iso": {
-                  "type": "string",
-                  "description": "Optional exact time; moved to the next safe slot if it breaks a safety rule."
-                },
-                "target_type": {
+                  "description": "Optional exact time; moved to the next safe slot if it breaks a safety rule.",
                   "type": "string"
                 },
                 "target_id": {
                   "type": "string"
+                },
+                "target_type": {
+                  "type": "string"
+                },
+                "thumbnail_path": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
                 }
-              }
+              },
+              "type": "object"
             },
-            "description": "The posts, in publishing order."
-          },
-          "start_date_iso": {
-            "type": "string",
-            "description": "First day, e.g. 2026-11-22 (default: now)."
+            "type": "array"
           },
           "posts_per_day": {
-            "type": "integer",
-            "description": "Page feed posts + reels per day, 1-30 (default 3). Raising it here also updates the safety settings and restarts the warm-up from today's level."
+            "description": "Page feed posts + reels per day, 1-30 (default 3). Raising it here also updates the safety settings and restarts the warm-up from today's level.",
+            "type": "integer"
           },
           "preferred_times": {
-            "type": "array",
+            "description": "Local HH:MM times, e.g. ['09:00','13:00','19:30']. Default: spread over posting hours.",
             "items": {
               "type": "string"
             },
-            "description": "Local HH:MM times, e.g. ['09:00','13:00','19:30']. Default: spread over posting hours."
+            "type": "array"
           },
           "publish_first_now": {
-            "type": "boolean",
-            "description": "Publish the first post right away (respects today's limit and the 10-minute rule), schedule the rest."
+            "description": "Publish the first post right away (respects today's limit and the 10-minute rule), schedule the rest.",
+            "type": "boolean"
           },
-          "delivery": {
-            "type": "string",
-            "enum": [
-              "auto",
-              "meta",
-              "device"
-            ],
-            "description": "auto (default): Meta's scheduler when connected and supported, else this device."
+          "start_date_iso": {
+            "description": "First day, e.g. 2026-11-22 (default: now).",
+            "type": "string"
           }
-        }
-      }
+        },
+        "required": [
+          "posts"
+        ],
+        "type": "object"
+      },
+      "name": "fb_schedule_bulk"
     },
     {
-      "name": "fb_safety_settings",
       "description": "View or change the Page Safety Governor limits used by fb_schedule, fb_schedule_bulk and the queue. action='get' | 'set' | 'reset'. Values are clamped at hard limits (Pages 30 posts/day with a 4-week warm-up above 6, 4 reels/day, 10 stories/day, 25 min gap; personal profiles 3/day).",
       "inputSchema": {
-        "type": "object",
         "properties": {
           "action": {
-            "type": "string",
+            "default": "get",
             "enum": [
               "get",
               "set",
               "reset"
             ],
-            "default": "get"
+            "type": "string"
+          },
+          "active_end": {
+            "description": "HH:MM",
+            "type": "string"
+          },
+          "active_start": {
+            "description": "HH:MM",
+            "type": "string"
+          },
+          "catchup_grace_minutes": {
+            "type": "integer"
+          },
+          "jitter_minutes": {
+            "type": "integer"
+          },
+          "max_horizon_days": {
+            "type": "integer"
           },
           "max_posts_per_day": {
             "type": "integer"
@@ -628,91 +709,75 @@
           "story_gap_minutes": {
             "type": "integer"
           },
-          "jitter_minutes": {
-            "type": "integer"
-          },
-          "active_start": {
-            "type": "string",
-            "description": "HH:MM"
-          },
-          "active_end": {
-            "type": "string",
-            "description": "HH:MM"
-          },
-          "catchup_grace_minutes": {
-            "type": "integer"
-          },
-          "max_horizon_days": {
-            "type": "integer"
-          },
           "warmup": {
-            "type": "boolean",
-            "description": "Weekly warm-up above 6 posts/day (default true)."
+            "description": "Weekly warm-up above 6 posts/day (default true).",
+            "type": "boolean"
           }
-        }
-      }
+        },
+        "type": "object"
+      },
+      "name": "fb_safety_settings"
     },
     {
-      "name": "fb_meta_connect",
       "description": "One-time connection to Meta's official scheduler (Graph API, the system behind Business Suite > Planner) so scheduled Page posts are published by Meta itself, with no browser automation. Best: credentials_file = path of a local JSON file {user_access_token, app_id, app_secret} (secret used once and never stored; the file is wiped after connecting; only Page tokens are kept). Or pass user_access_token (+ app_id/app_secret for a non-expiring token) or page_access_token. Returns setup steps if nothing is given. Never echo tokens.",
       "inputSchema": {
-        "type": "object",
         "properties": {
-          "credentials_file": {
-            "type": "string"
-          },
-          "user_access_token": {
-            "type": "string"
-          },
           "app_id": {
             "type": "string"
           },
           "app_secret": {
             "type": "string"
           },
-          "page_access_token": {
+          "credentials_file": {
             "type": "string"
           },
           "default_page": {
-            "type": "string",
-            "description": "Page id or name to use when a post has no target_id."
+            "description": "Page id or name to use when a post has no target_id.",
+            "type": "string"
+          },
+          "page_access_token": {
+            "type": "string"
+          },
+          "user_access_token": {
+            "type": "string"
           },
           "wipe_credentials_file": {
-            "type": "boolean",
             "default": true,
-            "description": "Empty the credentials file after a successful connection (default true)."
+            "description": "Empty the credentials file after a successful connection (default true).",
+            "type": "boolean"
           }
-        }
-      }
+        },
+        "type": "object"
+      },
+      "name": "fb_meta_connect"
     },
     {
-      "name": "fb_meta_status",
       "description": "Show the Meta scheduler connection: connected Pages, default Page, token problems, how many posts are already on Meta and how many are waiting for Meta's 28-day window.",
       "inputSchema": {
-        "type": "object",
-        "properties": {}
-      }
+        "properties": {},
+        "type": "object"
+      },
+      "name": "fb_meta_status"
     },
     {
-      "name": "fb_meta_disconnect",
       "description": "Remove the Meta scheduler connection. By default pulls future posts back from Meta first (they stay in the local queue and post from this device).",
       "inputSchema": {
-        "type": "object",
         "properties": {
           "pull_back": {
-            "type": "boolean",
-            "default": true
+            "default": true,
+            "type": "boolean"
           }
-        }
-      }
+        },
+        "type": "object"
+      },
+      "name": "fb_meta_disconnect"
     },
     {
-      "name": "fb_manage_queue",
       "description": "Inspect and control the scheduled post queue: action='list'|'status' (counts, next/last post, pause state), 'cancel' (job_id), 'cancel_all', 'reschedule' (job_id + new_schedule_time_iso, moved to a safe slot if needed), 'run_now' (job_id, still respects the minimum gap), 'pause', 'resume' (only after the user checked the Page; after a Meta warning it halves the daily volume and restarts the warm-up). Cancel/reschedule also remove the post from Meta's scheduler when it was already handed over; pause pulls future posts back from Meta.",
       "inputSchema": {
         "properties": {
           "action": {
-            "type": "string",
+            "default": "list",
             "enum": [
               "list",
               "status",
@@ -723,8 +788,8 @@
               "pause",
               "resume"
             ],
-            "default": "list",
-            "title": "Action"
+            "title": "Action",
+            "type": "string"
           },
           "job_id": {
             "anyOf": [
@@ -741,6 +806,11 @@
             "default": null,
             "title": "Job Id"
           },
+          "limit": {
+            "default": 20,
+            "title": "Limit",
+            "type": "integer"
+          },
           "new_schedule_time_iso": {
             "anyOf": [
               {
@@ -752,28 +822,23 @@
             ],
             "default": null,
             "title": "New Schedule Time Iso"
-          },
-          "limit": {
-            "default": 20,
-            "title": "Limit",
-            "type": "integer"
           }
         },
         "title": "fb_manage_queueArguments",
         "type": "object"
-      }
+      },
+      "name": "fb_manage_queue"
     },
     {
-      "name": "fb_edit_post",
       "description": "Re-edit an existing Facebook post's caption via DOM automation.",
       "inputSchema": {
         "properties": {
-          "post_url_or_id": {
-            "title": "Post Url Or Id",
-            "type": "string"
-          },
           "new_caption": {
             "title": "New Caption",
+            "type": "string"
+          },
+          "post_url_or_id": {
+            "title": "Post Url Or Id",
             "type": "string"
           }
         },
@@ -783,10 +848,10 @@
         ],
         "title": "fb_edit_postArguments",
         "type": "object"
-      }
+      },
+      "name": "fb_edit_post"
     },
     {
-      "name": "fb_delete_post",
       "description": "Delete an existing Facebook post or move it to trash.",
       "inputSchema": {
         "properties": {
@@ -800,10 +865,10 @@
         ],
         "title": "fb_delete_postArguments",
         "type": "object"
-      }
+      },
+      "name": "fb_delete_post"
     },
     {
-      "name": "fb_list_posts",
       "description": "List recent published, scheduled, awaiting_login, or failed Facebook posts from local database.",
       "inputSchema": {
         "properties": {
@@ -827,15 +892,16 @@
         },
         "title": "fb_list_postsArguments",
         "type": "object"
-      }
+      },
+      "name": "fb_list_posts"
     },
     {
-      "name": "fb_seo_generate",
       "description": "\n    Generate an algorithm-optimized viral Facebook post with:\n    - Mandatory Viral Title (`title`)\n    - 1-line retention hook & deep quote\n    - 3-4 punchy micro-bullets\n    - Engagement CTA\n    - 3-6 targeted `#Hashtags` (`hashtags`)\n    - AI Image Model Thumbnail Prompt (`ai_thumbnail_prompt`)\n    - First-comment link recommendation (protects organic reach)\n    ",
       "inputSchema": {
         "properties": {
-          "topic": {
-            "title": "Topic",
+          "aspect_ratio": {
+            "default": "16:9",
+            "title": "Aspect Ratio",
             "type": "string"
           },
           "key_takeaways": {
@@ -865,9 +931,8 @@
             "default": null,
             "title": "Link Url"
           },
-          "aspect_ratio": {
-            "default": "16:9",
-            "title": "Aspect Ratio",
+          "topic": {
+            "title": "Topic",
             "type": "string"
           }
         },
@@ -876,28 +941,22 @@
         ],
         "title": "fb_seo_generateArguments",
         "type": "object"
-      }
+      },
+      "name": "fb_seo_generate"
     },
     {
-      "name": "fb_thumbnail_prompt",
-      "description": "Craft an ultra-detailed, creative Master Art Direction prompt for generating a high-CTR clickbait thumbnail using an AI Image Model (Nano Banana Pro / Google Flow / image-generator subagent). STRICT MANDATE: NEVER use Python (PIL/Pillow/OpenCV) to generate thumbnails! Always pass this tool's prompt to the AI Image Model to render the thumbnail. Then generate the image with deepx_generate in THIS plugin (Google login check \u2192 ask Agent Mode or Standard \u2192 download:true) and pass files[0].path as thumbnail_path.",
+      "description": "Craft an ultra-detailed, creative Master Art Direction prompt for generating a high-CTR clickbait thumbnail using an AI Image Model (Nano Banana Pro / Google Flow / image-generator subagent). STRICT MANDATE: NEVER use Python (PIL/Pillow/OpenCV) to generate thumbnails! Always pass this tool's prompt to the AI Image Model to render the thumbnail. Then generate the image with deepx_generate in THIS plugin (Google login check → ask Agent Mode or Standard → download:true) and pass files[0].path as thumbnail_path.",
       "inputSchema": {
         "properties": {
-          "topic": {
-            "title": "Topic",
+          "archetype": {
+            "default": "classical_fusion",
+            "title": "Archetype",
             "type": "string"
           },
-          "title_hook": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Title Hook"
+          "aspect_ratio": {
+            "default": "16:9",
+            "title": "Aspect Ratio",
+            "type": "string"
           },
           "subtitle": {
             "anyOf": [
@@ -911,14 +970,20 @@
             "default": null,
             "title": "Subtitle"
           },
-          "archetype": {
-            "default": "classical_fusion",
-            "title": "Archetype",
-            "type": "string"
+          "title_hook": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title Hook"
           },
-          "aspect_ratio": {
-            "default": "16:9",
-            "title": "Aspect Ratio",
+          "topic": {
+            "title": "Topic",
             "type": "string"
           }
         },
@@ -927,10 +992,10 @@
         ],
         "title": "fb_thumbnail_promptArguments",
         "type": "object"
-      }
+      },
+      "name": "fb_thumbnail_prompt"
     },
     {
-      "name": "fb_audit_caption",
       "description": "Audit a post caption for Title, Hashtags, and Facebook algorithmic penalties (outbound links, hashtag stuffing, dense text).",
       "inputSchema": {
         "properties": {
@@ -949,13 +1014,23 @@
         ],
         "title": "fb_audit_captionArguments",
         "type": "object"
-      }
+      },
+      "name": "fb_audit_caption"
     },
     {
-      "name": "meta_viral_seo_generate",
       "description": "\n    Generate an elite 2M-20M view scale viral SEO package for Meta Business Suite, Facebook Reels, and Instagram Reels:\n    - High-CTR Pattern Interrupt Viral Title\n    - 3-Second Retention Hook (Line 1 before 'See More' cutoff)\n    - Anti-Book 1-2 line Micro-Takeaways with double whitespace\n    - Comment Warfare Debate Driver (triggers multi-turn reply threads)\n    - Share & Save Catalysts (12x Share and 6x Save algorithmic multipliers)\n    - 3-6 Diamond Cluster Hashtags\n    - Master AI Image Model Thumbnail Prompt (strictly compliant with Rule 8: AI Image Model ONLY, volumetric rim lighting, 3D gradient text)\n    - Multimodal Semantic Keywords for Meta V-JEPA indexer.\n    ",
       "inputSchema": {
         "properties": {
+          "audience_persona": {
+            "default": "ambitious_practitioner",
+            "title": "Audience Persona",
+            "type": "string"
+          },
+          "target_platform": {
+            "default": "business_suite",
+            "title": "Target Platform",
+            "type": "string"
+          },
           "topic": {
             "title": "Topic",
             "type": "string"
@@ -964,16 +1039,6 @@
             "default": "reel",
             "title": "Video Type",
             "type": "string"
-          },
-          "target_platform": {
-            "default": "business_suite",
-            "title": "Target Platform",
-            "type": "string"
-          },
-          "audience_persona": {
-            "default": "ambitious_practitioner",
-            "title": "Audience Persona",
-            "type": "string"
           }
         },
         "required": [
@@ -981,10 +1046,10 @@
         ],
         "title": "meta_viral_seo_generateArguments",
         "type": "object"
-      }
+      },
+      "name": "meta_viral_seo_generate"
     },
     {
-      "name": "meta_viral_algorithm_audit",
       "description": "\n    Rigorously audit any video or post caption against Meta's recommendation algorithm.\n    Checks 3-second retention, outbound link penalties, comment warfare prompts,\n    whitespace structure, and hashtag stuffing. Returns 0-100 score and viral reach tier.\n    ",
       "inputSchema": {
         "properties": {
@@ -1003,10 +1068,10 @@
         ],
         "title": "meta_viral_algorithm_auditArguments",
         "type": "object"
-      }
+      },
+      "name": "meta_viral_algorithm_audit"
     },
     {
-      "name": "fb_trend_search",
       "description": "\n    Real-Time Multi-Platform (live fetch inside the plugin, no Python needed) Viral Topic & Trend Search Engine:\n    Scans YouTube / Google Trends, Twitter/X breaking topics, and Reddit in real time.\n    Returns:\n    - Ranked viral trends with Virality Momentum Scores (0-100)\n    - 5-Stage High-Retention Script Blueprint (Golden Hook -> Disrupt Assumptions -> Unveil Insider Secrets -> Ultimate Truth -> Elevation & Discussion)\n    - Google Flow character and asset visual generation prompt\n    ",
       "inputSchema": {
         "properties": {
@@ -1022,79 +1087,80 @@
             "default": null,
             "title": "Keywords"
           },
-          "sources": {
-            "default": "all",
-            "title": "Sources",
-            "type": "string"
-          },
           "limit": {
             "default": 5,
             "title": "Limit",
             "type": "integer"
+          },
+          "sources": {
+            "default": "all",
+            "title": "Sources",
+            "type": "string"
           }
         },
         "title": "fb_trend_searchArguments",
         "type": "object"
-      }
+      },
+      "name": "fb_trend_search"
     },
     {
-      "name": "deepx_meta_status",
       "description": "Check the built-in DeepX Google Flow engine: Google Flow login state in the AntiGem browser (LOGIN_REQUIRED with one message if not signed in) and available modes.",
       "inputSchema": {
         "properties": {},
         "title": "deepx_meta_statusArguments",
         "type": "object"
-      }
+      },
+      "name": "deepx_meta_status"
     },
     {
-      "name": "deepx_meta_generate_design",
-      "description": "Generate high-converting social designs and photo cards on Google Flow  (\ud83c\udf4c Nano Banana 2.1). Built-in DeepX Google Flow engine: checks the Google Flow login first (LOGIN_REQUIRED \u2192 tell the user to sign in, stop), asks Agent Mode vs Standard once (ASK_GENERATION_MODE), downloads the result; poll deepx_job_status and use files[0].path. Standard mode auto-switches to Agent Mode on Google 'unusual activity' blocks. Never tell the user to generate in Google Flow manually.",
+      "description": "Generate high-converting social designs and photo cards on Google Flow  (🍌 Nano Banana 2.1). Built-in DeepX Google Flow engine: checks the Google Flow login first (LOGIN_REQUIRED → tell the user to sign in, stop), asks Agent Mode vs Standard once (ASK_GENERATION_MODE), downloads the result; poll deepx_job_status and use files[0].path. Standard mode auto-switches to Agent Mode on Google 'unusual activity' blocks. Never tell the user to generate in Google Flow manually.",
       "inputSchema": {
+        "additionalProperties": false,
         "properties": {
-          "prompt": {
-            "title": "Prompt",
+          "aspect_ratio": {
+            "default": "4:5",
+            "description": "4:5 / 3:4 portrait feed (4:5 maps to 3:4), 1:1 square, 9:16 story, 16:9 landscape.",
             "type": "string"
           },
-          "aspect_ratio": {
-            "type": "string",
-            "default": "4:5",
-            "description": "4:5 / 3:4 portrait feed (4:5 maps to 3:4), 1:1 square, 9:16 story, 16:9 landscape."
+          "generation_mode": {
+            "description": "User's answer to 'Agent Mode or Standard mode (without Agent)?'. Omit until answered: the tool then returns ASK_GENERATION_MODE (after the Google login check).",
+            "enum": [
+              "agent",
+              "standard"
+            ],
+            "type": "string"
           },
           "model": {
             "default": "gemini-nano-banana-2.1",
             "title": "Model",
             "type": "string"
           },
-          "generation_mode": {
-            "type": "string",
-            "enum": [
-              "agent",
-              "standard"
-            ],
-            "description": "User's answer to 'Agent Mode or Standard mode (without Agent)?'. Omit until answered: the tool then returns ASK_GENERATION_MODE (after the Google login check)."
+          "prompt": {
+            "title": "Prompt",
+            "type": "string"
           },
           "wait_seconds": {
-            "type": "integer",
-            "minimum": 0,
+            "description": "Seconds to wait before returning (default 20); then poll deepx_job_status.",
             "maximum": 40,
-            "description": "Seconds to wait before returning (default 20); then poll deepx_job_status."
+            "minimum": 0,
+            "type": "integer"
           }
         },
         "required": [
           "prompt"
         ],
         "title": "deepx_meta_generate_designArguments",
-        "type": "object",
-        "additionalProperties": false
-      }
+        "type": "object"
+      },
+      "name": "deepx_meta_generate_design"
     },
     {
-      "name": "deepx_meta_generate_thumbnail",
-      "description": "Generate an agency-grade high-CTR viral thumbnail for Facebook/Instagram  Google Flow. Built-in DeepX Google Flow engine: checks the Google Flow login first (LOGIN_REQUIRED \u2192 tell the user to sign in, stop), asks Agent Mode vs Standard once (ASK_GENERATION_MODE), downloads the result; poll deepx_job_status and use files[0].path. Standard mode auto-switches to Agent Mode on Google 'unusual activity' blocks. Never tell the user to generate in Google Flow manually.",
+      "description": "Generate an agency-grade high-CTR viral thumbnail for Facebook/Instagram  Google Flow. Built-in DeepX Google Flow engine: checks the Google Flow login first (LOGIN_REQUIRED → tell the user to sign in, stop), asks Agent Mode vs Standard once (ASK_GENERATION_MODE), downloads the result; poll deepx_job_status and use files[0].path. Standard mode auto-switches to Agent Mode on Google 'unusual activity' blocks. Never tell the user to generate in Google Flow manually.",
       "inputSchema": {
+        "additionalProperties": false,
         "properties": {
-          "topic": {
-            "title": "Topic",
+          "archetype": {
+            "description": "Visual archetype key (optional).",
             "type": "string"
           },
           "aspect_ratio": {
@@ -1103,47 +1169,48 @@
             "type": "string"
           },
           "generation_mode": {
-            "type": "string",
+            "description": "User's answer to 'Agent Mode or Standard mode (without Agent)?'. Omit until answered: the tool then returns ASK_GENERATION_MODE (after the Google login check).",
             "enum": [
               "agent",
               "standard"
             ],
-            "description": "User's answer to 'Agent Mode or Standard mode (without Agent)?'. Omit until answered: the tool then returns ASK_GENERATION_MODE (after the Google login check)."
-          },
-          "wait_seconds": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 40,
-            "description": "Seconds to wait before returning (default 20); then poll deepx_job_status."
-          },
-          "title_hook": {
-            "type": "string",
-            "description": "Big headline text for the thumbnail."
+            "type": "string"
           },
           "subtitle": {
-            "type": "string",
-            "description": "Secondary line."
+            "description": "Secondary line.",
+            "type": "string"
           },
-          "archetype": {
-            "type": "string",
-            "description": "Visual archetype key (optional)."
+          "title_hook": {
+            "description": "Big headline text for the thumbnail.",
+            "type": "string"
+          },
+          "topic": {
+            "title": "Topic",
+            "type": "string"
+          },
+          "wait_seconds": {
+            "description": "Seconds to wait before returning (default 20); then poll deepx_job_status.",
+            "maximum": 40,
+            "minimum": 0,
+            "type": "integer"
           }
         },
         "required": [
           "topic"
         ],
         "title": "deepx_meta_generate_thumbnailArguments",
-        "type": "object",
-        "additionalProperties": false
-      }
+        "type": "object"
+      },
+      "name": "deepx_meta_generate_thumbnail"
     },
     {
-      "name": "deepx_meta_generate_video",
-      "description": "Generate vertical Reels or video ads on Google Flow via Veo 3.1 . Built-in DeepX Google Flow engine: checks the Google Flow login first (LOGIN_REQUIRED \u2192 tell the user to sign in, stop), asks Agent Mode vs Standard once (ASK_GENERATION_MODE), downloads the result; poll deepx_job_status and use files[0].path. Standard mode auto-switches to Agent Mode on Google 'unusual activity' blocks. Never tell the user to generate in Google Flow manually.",
+      "description": "Generate vertical Reels or video ads on Google Flow via Veo 3.1 . Built-in DeepX Google Flow engine: checks the Google Flow login first (LOGIN_REQUIRED → tell the user to sign in, stop), asks Agent Mode vs Standard once (ASK_GENERATION_MODE), downloads the result; poll deepx_job_status and use files[0].path. Standard mode auto-switches to Agent Mode on Google 'unusual activity' blocks. Never tell the user to generate in Google Flow manually.",
       "inputSchema": {
+        "additionalProperties": false,
         "properties": {
-          "prompt": {
-            "title": "Prompt",
+          "aspect_ratio": {
+            "default": "9:16",
+            "title": "Aspect Ratio",
             "type": "string"
           },
           "duration": {
@@ -1151,9 +1218,12 @@
             "title": "Duration",
             "type": "integer"
           },
-          "aspect_ratio": {
-            "default": "9:16",
-            "title": "Aspect Ratio",
+          "generation_mode": {
+            "description": "User's answer to 'Agent Mode or Standard mode (without Agent)?'. Omit until answered: the tool then returns ASK_GENERATION_MODE (after the Google login check).",
+            "enum": [
+              "agent",
+              "standard"
+            ],
             "type": "string"
           },
           "model": {
@@ -1161,40 +1231,35 @@
             "title": "Model",
             "type": "string"
           },
-          "generation_mode": {
-            "type": "string",
-            "enum": [
-              "agent",
-              "standard"
-            ],
-            "description": "User's answer to 'Agent Mode or Standard mode (without Agent)?'. Omit until answered: the tool then returns ASK_GENERATION_MODE (after the Google login check)."
+          "prompt": {
+            "title": "Prompt",
+            "type": "string"
           },
           "wait_seconds": {
-            "type": "integer",
-            "minimum": 0,
+            "description": "Seconds to wait before returning (default 20); then poll deepx_job_status.",
             "maximum": 40,
-            "description": "Seconds to wait before returning (default 20); then poll deepx_job_status."
+            "minimum": 0,
+            "type": "integer"
           }
         },
         "required": [
           "prompt"
         ],
         "title": "deepx_meta_generate_videoArguments",
-        "type": "object",
-        "additionalProperties": false
-      }
+        "type": "object"
+      },
+      "name": "deepx_meta_generate_video"
     },
     {
-      "name": "fb_comments",
       "description": "Post a first comment (such as a resource link) or reply on a Facebook post.",
       "inputSchema": {
         "properties": {
-          "post_url_or_id": {
-            "title": "Post Url Or Id",
-            "type": "string"
-          },
           "comment_text": {
             "title": "Comment Text",
+            "type": "string"
+          },
+          "post_url_or_id": {
+            "title": "Post Url Or Id",
             "type": "string"
           }
         },
@@ -1204,91 +1269,55 @@
         ],
         "title": "fb_commentsArguments",
         "type": "object"
-      }
+      },
+      "name": "fb_comments"
     },
     {
-      "name": "fb_doctor",
       "description": "Diagnose local setup, database, WebSocket bridge, login status, and rate limits.",
       "inputSchema": {
         "properties": {},
         "title": "fb_doctorArguments",
         "type": "object"
-      }
+      },
+      "name": "fb_doctor"
     },
     {
-      "name": "meta_list_pages",
       "description": "List the Facebook Pages this account manages (auto-discovered from facebook.com/pages, cached 6 h) plus the default Page used for target_id='me' and the Page currently acted as.",
       "inputSchema": {
-        "type": "object",
+        "additionalProperties": false,
         "properties": {
           "refresh": {
-            "type": "boolean",
-            "description": "Re-scan Pages now."
+            "description": "Re-scan Pages now.",
+            "type": "boolean"
           }
         },
-        "additionalProperties": false
-      }
+        "type": "object"
+      },
+      "name": "meta_list_pages"
     },
     {
-      "name": "meta_set_default_page",
       "description": "Set the default managed Page used when target_id is 'me' (by Page URL, numeric ID, username or name).",
       "inputSchema": {
-        "type": "object",
+        "additionalProperties": false,
         "properties": {
           "page": {
-            "type": "string",
-            "description": "Page URL, ID, username or name."
+            "description": "Page URL, ID, username or name.",
+            "type": "string"
           }
         },
         "required": [
           "page"
         ],
-        "additionalProperties": false
-      }
+        "type": "object"
+      },
+      "name": "meta_set_default_page"
     },
     {
-      "name": "deepx_generate",
-      "description": "AI images/videos for Facebook (thumbnails, Reel covers, post designs, short clips) through the built-in DeepX Google Flow engine. Checks the Google Flow login first (LOGIN_REQUIRED \u2192 tell the user to sign in, stop). If generation_mode is missing it returns ASK_GENERATION_MODE: ask 'Agent Mode or Standard mode (without Agent)?' and call again. Pass download:true and use files[0].path from deepx_job_status as thumbnail_path/media_paths. Standard mode auto-switches to Agent Mode on Google 'unusual activity' blocks; Agent Mode sends \u226424 prompts per part back-to-back. Never ask the user to generate in Google Flow manually.",
+      "description": "AI images/videos for Facebook (thumbnails, Reel covers, post designs, short clips) through the built-in DeepX Google Flow engine. Checks the Google Flow login first (LOGIN_REQUIRED → tell the user to sign in, stop). If generation_mode is missing it returns ASK_GENERATION_MODE: ask 'Agent Mode or Standard mode (without Agent)?' and call again. Pass download:true and use files[0].path from deepx_job_status as thumbnail_path/media_paths. Standard mode auto-switches to Agent Mode on Google 'unusual activity' blocks; Agent Mode sends ≤24 prompts per part back-to-back. Never ask the user to generate in Google Flow manually.",
       "inputSchema": {
-        "type": "object",
+        "additionalProperties": false,
         "properties": {
-          "generation_mode": {
-            "type": "string",
-            "description": "REQUIRED answer from the user: 'agent' (Google Flow Agent Mode) or 'standard' (without Agent). Never guess: if the user has not chosen for this request, omit it and the tool returns ASK_GENERATION_MODE so you can ask.",
-            "enum": [
-              "agent",
-              "standard"
-            ]
-          },
-          "media_type": {
-            "type": "string",
-            "description": "'image' or 'video'. Pass it explicitly when known.",
-            "enum": [
-              "image",
-              "video"
-            ]
-          },
-          "prompt": {
-            "type": "string",
-            "description": "One prompt, or a bulk request like '100 images of vintage cars' / '1 to 500 number designs' (auto-expanded)."
-          },
-          "prompts": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "List of prompts, one output item each (any length; Agent Mode splits into parts of \u226424, Standard mode accepts \u2264500)."
-          },
-          "script_text": {
-            "type": "string",
-            "description": "Storyboard/script; scenes separated by blank lines (or numbered lines). Use auto_breakdown for raw stories."
-          },
-          "auto_breakdown": {
-            "type": "boolean",
-            "description": "Analyze a raw story into scenes with @handles before generating."
-          },
           "aspect_ratio": {
-            "type": "string",
             "description": "Aspect ratio. Video supports 16:9 / 9:16.",
             "enum": [
               "16:9",
@@ -1296,314 +1325,326 @@
               "1:1",
               "4:3",
               "3:4"
-            ]
+            ],
+            "type": "string"
           },
-          "model": {
-            "type": "string",
-            "description": "Model shortcut for the media type (e.g. 'Nano Banana 2.1', 'Nano Banana Pro', 'Omni Flash 1.2', 'Veo 3.1 - Quality')."
-          },
-          "image_model": {
-            "type": "string",
-            "description": "Image model (Agent: Nano Banana 2.1/Pro/2 Lite/Imagen 3; Standard: Nano Banana 2.1/Pro/2 Lite)."
-          },
-          "video_model": {
-            "type": "string",
-            "description": "Video model (Agent: Omni Flash 1.2/Omni 1.1 Flash/Veo 3.1 Quality/Fast/Lite; Standard: Omni 1.1 Flash/Veo 3.1 Lite/Fast/Quality)."
-          },
-          "duration": {
-            "type": "integer",
-            "description": "Video seconds (Omni 4/6/8/10, Veo 8)."
-          },
-          "count": {
-            "type": "integer",
-            "description": "Standard mode: outputs per prompt (1\u20134).",
-            "minimum": 1,
-            "maximum": 4
-          },
-          "quality": {
-            "type": "string",
-            "description": "Agent settings quality hint: 720p, 1080p, 2k, 4k."
-          },
-          "references": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Standard mode: reference media IDs, @handles or local image paths."
-          },
-          "no_references": {
-            "type": "boolean",
-            "description": "Do not attach reference images."
-          },
-          "max_per_part": {
-            "type": "integer",
-            "description": "Agent Mode items per pasted part (max 24, default 24).",
-            "minimum": 1,
-            "maximum": 24
-          },
-          "total_count": {
-            "type": "integer",
-            "description": "Explicit total for a single subject prompt (e.g. 100)."
-          },
-          "range_start": {
-            "type": "integer",
-            "description": "Range start for numbered sets (default 1)."
-          },
-          "range_end": {
-            "type": "integer",
-            "description": "Range end for numbered sets (e.g. 1000)."
-          },
-          "custom_instructions": {
-            "type": "string",
-            "description": "Agent Mode: persistent custom instructions to sync before pasting (defaults to DeepX Master Autopilot Director)."
-          },
-          "style_lock": {
-            "type": "string",
-            "description": "Shared style sentence appended to every Agent part for consistency."
+          "auto_breakdown": {
+            "description": "Analyze a raw story into scenes with @handles before generating.",
+            "type": "boolean"
           },
           "auto_fallback": {
-            "type": "boolean",
-            "description": "Standard mode: switch to Agent Mode automatically when Google shows an unusual-activity / extension / captcha block (default true)."
+            "description": "Standard mode: switch to Agent Mode automatically when Google shows an unusual-activity / extension / captcha block (default true).",
+            "type": "boolean"
           },
           "autopilot": {
-            "type": "boolean",
-            "description": "Agent Mode: auto-approve credit cards and answer Flow Agent questions (default true)."
+            "description": "Agent Mode: auto-approve credit cards and answer Flow Agent questions (default true).",
+            "type": "boolean"
+          },
+          "count": {
+            "description": "Standard mode: outputs per prompt (1–4).",
+            "maximum": 4,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "custom_instructions": {
+            "description": "Agent Mode: persistent custom instructions to sync before pasting (defaults to DeepX Master Autopilot Director).",
+            "type": "string"
           },
           "download": {
-            "type": "boolean",
-            "description": "Agent Mode: download new media to ~/flow-media when finished."
-          },
-          "project_id": {
-            "type": "string",
-            "description": "Target Flow project (default: current)."
-          },
-          "new_project": {
-            "type": "boolean",
-            "description": "Standard mode: create a new project first."
-          },
-          "title": {
-            "type": "string",
-            "description": "Title for new_project."
-          },
-          "part_timeout_sec": {
-            "type": "integer",
-            "description": "Agent Mode: max seconds to wait for one part before sending the next (default 480 image / 900 video)."
-          },
-          "wait_seconds": {
-            "type": "integer",
-            "description": "Seconds to wait before returning (0\u201345). Poll deepx_job_status afterwards.",
-            "minimum": 0,
-            "maximum": 45
+            "description": "Agent Mode: download new media to ~/flow-media when finished.",
+            "type": "boolean"
           },
           "dry_run": {
-            "type": "boolean",
-            "description": "Standard mode: prepare and guard-block the request without spending credits."
-          }
-        },
-        "additionalProperties": false
-      }
-    },
-    {
-      "name": "deepx_job_status",
-      "description": "Poll any DeepX job (Agent Mode queue, standard batch, auto-fallback) by job_id. Waits up to wait_seconds (default 30, max 50) for completion. Shows parts done, stage, media_ids and fallback_job when standard mode was switched to Agent Mode.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "job_id": {
-            "type": "string",
-            "description": "Job id from deepx_generate or another tool."
+            "description": "Standard mode: prepare and guard-block the request without spending credits.",
+            "type": "boolean"
           },
-          "job_ids": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Several job ids."
+          "duration": {
+            "description": "Video seconds (Omni 4/6/8/10, Veo 8).",
+            "type": "integer"
           },
-          "wait_seconds": {
-            "type": "integer",
-            "description": "0\u201350 seconds to wait.",
-            "minimum": 0,
-            "maximum": 50
-          }
-        },
-        "additionalProperties": false
-      }
-    },
-    {
-      "name": "deepx_check_login",
-      "description": "Check that a Google account is signed in to Google Flow in the AntiGem browser (opens Flow if needed). If not signed in it returns LOGIN_REQUIRED with one message to tell the user; otherwise continue with the task.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {},
-        "additionalProperties": false
-      }
-    },
-    {
-      "name": "deepx_status",
-      "description": "One-call readiness check: Google Flow tab, sign-in, project, Agent pill state, running jobs and whether standard mode was recently blocked. Opens Flow in the AntiGem browser if needed. Call at most once per session; never before deepx_generate.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {},
-        "additionalProperties": false
-      }
-    },
-    {
-      "name": "deepx_cancel_job",
-      "description": "Cancel a DeepX job (Agent Mode queue or standard batch) and its children. Omit job_id to cancel everything running.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "job_id": {
-            "type": "string",
-            "description": "Job id."
+          "generation_mode": {
+            "description": "REQUIRED answer from the user: 'agent' (Google Flow Agent Mode) or 'standard' (without Agent). Never guess: if the user has not chosen for this request, omit it and the tool returns ASK_GENERATION_MODE so you can ask.",
+            "enum": [
+              "agent",
+              "standard"
+            ],
+            "type": "string"
           },
-          "batch_id": {
-            "type": "string",
-            "description": "Legacy alias of job_id."
-          }
-        },
-        "additionalProperties": false
-      }
-    },
-    {
-      "name": "deepx_get_options",
-      "description": "DeepX knowledge: all Flow models, modes, ratios, durations, @handle referencing, prompt cinematography and the Agent vs Standard mode table.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {},
-        "additionalProperties": false
-      }
-    },
-    {
-      "name": "deepx_flow_agent_status",
-      "description": "Google Flow Agent Mode pill status on the current canvas (found / active / busy).",
-      "inputSchema": {
-        "type": "object",
-        "properties": {},
-        "additionalProperties": false
-      }
-    },
-    {
-      "name": "deepx_flow_agent_toggle",
-      "description": "Turn Google Flow Agent Mode on or off (omit active to toggle).",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "active": {
-            "type": "boolean",
-            "description": "true = on, false = off."
-          }
-        },
-        "additionalProperties": false
-      }
-    },
-    {
-      "name": "deepx_flow_agent_configure",
-      "description": "Configure Flow Agent settings: 100% autopilot ('Confirm before generating: Never'), default video/image model, aspect ratio, quality.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "autopilot": {
-            "type": "boolean",
-            "description": "Set Confirm before generating: Never (default true)."
+          "image_model": {
+            "description": "Image model (Agent: Nano Banana 2.1/Pro/2 Lite/Imagen 3; Standard: Nano Banana 2.1/Pro/2 Lite).",
+            "type": "string"
+          },
+          "max_per_part": {
+            "description": "Agent Mode items per pasted part (max 24, default 24).",
+            "maximum": 24,
+            "minimum": 1,
+            "type": "integer"
           },
           "media_type": {
-            "type": "string",
             "description": "'image' or 'video'. Pass it explicitly when known.",
             "enum": [
               "image",
               "video"
-            ]
+            ],
+            "type": "string"
+          },
+          "model": {
+            "description": "Model shortcut for the media type (e.g. 'Nano Banana 2.1', 'Nano Banana Pro', 'Omni Flash 1.2', 'Veo 3.1 - Quality').",
+            "type": "string"
+          },
+          "new_project": {
+            "description": "Standard mode: create a new project first.",
+            "type": "boolean"
+          },
+          "no_references": {
+            "description": "Do not attach reference images.",
+            "type": "boolean"
+          },
+          "part_timeout_sec": {
+            "description": "Agent Mode: max seconds to wait for one part before sending the next (default 480 image / 900 video).",
+            "type": "integer"
+          },
+          "project_id": {
+            "description": "Target Flow project (default: current).",
+            "type": "string"
+          },
+          "prompt": {
+            "description": "One prompt, or a bulk request like '100 images of vintage cars' / '1 to 500 number designs' (auto-expanded).",
+            "type": "string"
+          },
+          "prompts": {
+            "description": "List of prompts, one output item each (any length; Agent Mode splits into parts of ≤24, Standard mode accepts ≤500).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "quality": {
+            "description": "Agent settings quality hint: 720p, 1080p, 2k, 4k.",
+            "type": "string"
+          },
+          "range_end": {
+            "description": "Range end for numbered sets (e.g. 1000).",
+            "type": "integer"
+          },
+          "range_start": {
+            "description": "Range start for numbered sets (default 1).",
+            "type": "integer"
+          },
+          "references": {
+            "description": "Standard mode: reference media IDs, @handles or local image paths.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "script_text": {
+            "description": "Storyboard/script; scenes separated by blank lines (or numbered lines). Use auto_breakdown for raw stories.",
+            "type": "string"
+          },
+          "style_lock": {
+            "description": "Shared style sentence appended to every Agent part for consistency.",
+            "type": "string"
+          },
+          "title": {
+            "description": "Title for new_project.",
+            "type": "string"
+          },
+          "total_count": {
+            "description": "Explicit total for a single subject prompt (e.g. 100).",
+            "type": "integer"
           },
           "video_model": {
-            "type": "string",
-            "description": "Default agent video model."
+            "description": "Video model (Agent: Omni Flash 1.2/Omni 1.1 Flash/Veo 3.1 Quality/Fast/Lite; Standard: Omni 1.1 Flash/Veo 3.1 Lite/Fast/Quality).",
+            "type": "string"
           },
-          "image_model": {
-            "type": "string",
-            "description": "Default agent image model."
+          "wait_seconds": {
+            "description": "Seconds to wait before returning (0–45). Poll deepx_job_status afterwards.",
+            "maximum": 45,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "name": "deepx_generate"
+    },
+    {
+      "description": "Poll any DeepX job (Agent Mode queue, standard batch, auto-fallback) by job_id. Waits up to wait_seconds (default 30, max 50) for completion. Shows parts done, stage, media_ids and fallback_job when standard mode was switched to Agent Mode.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "description": "Job id from deepx_generate or another tool.",
+            "type": "string"
           },
+          "job_ids": {
+            "description": "Several job ids.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "wait_seconds": {
+            "description": "0–50 seconds to wait.",
+            "maximum": 50,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "name": "deepx_job_status"
+    },
+    {
+      "description": "Check that a Google account is signed in to Google Flow in the AntiGem browser (opens Flow if needed). If not signed in it returns LOGIN_REQUIRED with one message to tell the user; otherwise continue with the task.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "deepx_check_login"
+    },
+    {
+      "description": "One-call readiness check: Google Flow tab, sign-in, project, Agent pill state, running jobs and whether standard mode was recently blocked. Opens Flow in the AntiGem browser if needed. Call at most once per session; never before deepx_generate.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "deepx_status"
+    },
+    {
+      "description": "Cancel a DeepX job (Agent Mode queue or standard batch) and its children. Omit job_id to cancel everything running.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "batch_id": {
+            "description": "Legacy alias of job_id.",
+            "type": "string"
+          },
+          "job_id": {
+            "description": "Job id.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "deepx_cancel_job"
+    },
+    {
+      "description": "DeepX knowledge: all Flow models, modes, ratios, durations, @handle referencing, prompt cinematography and the Agent vs Standard mode table.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "deepx_get_options"
+    },
+    {
+      "description": "Google Flow Agent Mode pill status on the current canvas (found / active / busy).",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "deepx_flow_agent_status"
+    },
+    {
+      "description": "Turn Google Flow Agent Mode on or off (omit active to toggle).",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "description": "true = on, false = off.",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "name": "deepx_flow_agent_toggle"
+    },
+    {
+      "description": "Configure Flow Agent settings: 100% autopilot ('Confirm before generating: Never'), default video/image model, aspect ratio, quality.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
           "aspect_ratio": {
-            "type": "string",
             "description": "16:9, 9:16 or 1:1.",
             "enum": [
               "16:9",
               "9:16",
               "1:1"
-            ]
+            ],
+            "type": "string"
           },
-          "quality": {
-            "type": "string",
-            "description": "720p, 1080p, 2k or 4k."
-          }
-        },
-        "additionalProperties": false
-      }
-    },
-    {
-      "name": "deepx_flow_agent_set_instructions",
-      "description": "Write persistent custom instructions into Flow Agent (article_spark panel) for style/character consistency.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "instructions_text": {
-            "type": "string",
-            "description": "Instructions text (default: DeepX Master Autopilot Director)."
+          "autopilot": {
+            "description": "Set Confirm before generating: Never (default true).",
+            "type": "boolean"
           },
-          "title": {
-            "type": "string",
-            "description": "Entry title."
-          }
-        },
-        "additionalProperties": false
-      }
-    },
-    {
-      "name": "deepx_flow_agent_approve_all",
-      "description": "Approve any pending Flow Agent credit card ('Always approve in project' / 'Approve') and answer a pending Agent question.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "keywords": {
-            "type": "string",
-            "description": "Topic words to pick the matching choice."
-          }
-        },
-        "additionalProperties": false
-      }
-    },
-    {
-      "name": "deepx_flow_agent_batch_queue",
-      "description": "Agent Mode bulk queue for 1\u20135000 items (ranges like 1 to 1000, '100 images of X', or long prompt lists): \u226424 items per part, back-to-back, autopilot approvals. Returns a job.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "prompt_or_storyboard": {
-            "type": "string",
-            "description": "Bulk request ('100 images of cyber cars', '1 to 1000 numbers') or multi-item storyboard text (blank-line separated)."
-          },
-          "storyboard_text": {
-            "type": "string",
-            "description": "Alias of prompt_or_storyboard."
-          },
-          "prompts": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Explicit prompt list (split into parts of \u226424)."
+          "image_model": {
+            "description": "Default agent image model.",
+            "type": "string"
           },
           "media_type": {
-            "type": "string",
             "description": "'image' or 'video'. Pass it explicitly when known.",
             "enum": [
               "image",
               "video"
-            ]
+            ],
+            "type": "string"
           },
+          "quality": {
+            "description": "720p, 1080p, 2k or 4k.",
+            "type": "string"
+          },
+          "video_model": {
+            "description": "Default agent video model.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "deepx_flow_agent_configure"
+    },
+    {
+      "description": "Write persistent custom instructions into Flow Agent (article_spark panel) for style/character consistency.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "instructions_text": {
+            "description": "Instructions text (default: DeepX Master Autopilot Director).",
+            "type": "string"
+          },
+          "title": {
+            "description": "Entry title.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "deepx_flow_agent_set_instructions"
+    },
+    {
+      "description": "Approve any pending Flow Agent credit card ('Always approve in project' / 'Approve') and answer a pending Agent question.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "keywords": {
+            "description": "Topic words to pick the matching choice.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "deepx_flow_agent_approve_all"
+    },
+    {
+      "description": "Agent Mode bulk queue for 1–5000 items (ranges like 1 to 1000, '100 images of X', or long prompt lists): ≤24 items per part, back-to-back, autopilot approvals. Returns a job.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
           "aspect_ratio": {
-            "type": "string",
             "description": "Aspect ratio. Video supports 16:9 / 9:16.",
             "enum": [
               "16:9",
@@ -1611,114 +1652,141 @@
               "1:1",
               "4:3",
               "3:4"
-            ]
+            ],
+            "type": "string"
           },
-          "image_model": {
-            "type": "string",
-            "description": "Agent image model."
-          },
-          "video_model": {
-            "type": "string",
-            "description": "Agent video model."
-          },
-          "duration": {
-            "type": "integer",
-            "description": "Video seconds per clip."
-          },
-          "quality": {
-            "type": "string",
-            "description": "720p, 1080p, 2k or 4k."
-          },
-          "total_count": {
-            "type": "integer",
-            "description": "Explicit total item count."
-          },
-          "range_start": {
-            "type": "integer",
-            "description": "Range start (default 1)."
-          },
-          "range_end": {
-            "type": "integer",
-            "description": "Range end."
-          },
-          "max_per_batch": {
-            "type": "integer",
-            "description": "Items per part (max 24).",
-            "minimum": 1,
-            "maximum": 24
-          },
-          "custom_instructions": {
-            "type": "string",
-            "description": "Instructions to sync into Flow Agent first."
+          "autopilot": {
+            "description": "Auto-approve + auto-answer (default true).",
+            "type": "boolean"
           },
           "character_names": {
-            "type": "array",
+            "description": "Character @handles to keep in every item.",
             "items": {
               "type": "string"
             },
-            "description": "Character @handles to keep in every item."
+            "type": "array"
           },
-          "autopilot": {
-            "type": "boolean",
-            "description": "Auto-approve + auto-answer (default true)."
+          "custom_instructions": {
+            "description": "Instructions to sync into Flow Agent first.",
+            "type": "string"
           },
           "download": {
-            "type": "boolean",
-            "description": "Download new media when done."
+            "description": "Download new media when done.",
+            "type": "boolean"
+          },
+          "duration": {
+            "description": "Video seconds per clip.",
+            "type": "integer"
+          },
+          "image_model": {
+            "description": "Agent image model.",
+            "type": "string"
+          },
+          "max_per_batch": {
+            "description": "Items per part (max 24).",
+            "maximum": 24,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "media_type": {
+            "description": "'image' or 'video'. Pass it explicitly when known.",
+            "enum": [
+              "image",
+              "video"
+            ],
+            "type": "string"
           },
           "project_id": {
-            "type": "string",
-            "description": "Target project."
+            "description": "Target project.",
+            "type": "string"
+          },
+          "prompt_or_storyboard": {
+            "description": "Bulk request ('100 images of cyber cars', '1 to 1000 numbers') or multi-item storyboard text (blank-line separated).",
+            "type": "string"
+          },
+          "prompts": {
+            "description": "Explicit prompt list (split into parts of ≤24).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "quality": {
+            "description": "720p, 1080p, 2k or 4k.",
+            "type": "string"
+          },
+          "range_end": {
+            "description": "Range end.",
+            "type": "integer"
+          },
+          "range_start": {
+            "description": "Range start (default 1).",
+            "type": "integer"
+          },
+          "storyboard_text": {
+            "description": "Alias of prompt_or_storyboard.",
+            "type": "string"
+          },
+          "total_count": {
+            "description": "Explicit total item count.",
+            "type": "integer"
+          },
+          "video_model": {
+            "description": "Agent video model.",
+            "type": "string"
           },
           "wait_seconds": {
-            "type": "integer",
-            "description": "Seconds to wait before returning (0\u201345).",
+            "description": "Seconds to wait before returning (0–45).",
+            "maximum": 45,
             "minimum": 0,
-            "maximum": 45
+            "type": "integer"
           }
         },
-        "additionalProperties": false
-      }
+        "type": "object"
+      },
+      "name": "deepx_flow_agent_batch_queue"
     },
     {
-      "name": "deepx_upscale_media",
       "description": "Upscale a Flow image (2K/4K) or video (1080p/4K). Omit media_id to upscale the latest media.",
       "inputSchema": {
-        "type": "object",
+        "additionalProperties": false,
         "properties": {
           "media_id": {
-            "type": "string",
-            "description": "Media id (default latest)."
+            "description": "Media id (default latest).",
+            "type": "string"
+          },
+          "quality": {
+            "description": "1080p, 2k or 4k.",
+            "type": "string"
           },
           "type": {
-            "type": "string",
             "description": "image or video.",
             "enum": [
               "image",
               "video"
-            ]
-          },
-          "quality": {
-            "type": "string",
-            "description": "1080p, 2k or 4k."
+            ],
+            "type": "string"
           },
           "wait_seconds": {
-            "type": "integer",
-            "description": "0\u201345.",
+            "description": "0–45.",
+            "maximum": 45,
             "minimum": 0,
-            "maximum": 45
+            "type": "integer"
           }
         },
-        "additionalProperties": false
-      }
+        "type": "object"
+      },
+      "name": "deepx_upscale_media"
     },
     {
-      "name": "deepx_download_media",
       "description": "Chrome Flow MCP compatibility alias for flow_download_media. Download media by ID or URL into local terminal storage, with an optional filename and folder.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "dry_run": {
+            "type": "boolean"
+          },
           "filename": {
             "description": "Target filename e.g. 'hero_scene_01.mp4'.",
             "type": "string"
@@ -1728,42 +1796,42 @@
             "description": "Subfolder under Chrome Downloads.",
             "type": "string"
           },
-          "url": {
-            "description": "Direct FifeURL or download redirect URL of the media.",
+          "max_credits": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "media_id": {
             "type": "string"
           },
           "project_id": {
             "type": "string"
           },
-          "dry_run": {
-            "type": "boolean"
-          },
-          "wait_seconds": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 50
+          "url": {
+            "description": "Direct FifeURL or download redirect URL of the media.",
+            "type": "string"
           },
           "wait_for_completion": {
             "type": "boolean"
           },
-          "max_credits": {
-            "type": "number",
-            "minimum": 0
-          },
-          "media_id": {
-            "type": "string"
+          "wait_seconds": {
+            "maximum": 50,
+            "minimum": 0,
+            "type": "number"
           }
         },
         "type": "object"
-      }
+      },
+      "name": "deepx_download_media"
     },
     {
-      "name": "deepx_upload_asset",
       "description": "Chrome Flow MCP compatibility alias for flow_upload_media. Upload local image/video files into a Flow project (through Flow's own upload, so they appear in the project). Returns their new media ids, usable as references or frames. Not needed before flow_generate_*: those accept local paths directly.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
+          "dry_run": {
+            "type": "boolean"
+          },
           "file_name": {
             "description": "Optional display filename.",
             "type": "string"
@@ -1772,123 +1840,169 @@
             "description": "Absolute local path to the image or video file.",
             "type": "string"
           },
+          "max_credits": {
+            "minimum": 0,
+            "type": "number"
+          },
           "project_id": {
             "type": "string"
-          },
-          "dry_run": {
-            "type": "boolean"
-          },
-          "wait_seconds": {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 50
           },
           "wait_for_completion": {
             "type": "boolean"
           },
-          "max_credits": {
-            "type": "number",
-            "minimum": 0
+          "wait_seconds": {
+            "maximum": 50,
+            "minimum": 0,
+            "type": "number"
           }
         },
         "required": [
           "file_path"
         ],
         "type": "object"
-      }
+      },
+      "name": "deepx_upload_asset"
     },
     {
-      "name": "flow_get_last_media",
       "description": "Get the newest images or videos (\"the last image\", \"the previous 2 videos\"): first the results of this session's tools, then the newest items of the project. Use the returned media_id with other flow_* tools.",
       "inputSchema": {
-        "type": "object",
         "properties": {
+          "count": {
+            "description": "How many (default 1)",
+            "type": "integer"
+          },
+          "project_id": {
+            "description": "Project to look in (default: the open project)",
+            "type": "string"
+          },
           "type": {
-            "type": "string",
+            "description": "Only images or only videos",
             "enum": [
               "image",
               "video"
             ],
-            "description": "Only images or only videos"
-          },
-          "count": {
-            "type": "integer",
-            "description": "How many (default 1)"
-          },
-          "project_id": {
-            "type": "string",
-            "description": "Project to look in (default: the open project)"
+            "type": "string"
           }
-        }
-      }
+        },
+        "type": "object"
+      },
+      "name": "flow_get_last_media"
     },
     {
-      "name": "flow_get_media",
       "description": "Get a Flow image or video as a local file (saved once in ~/flow-media; later calls reuse the same file, never copy it). Set view=true to also receive an image inline so you can look at it. To show it in chat, write ![caption](<path>) on its own line.",
       "inputSchema": {
-        "type": "object",
         "properties": {
           "media_id": {
-            "type": "string",
-            "description": "media_id from flow_list_media or flow_generate_image/flow_generate_video"
+            "description": "media_id from flow_list_media or flow_generate_image/flow_generate_video",
+            "type": "string"
           },
           "view": {
-            "type": "boolean",
-            "description": "Also return the image inline for viewing (images only, default false)"
+            "description": "Also return the image inline for viewing (images only, default false)",
+            "type": "boolean"
           }
         },
         "required": [
           "media_id"
-        ]
-      }
+        ],
+        "type": "object"
+      },
+      "name": "flow_get_media"
     },
     {
-      "name": "flow_list_media",
       "description": "List images and videos in a Flow project (mediaId, type, title, prompt, size, pending). Optional query filters by title/prompt (like Flow's search box); pending_only lists videos still generating. cached_path is set when the file is already saved locally; use flow_get_media to fetch one.",
       "inputSchema": {
-        "type": "object",
         "properties": {
-          "project_id": {
-            "type": "string",
-            "description": "Project ID (default: the project open in the Flow tab)"
-          },
-          "query": {
-            "type": "string",
-            "description": "Optional case-insensitive text to search in titles and prompts"
+          "include_trashed": {
+            "description": "Also list media in Flow's trash (default false)",
+            "type": "boolean"
           },
           "pending_only": {
-            "type": "boolean",
-            "description": "Only media still generating (default false)"
+            "description": "Only media still generating (default false)",
+            "type": "boolean"
+          },
+          "project_id": {
+            "description": "Project ID (default: the project open in the Flow tab)",
+            "type": "string"
+          },
+          "query": {
+            "description": "Optional case-insensitive text to search in titles and prompts",
+            "type": "string"
           },
           "type": {
-            "type": "string",
+            "description": "Only images or only videos",
             "enum": [
               "image",
               "video"
             ],
-            "description": "Only images or only videos"
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "flow_list_media"
+    },
+    {
+      "name": "meta_bs_inspect",
+      "description": "Diagnostic: list buttons, inputs, editors and dialogs on a Meta Business Suite screen (opens the Business Suite tab). Optional url (path like /latest/composer?asset_id=...), click_text (regex of a button to click first), filter (regex on labels), scope (CSS selector), wait_ms, max.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
           },
-          "include_trashed": {
-            "type": "boolean",
-            "description": "Also list media in Flow's trash (default false)"
+          "click_text": {
+            "type": "string"
+          },
+          "after_click_ms": {
+            "type": "integer"
+          },
+          "filter": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "wait_ms": {
+            "type": "integer"
+          },
+          "max": {
+            "type": "integer"
           }
         }
       }
+    },
+    {
+      "name": "meta_bs_eval",
+      "description": "Diagnostic: evaluate a JavaScript expression in the Meta Business Suite tab (CDP, awaits promises, returns JSON). Optional url to open first.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "expression": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "expression"
+        ]
+      }
     }
   ],
-  "entrypoint": "mcp_server/server.py",
-  "skills": "skills",
-  "keywords": [
-    "meta",
-    "meta business suite",
-    "facebook pages",
-    "page management",
-    "social automation",
-    "deepx",
-    "google flow",
-    "scheduler",
-    "reels",
-    "video thumbnail"
+  "name": "Meta Suite Page Management",
+  "permissions": [
+    "tabs",
+    "scripting",
+    "debugger",
+    "cookies",
+    "storage",
+    "alarms",
+    "downloads",
+    "antigemFiles"
   ],
-  "tool_count": 49
+  "skills": "skills",
+  "tool_count": 49,
+  "version": "2.8.0",
+  "worker": "worker.js"
 }

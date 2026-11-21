@@ -30,18 +30,20 @@
 // ---- Built-in DeepX Google Flow engine (AI thumbnails / post designs / videos) ----
 // deepx-bundle.js is generated from deepx-google-flow (tools/build_classic_bundle.py).
 importScripts("deepx-bundle.js");
+importScripts("meta-bs.js");
 const DEEPX = self.DeepXFlow;
 DEEPX.configureDeepX({ pluginId: "meta-suite-automation", version: "2.7.1" });
 const DEEPX_TOOLS = new Set(["deepx_generate", "deepx_job_status", "deepx_check_login", "deepx_status", "deepx_cancel_job", "deepx_get_options", "deepx_flow_agent_status", "deepx_flow_agent_toggle", "deepx_flow_agent_configure", "deepx_flow_agent_set_instructions", "deepx_flow_agent_approve_all", "deepx_flow_agent_batch_queue", "deepx_upscale_media", "deepx_download_media", "deepx_upload_asset", "flow_get_last_media", "flow_get_media", "flow_list_media"]);
 
 const PLUGIN_ID = "meta-suite-automation";
-const PLUGIN_VERSION = "2.7.0";
+const PLUGIN_VERSION = "2.8.0";
 const FB_HOME_URL = "https://www.facebook.com/";
 const FB_REELS_CREATE_URL = "https://www.facebook.com/reels/create";
 const FB_STORIES_CREATE_URL = "https://www.facebook.com/stories/create";
 const DEDUPE_WINDOW_MS = 24 * 3600 * 1000; // 24 hours
 const MIN_POST_INTERVAL_MS = 8 * 1000;     // 8s anti-burst spacing
 
+const bsJobs = new Map();
 let inFlightLock = null;
 const attachedDebuggerTabs = new Set();
 
@@ -3112,16 +3114,8 @@ async function dispatchProtectedBrowserTask(toolName, args) {
   }
 
   const tabId = loginState.active_tab_id;
-  let actingPage = null;
-  const wantsPage = (args.target_type || "page") === "page" && !["fb_edit_post", "fb_delete_post", "fb_comments"].includes(toolName);
-  if (wantsPage) {
-    try {
-      actingPage = await ensureActingAsPage(tabId, args.target_id);
-      args = { ...args, target_type: "page", target_id: actingPage.page.url };
-    } catch (e) {
-      return { success: false, stop_loop: true, error: e.message, error_code: e.code || "PAGE_ROUTING_FAILED", agent_instruction: "Tell the user this in one sentence and stop. Do not retry." };
-    }
-  }
+  // v2.8: every Page upload goes through Meta Business Suite (business.facebook.com), never the facebook.com composer.
+  const useBS = toolName.startsWith("fb_publish") && String(args.target_type || "page").toLowerCase() !== "profile";
   let mediaList =
     args.media_paths ||
     (args.video_path ? [args.video_path] : args.media_path ? [args.media_path] : []);
@@ -3184,10 +3178,42 @@ async function dispatchProtectedBrowserTask(toolName, args) {
   inFlightLock = { tool: toolName, startedAt: Date.now() };
   const recordId = args.id || `fb_${Date.now()}`;
 
+  if (useBS) {
+    // Business Suite job runs in the background; the call returns within ~40 s with a job_id when it needs longer.
+    const jobId = `bs_${Date.now().toString(36)}`;
+    const startedAt = Date.now();
+    bsJobs.set(jobId, { job_id: jobId, tool: toolName, status: "running", started_at: startedAt });
+    const p = (async () => {
+      try {
+        const result = await self.MetaBS.bsPublishTool(toolName, { ...args, media_paths: mediaList, post_type: postType });
+        if (result && result.success && !result.dry_run) {
+          await setStorage({ fb_last_publish_at: Date.now(), fb_pending_task: null });
+          if (result.status === "published") await recordPublishLog(publishKind);
+          await recordDedupe(result.caption || args.caption || "", mediaList, recordId);
+          await recordPostHistory({ id: recordId, post_type: result.kind || postType, target_type: "page", title: args.title || "", caption: result.caption || args.caption || "", hashtags: args.hashtags || [], media_paths: mediaList, status: result.status, via: "meta_business_suite", scheduled_for: result.scheduled_for });
+        }
+        bsJobs.set(jobId, { job_id: jobId, tool: toolName, status: "done", started_at: startedAt, finished_at: Date.now(), result });
+        return result;
+      } catch (err) {
+        await recordPostHistory({ id: recordId, post_type: postType, caption: args.caption || "", media_paths: mediaList, status: "failed", error_message: err.message, via: "meta_business_suite" });
+        const result = { success: false, stop_loop: true, error: err.message, via: "meta_business_suite", agent_instruction: "Report this to the user in one sentence. Do not retry automatically." };
+        bsJobs.set(jobId, { job_id: jobId, tool: toolName, status: "failed", started_at: startedAt, finished_at: Date.now(), result });
+        return result;
+      } finally { inFlightLock = null; }
+    })();
+    if (args.from_scheduler) return await p;
+    const quick = await Promise.race([p, sleep(40000).then(() => null)]);
+    if (quick) return { job_id: jobId, ...quick };
+    return { success: true, status: "running", job_id: jobId, via: "meta_business_suite", message: "Uploading in Meta Business Suite (screen locked). Poll fb_publish_status with this job_id.", agent_instruction: "Call fb_publish_status {job_id, wait_seconds: 45} until status is done or failed. Do not start another upload meanwhile." };
+  }
+
   try {
-    return await withAutomationLease(tabId, async () => {
+    const runner = useBS ? (fn) => fn() : (fn) => withAutomationLease(tabId, fn);
+    return await runner(async () => {
       let result;
-      if (toolName === "fb_publish_reel" || (toolName === "fb_publish" && postType === "reel")) {
+      if (useBS) {
+        result = await self.MetaBS.bsPublishTool(toolName, { ...args, media_paths: mediaList, post_type: postType });
+      } else if (toolName === "fb_publish_reel" || (toolName === "fb_publish" && postType === "reel")) {
         result = await executeReelUploadInBrowser(tabId, { ...args, media_paths: mediaList });
       } else if (toolName === "fb_publish_story" || (toolName === "fb_publish" && postType === "story")) {
         result = await executeStoryUploadInBrowser(tabId, { ...args, media_paths: mediaList });
@@ -3207,7 +3233,7 @@ async function dispatchProtectedBrowserTask(toolName, args) {
         throw new Error(`Unsupported browser task: ${toolName}`);
       }
 
-      if (result && result.success) {
+      if (result && result.success && !result.dry_run) {
         await setStorage({ fb_last_publish_at: Date.now(), fb_pending_task: null });
         if (toolName.startsWith("fb_publish")) {
           await recordPublishLog(publishKind);
@@ -3527,6 +3553,18 @@ async function scheduleOne(args) {
   const asked = parseWhen(args);
   if (Number.isNaN(asked)) return { success: false, error: "schedule_time_iso must be an ISO date/time, e.g. 2026-11-22T09:00:00+05:30" };
   job.delivery = chooseDelivery(await getMetaConn(), job, args.delivery);
+  if (args.delivery !== "device" && job.delivery !== "meta" && asked && asked >= Date.now() + 15 * 60000 && asked <= Date.now() + 29 * 86400000 && String(job.target_type || "page") !== "profile") {
+    // Hand it straight to Business Suite's own scheduler (shows in Planner; AntiGem need not stay open).
+    try {
+      const r = await self.MetaBS.bsPublish(job.post_type === "story" ? "story" : (job.post_type === "reel" || job.post_type === "video") ? "reel" : "post", { ...args, title: job.title, caption: job.caption, hashtags: job.hashtags, media_paths: job.media_paths, thumbnail_path: job.thumbnail_path, schedule_ms: asked });
+      job.delivery = "business_suite"; job.status = "scheduled_on_meta"; job.run_at_timestamp = Math.floor(asked / 1000); job.result = r;
+      jobs.push(job); await setStorage({ fb_scheduled_jobs: pruneJobs(jobs) });
+      await recordDedupe(job.caption, job.media_paths, job.post_id);
+      return { ...r, job_id: job.job_id, delivery: "business_suite", run_at_local: new Date(asked).toLocaleString(), message: `Scheduled in Meta Business Suite for ${new Date(asked).toLocaleString()} (see Business Suite > Planner).` };
+    } catch (e) {
+      return { success: false, stop_loop: true, error: e.message, agent_instruction: "Tell the user this in one sentence. Do not retry automatically." };
+    }
+  }
   const occ = buildOccupancy(jobs, await getPublishLog());
   const from = Math.max(asked || 0, Date.now() + (job.delivery === "meta" ? META_MIN_LEAD_MIN + 5 : 10) * 60000);
   const problem = asked ? slotProblem(from, jobKind(job.post_type, job.target_type), occ, s) : "no time given";
@@ -4795,6 +4833,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (DEEPX_TOOLS.has(tool)) return await DEEPX.deepxExecute(tool, args);
 
     switch (tool) {
+      case "fb_publish_status": {
+        const id = args.job_id; const wait = Math.min(50, Math.max(0, +args.wait_seconds || 0)) * 1000; const end = Date.now() + wait;
+        if (!id) return { jobs: [...bsJobs.values()].slice(-10) };
+        while (Date.now() < end && bsJobs.get(id) && bsJobs.get(id).status === "running") await sleep(1000);
+        const j = bsJobs.get(id); if (!j) return { success: false, error: "Unknown job_id (the plugin may have been reloaded). Check Business Suite > Content/Planner." };
+        return j.status === "running" ? { ...j, elapsed_s: Math.round((Date.now() - j.started_at) / 1000) } : { ...j, ...(j.result || {}) };
+      }
+      case "meta_bs_eval": return await self.MetaBS.bsEvalTool(args);
+      case "meta_bs_inspect": return await self.MetaBS.bsInspect(args);
       case "fb_manage_queue": return await manageQueue(args);
       case "meta_viral_seo_generate": return metaViralSeo(args);
       case "meta_viral_algorithm_audit": return metaAlgorithmAudit(args);
