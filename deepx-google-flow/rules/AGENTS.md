@@ -7,3 +7,4 @@
 5. **Block fallback is automatic.** If standard mode hits Google "unusual activity / extension / captcha", the plugin re-sends in Agent Mode. Report it in one line; do not retry standard yourself.
 6. **Sign-in.** If not signed in, tell the user once to sign in in the AntiGem browser Flow tab, then stop.
 7. **Short replies.** Report job id, parts, and the final result in one or two lines. No raw JSON dumps.
+8. **Flow Nov 2026 controls.** Agent = spark switch in the prompt box (`deepx_flow_agent_toggle`, handled automatically by `deepx_generate`). Quick Agent answers sit above the prompt box; `deepx_flow_agent_open_chat` opens the full chat. To find an existing shot or ingredient, call `deepx_search_assets {query}` (name, prompt words, or a description of how it looks) and use `exact` first, then `similar`.
