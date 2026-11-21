@@ -3305,9 +3305,11 @@ const SAFETY_DEFAULTS = {
   active_start: "08:00",      // never post at night (local device time)
   active_end: "22:00",
   catchup_grace_minutes: 90,  // a job later than this (AntiGem was offline) is moved, never burst-posted
-  max_horizon_days: 90
+  max_horizon_days: 90,
+  warmup: true                // above 6 posts/day, volume rises week by week (6 -> 9 -> 12 -> 15) instead of jumping overnight
 };
-const SAFETY_HARD = { max_posts_per_day: 8, max_reels_per_day: 4, max_stories_per_day: 10, min_gap_minutes: 45, story_gap_minutes: 20, jitter_minutes: 20, max_horizon_days: 180 };
+const WARMUP_STEPS = [6, 9, 12, 15];
+const SAFETY_HARD = { max_posts_per_day: 15, max_reels_per_day: 4, max_stories_per_day: 10, min_gap_minutes: 45, story_gap_minutes: 20, jitter_minutes: 20, max_horizon_days: 180 };
 const RESTRICTION_RE = /temporarily blocked|we limit how often|limit how often you can|you can'?t (post|use this feature) right now|action blocked|account (has been |is )?(restricted|suspended|disabled|locked)|page (has been |is )?(restricted|unpublished)|you'?re restricted|checkpoint|confirm (it'?s you|your identity)|security check|suspicious activity|unusual activity|community standards|goes against our|marked as spam|looks like spam|try again later/i;
 const BULK_MAX = 500;
 let schedulerBusy = false;
@@ -3320,8 +3322,32 @@ function jobKind(postType) { const t = String(postType || "").toLowerCase(); ret
 function newJobId(prefix) { return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`; }
 
 async function getSafety() {
-  const st = await getStorage(["fb_safety_settings"]);
-  return clampSafety({ ...SAFETY_DEFAULTS, ...(st.fb_safety_settings || {}) });
+  const st = await getStorage(["fb_safety_settings", "fb_publish_log"]);
+  const s = clampSafety({ ...SAFETY_DEFAULTS, ...(st.fb_safety_settings || {}) });
+  // A Page that already published 8+ posts/day on 5 of the last 14 days is past the warm-up.
+  const perDay = {};
+  for (const e of Array.isArray(st.fb_publish_log) ? st.fb_publish_log : []) if (e && e.kind !== "story" && e.at >= Date.now() - 14 * 86400000) perDay[localDayKey(e.at)] = (perDay[localDayKey(e.at)] || 0) + 1;
+  s.established_high_volume = Object.values(perDay).filter(n => n >= 8).length >= 5;
+  return s;
+}
+
+function startOfDay(ms) { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); }
+// Daily post cap for the day of `ms`, including the warm-up ramp.
+function dailyCapFor(ms, s) {
+  const target = s.max_posts_per_day;
+  if (!s.warmup || target <= WARMUP_STEPS[0] || s.established_high_volume) return target;
+  const start = s.ramp_start || Date.now();
+  const weeks = Math.max(0, Math.floor((startOfDay(ms) - startOfDay(start)) / (7 * 86400000)));
+  return Math.min(target, WARMUP_STEPS[Math.min(weeks, WARMUP_STEPS.length - 1)]);
+}
+async function saveSafetyPatch(patch) {
+  const cur = (await getStorage(["fb_safety_settings"])).fb_safety_settings || {};
+  const next = { ...cur, ...patch };
+  if (Number(next.max_posts_per_day) > WARMUP_STEPS[0] && !next.ramp_start) next.ramp_start = Date.now();
+  const clamped = clampSafety(next);
+  delete clamped.gap_auto_fitted; delete clamped.established_high_volume;
+  await setStorage({ fb_safety_settings: clamped });
+  return getSafety();
 }
 function clampSafety(s) {
   const out = { ...SAFETY_DEFAULTS, ...s };
@@ -3337,6 +3363,13 @@ function clampSafety(s) {
   const a = hhmmToMin(out.active_start, 480), b = hhmmToMin(out.active_end, 1320);
   if (b - a < 4 * 60) { out.active_start = SAFETY_DEFAULTS.active_start; out.active_end = SAFETY_DEFAULTS.active_end; }
   else { out.active_start = minToHHMM(a); out.active_end = minToHHMM(b); }
+  // High volume: shrink the gap so the day's posts fit evenly in posting hours, but never below the hard minimum.
+  const windowMin = hhmmToMin(out.active_end, 1320) - hhmmToMin(out.active_start, 480) - 30;
+  const fit = Math.floor(windowMin / out.max_posts_per_day);
+  if (out.max_posts_per_day * out.min_gap_minutes > windowMin) { out.min_gap_minutes = Math.max(SAFETY_HARD.min_gap_minutes, fit); out.gap_auto_fitted = true; }
+  if (out.max_posts_per_day * out.min_gap_minutes > windowMin + 30) out.max_posts_per_day = Math.max(1, Math.floor((windowMin + 30) / out.min_gap_minutes));
+  out.warmup = out.warmup !== false;
+  out.ramp_start = Number.isFinite(Number(s.ramp_start)) ? Number(s.ramp_start) : null;
   return out;
 }
 
@@ -3369,14 +3402,16 @@ function slotProblem(ms, kind, occ, s) {
     if (occ.some(o => o.kind === "story" && Math.abs(o.at - ms) < s.story_gap_minutes * 60000)) return `less than ${s.story_gap_minutes} min after another story`;
     return null;
   }
-  if (sameDay.filter(o => o.kind !== "story").length >= s.max_posts_per_day) return `daily post limit (${s.max_posts_per_day}) reached`;
+  const cap = dailyCapFor(ms, s);
+  if (sameDay.filter(o => o.kind !== "story").length >= cap) return cap < s.max_posts_per_day ? `warm-up limit for that day (${cap}/day, rising to ${s.max_posts_per_day})` : `daily post limit (${cap}) reached`;
   if (kind === "reel" && sameDay.filter(o => o.kind === "reel").length >= s.max_reels_per_day) return `daily reel limit (${s.max_reels_per_day}) reached`;
   if (occ.some(o => o.kind !== "story" && Math.abs(o.at - ms) < s.min_gap_minutes * 60000)) return `less than ${s.min_gap_minutes} min from another post`;
   return null;
 }
 
 function defaultTimes(perDay, s) {
-  const a = hhmmToMin(s.active_start, 480) + 60, b = hhmmToMin(s.active_end, 1320) - 60;
+  const pad = perDay > 6 ? 15 : 60;
+  const a = hhmmToMin(s.active_start, 480) + pad, b = hhmmToMin(s.active_end, 1320) - pad;
   if (perDay <= 1) return [minToHHMM(Math.round(a + (b - a) * 0.55))];
   return Array.from({ length: perDay }, (_, i) => minToHHMM(Math.round(a + (b - a) * i / (perDay - 1))));
 }
@@ -3385,10 +3420,12 @@ function defaultTimes(perDay, s) {
 function nextSafeSlot(fromMs, kind, occ, s, preferredTimes) {
   const times = (preferredTimes && preferredTimes.length ? preferredTimes : defaultTimes(s.max_posts_per_day, s)).map(t => hhmmToMin(t, null)).filter(n => n != null).sort((x, y) => x - y);
   const start = new Date(fromMs); start.setHours(0, 0, 0, 0);
+  const spacing = (hhmmToMin(s.active_end, 1320) - hhmmToMin(s.active_start, 480)) / Math.max(1, times.length);
+  const jitter = Math.max(2, Math.min(s.jitter_minutes, Math.floor((spacing - s.min_gap_minutes) / 2)));
   for (let d = 0; d <= s.max_horizon_days + 1; d++) {
     const day = new Date(start); day.setDate(start.getDate() + d);
     const base = day.getTime();
-    const candidates = times.map(m => base + m * 60000 + Math.round((Math.random() * 2 - 1) * s.jitter_minutes) * 60000);
+    const candidates = times.map(m => base + m * 60000 + Math.round((Math.random() * 2 - 1) * jitter) * 60000);
     for (let m = hhmmToMin(s.active_start, 480); m < hhmmToMin(s.active_end, 1320); m += 15) candidates.push(base + m * 60000 + Math.round(Math.random() * Math.min(s.jitter_minutes, 7)) * 60000);
     for (const c of candidates) {
       const ms = Math.floor(c / 60000) * 60000;
@@ -3407,6 +3444,21 @@ function parseWhen(args) {
   return Number.isFinite(t) ? t : NaN;
 }
 
+// Same photo posted twice (even renamed) is a spam signal: hash file contents (falls back to path+size+date for huge files).
+async function mediaHashes(paths, preferVideo) {
+  const out = [];
+  for (const mp of paths) {
+    const r = await resolveLocalFile(mp, preferVideo);
+    let h = null;
+    try {
+      const st = chrome.antigem && chrome.antigem.stat ? await chrome.antigem.stat({ path: r.path }) : null;
+      if (st && st.size <= 20 * 1024 * 1024 && chrome.antigem.readFile) h = "c:" + await sha256Hex(await chrome.antigem.readFile({ path: r.path, encoding: "base64" }));
+    } catch (_) {}
+    out.push(h || "f:" + await sha256Hex(r.fingerprint || r.path));
+  }
+  return out;
+}
+
 async function captionHash(caption) { const c = normalizeCaption(caption || ""); return c.length > 20 ? sha256Hex(c) : null; }
 
 async function prepareJob(args, s) {
@@ -3417,7 +3469,7 @@ async function prepareJob(args, s) {
   if (["photo", "carousel"].includes(postType) && !mediaPaths.length) throw new Error(`${postType} needs media_paths`);
   if (!mediaPaths.length && !String(enriched.caption || "").trim()) throw new Error("caption or media_paths is required");
   // Check files now, so a post never fails (and retries) on the day it is due.
-  for (const mp of mediaPaths) await resolveLocalFile(mp, postType === "reel" || postType === "video");
+  const media_hashes = await mediaHashes(mediaPaths, postType === "reel" || postType === "video");
   if (args.thumbnail_path) await resolveLocalFile(args.thumbnail_path);
   if ((enriched.hashtags || []).length > 6) enriched.hashtags = enriched.hashtags.slice(0, 6);
   return {
@@ -3426,7 +3478,7 @@ async function prepareJob(args, s) {
     thumbnail_path: args.thumbnail_path || null, media_paths: mediaPaths, post_type: postType,
     target_type: args.target_type || "page", target_id: args.target_id || null,
     status: "queued", attempts: 0, created_at: Date.now(),
-    caption_hash: await captionHash(enriched.caption)
+    caption_hash: await captionHash(enriched.caption), media_hashes
   };
 }
 
@@ -3434,6 +3486,11 @@ async function knownCaptionHashes(jobs) {
   const st = await getStorage(["fb_dedupe_ledger"]);
   const set = new Set((Array.isArray(st.fb_dedupe_ledger) ? st.fb_dedupe_ledger : []).filter(e => e.type === "caption").map(e => e.hash));
   for (const j of jobs) if (j.caption_hash && ["queued", "running", "completed"].includes(j.status)) set.add(j.caption_hash);
+  return set;
+}
+function knownMediaHashes(jobs) {
+  const set = new Set();
+  for (const j of jobs) if (["queued", "running", "completed"].includes(j.status)) for (const h of j.media_hashes || []) set.add(h);
   return set;
 }
 
@@ -3448,6 +3505,7 @@ async function scheduleOne(args) {
   const jobs = Array.isArray(st.fb_scheduled_jobs) ? st.fb_scheduled_jobs : [];
   let job;
   try { job = await prepareJob(args, s); } catch (e) { return { success: false, error: e.message }; }
+  if ((job.media_hashes || []).some(h => knownMediaHashes(jobs).has(h))) return { success: false, duplicate_detected: true, error: "This photo/video is already queued or was posted in the last 30 days. Posting the same image again looks like spam to Meta; use a different one." };
   if (job.caption_hash && (await knownCaptionHashes(jobs)).has(job.caption_hash)) return { success: false, duplicate_detected: true, error: "This caption is already queued or was published recently. Meta treats repeated posts as spam; change the text." };
   const asked = parseWhen(args);
   if (Number.isNaN(asked)) return { success: false, error: "schedule_time_iso must be an ISO date/time, e.g. 2026-11-22T09:00:00+05:30" };
@@ -3469,8 +3527,14 @@ async function scheduleOne(args) {
 }
 
 async function scheduleBulk(args) {
-  const s = await getSafety();
+  let s = await getSafety();
   const posts = Array.isArray(args.posts) ? args.posts : [];
+  let settingsChanged = null;
+  const askedPerDay = Math.round(Number(args.posts_per_day) || 0);
+  if (askedPerDay > s.max_posts_per_day) {
+    s = await saveSafetyPatch({ max_posts_per_day: Math.min(askedPerDay, SAFETY_HARD.max_posts_per_day) });
+    settingsChanged = { max_posts_per_day: s.max_posts_per_day, min_gap_minutes: s.min_gap_minutes, warmup: s.warmup && !s.established_high_volume };
+  }
   if (!posts.length) return { success: false, error: "posts is required: an array of {title, caption, hashtags, media_paths, post_type}" };
   if (posts.length > BULK_MAX) return { success: false, error: `At most ${BULK_MAX} posts per call.` };
   const perDay = Math.min(Number(args.posts_per_day) || s.max_posts_per_day, s.max_posts_per_day);
@@ -3481,7 +3545,7 @@ async function scheduleBulk(args) {
   const startMs = Math.max(startAsked || 0, Date.now() + 10 * 60000);
   const st = await getStorage(["fb_scheduled_jobs"]);
   const jobs = Array.isArray(st.fb_scheduled_jobs) ? st.fb_scheduled_jobs : [];
-  const seen = await knownCaptionHashes(jobs);
+  const seen = await knownCaptionHashes(jobs), seenMedia = knownMediaHashes(jobs);
   const occ = buildOccupancy(jobs, await getPublishLog());
   const added = [], rejected = [];
   let cursor = startMs;
@@ -3489,6 +3553,7 @@ async function scheduleBulk(args) {
     const p = posts[i] || {};
     let job;
     try { job = await prepareJob(p, s); } catch (e) { rejected.push({ index: i, title: p.title || null, reason: e.message }); continue; }
+    if ((job.media_hashes || []).some(h => seenMedia.has(h))) { rejected.push({ index: i, title: job.title, reason: "same photo/video as another post (in this batch, the queue, or the last 30 days)" }); continue; }
     if (job.caption_hash && seen.has(job.caption_hash)) { rejected.push({ index: i, title: job.title, reason: "duplicate caption (already in this batch, the queue, or published in the last 24h)" }); continue; }
     const kind = jobKind(job.post_type), asked = parseWhen(p);
     let at = null;
@@ -3497,6 +3562,7 @@ async function scheduleBulk(args) {
     if (!at) { rejected.push({ index: i, title: job.title, reason: `no safe slot within ${s.max_horizon_days} days` }); continue; }
     job.run_at_timestamp = Math.floor(at / 1000);
     if (job.caption_hash) seen.add(job.caption_hash);
+    for (const h of job.media_hashes || []) seenMedia.add(h);
     occ.push({ at, kind });
     if (kind !== "story" && !asked) cursor = at;
     jobs.push(job); added.push(job);
@@ -3511,12 +3577,14 @@ async function scheduleBulk(args) {
     scheduled: added.length, rejected_count: rejected.length, rejected: rejected.slice(0, 50),
     first_post_local: sorted.length ? new Date(sorted[0] * 1000).toLocaleString() : null,
     last_post_local: sorted.length ? new Date(sorted.at(-1) * 1000).toLocaleString() : null,
-    days_covered: days, posts_per_day_used: perDay, preferred_times: times,
+    days_covered: days, posts_per_day_target: perDay, preferred_times: times,
+    warmup: s.warmup && !s.established_high_volume && perDay > WARMUP_STEPS[0] ? `Warm-up: ${WARMUP_STEPS.filter(n => n < perDay).concat(perDay).join(" -> ")} posts/day, one step per week, so the Page's volume rises gradually.` : null,
+    settings_changed: settingsChanged,
     per_day: perDayCount,
     preview: added.slice(0, 10).map(j => ({ job_id: j.job_id, title: j.title, post_type: j.post_type, run_at_local: new Date(j.run_at_timestamp * 1000).toLocaleString() })),
     safety: plan,
     note: "Posts publish one at a time from this device, so AntiGem must stay open. If it was closed, overdue posts are moved to the next safe slot instead of being posted in a burst. Any Meta warning pauses the whole queue.",
-    agent_instruction: "Tell the user in 2-3 short sentences: how many posts were scheduled, the date range and posts per day, and how many were rejected and why. Do not call fb_schedule_bulk again for the same posts."
+    agent_instruction: "Tell the user in 2-3 short sentences: how many posts were scheduled, the date range and posts per day (mention the warm-up if present), and how many were rejected and why. Do not call fb_schedule_bulk again for the same posts."
   };
 }
 
@@ -3664,13 +3732,12 @@ async function safetySettingsTool(args = {}) {
   const action = String(args.action || "get").toLowerCase();
   if (action === "reset") await setStorage({ fb_safety_settings: null });
   else if (action === "set") {
-    const cur = (await getStorage(["fb_safety_settings"])).fb_safety_settings || {};
-    const next = { ...cur };
-    for (const k of Object.keys(SAFETY_DEFAULTS)) if (args[k] != null) next[k] = args[k];
-    await setStorage({ fb_safety_settings: clampSafety(next) });
+    const patch = {};
+    for (const k of Object.keys(SAFETY_DEFAULTS)) if (args[k] != null) patch[k] = args[k];
+    await saveSafetyPatch(patch);
   }
   const s = await getSafety();
-  return { success: true, settings: s, hard_limits: SAFETY_HARD, note: "Values beyond the hard limits are clamped: they cannot be loosened further, only made stricter." };
+  return { success: true, settings: s, today_cap: dailyCapFor(Date.now(), s), hard_limits: SAFETY_HARD, note: "Values beyond the hard limits are clamped: they cannot be loosened further, only made stricter." };
 }
 
 function scheduleList(jobs, limit = 20, statuses = ["queued", "awaiting_login", "running", "needs_review"]) {

@@ -169,25 +169,28 @@ When the user asks to "find trends", "what's trending", "search topics", "viral 
 
 ### 5A. Bulk scheduling: a week or a month of content in one call
 - For more than 3 posts use **`fb_schedule_bulk {posts:[...], start_date_iso, posts_per_day?, preferred_times?}`** (1-500 posts). Never loop `fb_schedule` 100 times.
-- Every post in `posts` must have its own caption (duplicates are rejected) and real media files (checked up front).
-- Plan honestly with the user: at the default **3 posts/day**, 100 posts = about **34 days**. If the user asks for 100 posts in one week, explain that 14+ posts a day on one Page is a spam pattern that gets Pages restricted, and offer 1 month at 3/day (or up to the hard max of 8/day if they insist).
-- After the call, report: scheduled count, date range, posts per day, rejected items and why. Do not call it again for the same posts.
+- Every post must have its own caption AND its own photo/video: repeated captions and repeated images (even renamed copies) are rejected.
+- `posts_per_day` up to **15** is allowed (high-volume photo Pages). Above 6/day the **warm-up** applies automatically: 6/day in week 1 → 9 → 12 → the target from week 4, so the Page's volume never jumps overnight. Pages that already posted 8+/day on 5 of the last 14 days skip the warm-up.
+- At 15/day the gap auto-fits to about 54 min across 08:00-22:00. A month at 15/day needs roughly 350-400 different photos.
+- More than 15/day is refused: explain that it is a burst/spam pattern and offer 15/day.
+- After the call, report: scheduled count, date range, posts per day (and the warm-up), rejected items and why. Do not call it again for the same posts.
 
 ### 5B. Page Safety Governor (always on, cannot be switched off)
 | Rule | Default | Hard limit |
 | --- | --- | --- |
-| Feed posts + reels per day | 3 | 8 |
+| Feed posts + reels per day | 3 | 15 (with warm-up above 6) |
 | Reels per day | 2 | 4 |
 | Stories per day | 3 | 10 |
-| Gap between posts | 120 min | ≥ 45 min |
+| Gap between posts | 120 min (auto-fits to the day at high volume) | ≥ 45 min |
 | Gap between stories | 60 min | ≥ 20 min |
 | Posting hours (device time) | 08:00-22:00 | ≥ 4 h window |
-| Random timing offset | ±10 min | ±20 min |
-- Change limits with `fb_safety_settings {action:"set", ...}`: values are clamped, so they can only be made stricter than the hard limits.
-- Manual `fb_publish` also counts: after 8 posts in a day, or within 10 min of the last post, it refuses and the post should be scheduled instead.
-- **Auto-pause on any Meta warning** ("temporarily blocked", "we limit how often", checkpoint/security check, "community standards", "restricted"): the whole queue and manual posting stop. Tell the user to solve any check themselves in the AntiGem browser, wait 24-48 h, look at Page Quality / Account Status in Meta Business Suite, then `fb_manage_queue {action:"resume"}`. Never resume, retry, or work around a warning on your own.
-- 3 failures in a row pause the queue for 6 hours. An interrupted post becomes `needs_review` and is never re-posted blindly (double posts look like spam).
-- Content rules still matter more than timing: original content only (no reposted copyrighted videos/music), no engagement bait ("like if…", "share to win"), no misleading clickbait links, max 3-6 relevant hashtags.
+| Random timing offset | ±10 min (smaller when posts are dense) | ±20 min |
+| Duplicate caption / duplicate image | rejected | rejected |
+- Change limits with `fb_safety_settings {action:"set", ...}` (e.g. `max_posts_per_day: 12`). Values are clamped to the hard limits.
+- Manual `fb_publish` also counts: after 15 posts in a day, or within 10 min of the last post, it refuses and the post should be scheduled instead.
+- **Auto-pause on any Meta warning** ("temporarily blocked", "we limit how often", checkpoint/security check, "community standards", "restricted"): the whole queue and manual posting stop. Tell the user to solve any check themselves in the AntiGem browser, wait 24-48 h, look at Page Quality / Account Status in Meta Business Suite, then `fb_manage_queue {action:"resume"}`. After a pause, suggest lowering `max_posts_per_day`. Never resume, retry, or work around a warning on your own.
+- 3 failures in a row pause the queue for 6 hours. An interrupted post becomes `needs_review` and is never re-posted blindly.
+- At high volume, content quality decides reach: original photos only (no reposted/watermarked images), no engagement bait ("like if…", "share to win"), varied captions, 3-6 relevant hashtags.
 
 ---
 

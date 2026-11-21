@@ -496,7 +496,7 @@
     },
     {
       "name": "fb_schedule_bulk",
-      "description": "Schedule many Facebook Page posts at once (1-500, e.g. a week or a month of content) in ONE call. The Page Safety Governor spreads them out automatically: at most max_posts_per_day per day (default 3, hard max 8), at least min_gap_minutes apart (default 120), only in posting hours (default 08:00-22:00), with random +/- minutes so timing is never robotic. Duplicate captions and missing media files are rejected up front. 100 posts at the default 3/day take about 34 days; do not try to squeeze a month of posts into one week, that is a spam pattern. Returns the date range and per-day plan.",
+      "description": "Schedule many Facebook Page posts at once (1-500, a week or a month of content) in ONE call. The Page Safety Governor spreads them out: posts_per_day up to 15 (default 3); above 6/day a warm-up raises volume weekly (6 -> 9 -> 12 -> target); gaps auto-fit to posting hours (08:00-22:00, never under 45 min); random timing offsets; repeated captions and repeated images (even renamed) and missing files are rejected up front. Returns the date range, per-day plan and warm-up.",
       "inputSchema": {
         "type": "object",
         "required": [
@@ -562,7 +562,7 @@
           },
           "posts_per_day": {
             "type": "integer",
-            "description": "Feed posts + reels per day (capped by safety settings, default 3)."
+            "description": "Feed posts + reels per day, 1-15 (default 3). Raising it here also updates the safety settings."
           },
           "preferred_times": {
             "type": "array",
@@ -576,7 +576,7 @@
     },
     {
       "name": "fb_safety_settings",
-      "description": "View or change the Page Safety Governor limits used by fb_schedule, fb_schedule_bulk and the queue. action='get' | 'set' | 'reset'. Values can be made stricter but are clamped at hard limits (8 posts/day, 4 reels/day, 10 stories/day, 45 min gap).",
+      "description": "View or change the Page Safety Governor limits used by fb_schedule, fb_schedule_bulk and the queue. action='get' | 'set' | 'reset'. Values can be made stricter but are clamped at hard limits (15 posts/day with weekly warm-up above 6, 4 reels/day, 10 stories/day, 45 min gap).",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -620,6 +620,10 @@
           },
           "max_horizon_days": {
             "type": "integer"
+          },
+          "warmup": {
+            "type": "boolean",
+            "description": "Weekly warm-up above 6 posts/day (default true)."
           }
         }
       }

@@ -15,7 +15,7 @@
 
 ### 0. Meta Suite v2.5.0: Bulk Safe Scheduler + Page Safety Governor
 - **`fb_schedule_bulk`** schedules 1-500 posts in one call (a week or a month of content) and spreads them out automatically: 100 posts at the default 3/day = about 34 days.
-- **Page Safety Governor** (always on): default 3 posts/day (hard max 8), 2 reels/day, 3 stories/day, 2 h between posts (never under 45 min), posting only 08:00-22:00, random ±10 min timing, duplicate captions and missing files rejected up front. Change it with `fb_safety_settings` (it can only be made stricter than the hard limits).
+- **Page Safety Governor** (always on): default 3 posts/day, up to **15/day** for photo Pages with an automatic weekly warm-up (6 → 9 → 12 → 15), 2 reels/day, 3 stories/day, 2 h between posts (auto-fits at high volume, never under 45 min), posting only 08:00-22:00, random ±10 min timing, duplicate captions, repeated images (even renamed) and missing files rejected up front. Change it with `fb_safety_settings` (it can only be made stricter than the hard limits).
 - **No catch-up bursts:** if AntiGem was closed, overdue posts move to the next safe slots instead of posting back-to-back. At most one post per scheduler tick.
 - **Auto-pause on any Meta warning** (temporarily blocked, "we limit how often", checkpoint, community standards, restricted): the queue *and* manual posting stop until the user resumes with `fb_manage_queue {action:"resume"}`. 3 failures in a row pause for 6 h. Interrupted posts are never re-posted blindly.
 - Fixed: `fb_schedule` with `schedule_time_iso` (the documented argument) saved an invalid time and never published.
