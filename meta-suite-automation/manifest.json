@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "id": "meta-suite-automation",
   "name": "Meta Suite Page Management",
-  "version": "2.5.0",
-  "description": "Master Autonomous Meta Suite Production Engine (v2.5.0): Facebook Page management that really posts AS your Page (auto Page discovery + profile switch, default Page), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
+  "version": "2.6.0",
+  "description": "Master Autonomous Meta Suite Production Engine (v2.6.0): Facebook Page management that really posts AS your Page (auto Page discovery + profile switch, default Page), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
   "author": "Dipesh Kr Yadav",
   "icon": "icon.png",
   "icons": {
@@ -496,7 +496,7 @@
     },
     {
       "name": "fb_schedule_bulk",
-      "description": "Schedule many Facebook Page posts at once (1-500, a week or a month of content) in ONE call. The Page Safety Governor spreads them out: posts_per_day up to 15 (default 3); above 6/day a warm-up raises volume weekly (6 -> 9 -> 12 -> target); gaps auto-fit to posting hours (08:00-22:00, never under 45 min); random timing offsets; repeated captions and repeated images (even renamed) and missing files are rejected up front. Returns the date range, per-day plan and warm-up.",
+      "description": "Schedule many Facebook posts at once (1-500 per call, a week or a month of content) in ONE call. The Page Safety Governor spreads them out: Pages up to 30 posts/day (default 3) with a 4-week warm-up above 6/day (e.g. 6 -> 14 -> 22 -> 30), evenly spaced (about 30 min apart at 30/day, never back-to-back), 07:00-23:00 above 20/day; personal profiles max 3/day. Repeated captions, repeated images (even renamed) and missing files are rejected up front. Returns the date range, per-day plan and warm-up.",
       "inputSchema": {
         "type": "object",
         "required": [
@@ -562,7 +562,7 @@
           },
           "posts_per_day": {
             "type": "integer",
-            "description": "Feed posts + reels per day, 1-15 (default 3). Raising it here also updates the safety settings."
+            "description": "Page feed posts + reels per day, 1-30 (default 3). Raising it here also updates the safety settings and restarts the warm-up from today's level."
           },
           "preferred_times": {
             "type": "array",
@@ -576,7 +576,7 @@
     },
     {
       "name": "fb_safety_settings",
-      "description": "View or change the Page Safety Governor limits used by fb_schedule, fb_schedule_bulk and the queue. action='get' | 'set' | 'reset'. Values can be made stricter but are clamped at hard limits (15 posts/day with weekly warm-up above 6, 4 reels/day, 10 stories/day, 45 min gap).",
+      "description": "View or change the Page Safety Governor limits used by fb_schedule, fb_schedule_bulk and the queue. action='get' | 'set' | 'reset'. Values are clamped at hard limits (Pages 30 posts/day with a 4-week warm-up above 6, 4 reels/day, 10 stories/day, 25 min gap; personal profiles 3/day).",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -630,7 +630,7 @@
     },
     {
       "name": "fb_manage_queue",
-      "description": "Inspect and control the scheduled post queue: action='list'|'status' (counts, next/last post, pause state), 'cancel' (job_id), 'cancel_all', 'reschedule' (job_id + new_schedule_time_iso, moved to a safe slot if needed), 'run_now' (job_id, still respects the minimum gap), 'pause', 'resume' (only after the user checked the Page when the queue auto-paused on a Meta warning).",
+      "description": "Inspect and control the scheduled post queue: action='list'|'status' (counts, next/last post, pause state), 'cancel' (job_id), 'cancel_all', 'reschedule' (job_id + new_schedule_time_iso, moved to a safe slot if needed), 'run_now' (job_id, still respects the minimum gap), 'pause', 'resume' (only after the user checked the Page; after a Meta warning it halves the daily volume and restarts the warm-up).",
       "inputSchema": {
         "properties": {
           "action": {

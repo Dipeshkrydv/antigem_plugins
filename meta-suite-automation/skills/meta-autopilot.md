@@ -4,7 +4,7 @@ description: >-
   Autonomous Meta Business Suite Page Management Autopilot. Use when the user requests to post, publish, or schedule anything (photos, reels, videos, stories, announcements, text posts) to managed Facebook Pages via Meta Business Suite, or mentions 'manage page', 'page scheduler', 'meta suite', 'schedule post to page', 'meta bridge', 'page automation', or 'handle my facebook page'. Enforces permanent one-time setup, zero-tab prompts (never ask the user to open tabs, switch windows, or click UI buttons), automatic media generation for zero-friction posts, authentic page grounding via Meta Business Suite (target_type: "page", target_id: "me" or explicit page ID), viral SEO hooks and hashtags, and continuous background dispatch via SQLite WAL and WebSocket bridge.
 ---
 
-# Meta Business Suite Page Autopilot (v2.5.0)
+# Meta Business Suite Page Autopilot (v2.6.0)
 
 This skill governs the high-speed, zero-interruption execution pipeline of the Meta Suite AntiGem plugin (its MCP tools drive the AntiGem browser directly; scheduled posts are stored in the plugin and published by its built-in 1-minute scheduler) to manage connected **Facebook Pages via Meta Business Suite** autonomously in the background.
 
@@ -32,7 +32,7 @@ result = fb_status()   # <-- first tool call, every time, no exceptions
   - The plugin's MCP tools drive Facebook directly in the AntiGem browser (no WebSocket bridge, no Chrome extension, no daemon to start).
   - Managed Pages are discovered automatically and every Page action runs while switched into the Page.
   - The built-in scheduler checks queued posts every minute while AntiGem is running (`fb_manage_queue` to list / cancel / reschedule).
-  - Many posts at once (a week/month of content) → ONE `fb_schedule_bulk` call. The Page Safety Governor paces them (default 3/day, up to 15/day with a weekly warm-up 6→9→12→15, ≥45 min apart, 08:00-22:00, no repeated captions or images) and pauses everything on any Meta warning; never resume a paused queue without the user.
+  - Many posts at once (a week/month of content) → ONE `fb_schedule_bulk` call. The Page Safety Governor paces them (Pages: default 3/day, up to 30/day with a 4-week warm-up, evenly spread ≥25 min apart, never back-to-back; personal profiles max 3/day; no repeated captions or images) and pauses everything on any Meta warning; never resume a paused queue without the user.
 - **ZERO DUMMY QUESTIONS & ZERO TAB PROMPTS MANDATE**:
   - Antigravity MUST **NEVER** ask the user to open `business.facebook.com` or switch Chrome tabs.
   - Antigravity MUST **NEVER** ask the user to open the Chrome Extension popup.

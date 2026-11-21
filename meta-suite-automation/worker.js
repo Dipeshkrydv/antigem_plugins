@@ -1,5 +1,5 @@
 /**
- * AntiGem WebView MCP Service Worker for Meta Suite Page Management (v2.5.0)
+ * AntiGem WebView MCP Service Worker for Meta Suite Page Management (v2.6.0)
  * Built on the Facebook Automation precision engine + Meta Suite layer (managed Page routing,
  * queue manager, viral SEO, algorithm audit, trend radar, DeepX Google Flow media).
  *
@@ -31,11 +31,11 @@
 // deepx-bundle.js is generated from deepx-google-flow (tools/build_classic_bundle.py).
 importScripts("deepx-bundle.js");
 const DEEPX = self.DeepXFlow;
-DEEPX.configureDeepX({ pluginId: "meta-suite-automation", version: "2.5.0" });
+DEEPX.configureDeepX({ pluginId: "meta-suite-automation", version: "2.6.0" });
 const DEEPX_TOOLS = new Set(["deepx_generate", "deepx_job_status", "deepx_check_login", "deepx_status", "deepx_cancel_job", "deepx_get_options", "deepx_flow_agent_status", "deepx_flow_agent_toggle", "deepx_flow_agent_configure", "deepx_flow_agent_set_instructions", "deepx_flow_agent_approve_all", "deepx_flow_agent_batch_queue", "deepx_upscale_media", "deepx_download_media", "deepx_upload_asset", "flow_get_last_media", "flow_get_media", "flow_list_media"]);
 
 const PLUGIN_ID = "meta-suite-automation";
-const PLUGIN_VERSION = "2.5.0";
+const PLUGIN_VERSION = "2.6.0";
 const FB_HOME_URL = "https://www.facebook.com/";
 const FB_REELS_CREATE_URL = "https://www.facebook.com/reels/create";
 const FB_STORIES_CREATE_URL = "https://www.facebook.com/stories/create";
@@ -3175,7 +3175,7 @@ async function dispatchProtectedBrowserTask(toolName, args) {
     }
   }
 
-  const publishKind = (toolName === "fb_publish_story" || postType === "story") ? "story" : (toolName === "fb_publish_reel" || postType === "reel") ? "reel" : "feed";
+  const publishKind = String(args.target_type || "").toLowerCase() === "profile" ? "profile" : (toolName === "fb_publish_story" || postType === "story") ? "story" : (toolName === "fb_publish_reel" || postType === "reel") ? "reel" : "feed";
   if (toolName.startsWith("fb_publish")) {
     const guard = await manualPublishGuard(publishKind, Boolean(args.from_scheduler));
     if (guard) return guard;
@@ -3308,8 +3308,9 @@ const SAFETY_DEFAULTS = {
   max_horizon_days: 90,
   warmup: true                // above 6 posts/day, volume rises week by week (6 -> 9 -> 12 -> 15) instead of jumping overnight
 };
-const WARMUP_STEPS = [6, 9, 12, 15];
-const SAFETY_HARD = { max_posts_per_day: 15, max_reels_per_day: 4, max_stories_per_day: 10, min_gap_minutes: 45, story_gap_minutes: 20, jitter_minutes: 20, max_horizon_days: 180 };
+const WARMUP_STEPS = [6];   // week 1 cap; later weeks rise evenly to the target over 4 weeks (e.g. 6 -> 14 -> 22 -> 30)
+const PROFILE_LIMITS = { per_day: 3, gap_minutes: 120 };  // personal profiles get restricted far faster than Pages
+const SAFETY_HARD = { max_posts_per_day: 30, max_reels_per_day: 4, max_stories_per_day: 10, min_gap_minutes: 25, story_gap_minutes: 20, jitter_minutes: 20, max_horizon_days: 180 };
 const RESTRICTION_RE = /temporarily blocked|we limit how often|limit how often you can|you can'?t (post|use this feature) right now|action blocked|account (has been |is )?(restricted|suspended|disabled|locked)|page (has been |is )?(restricted|unpublished)|you'?re restricted|checkpoint|confirm (it'?s you|your identity)|security check|suspicious activity|unusual activity|community standards|goes against our|marked as spam|looks like spam|try again later/i;
 const BULK_MAX = 500;
 let schedulerBusy = false;
@@ -3318,7 +3319,9 @@ function hhmmToMin(v, fallback) { const m = /^(\d{1,2}):(\d{2})$/.exec(String(v 
 function minToHHMM(n) { return `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`; }
 function localDayKey(ms) { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
 function minuteOfDay(ms) { const d = new Date(ms); return d.getHours() * 60 + d.getMinutes(); }
-function jobKind(postType) { const t = String(postType || "").toLowerCase(); return t === "story" ? "story" : t === "reel" ? "reel" : "feed"; }
+function jobKind(postType, targetType) { if (String(targetType || "").toLowerCase() === "profile") return "profile"; const t = String(postType || "").toLowerCase(); return t === "story" ? "story" : t === "reel" ? "reel" : "feed"; }
+const isPageKind = k => k === "feed" || k === "reel";
+function warmupSteps(target, from = WARMUP_STEPS[0]) { const f = Math.min(target, Math.max(WARMUP_STEPS[0], from || 0)); return [0, 1, 2, 3].map(w => Math.min(target, Math.round(f + (target - f) * w / 3))); }
 function newJobId(prefix) { return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`; }
 
 async function getSafety() {
@@ -3326,7 +3329,7 @@ async function getSafety() {
   const s = clampSafety({ ...SAFETY_DEFAULTS, ...(st.fb_safety_settings || {}) });
   // A Page that already published 8+ posts/day on 5 of the last 14 days is past the warm-up.
   const perDay = {};
-  for (const e of Array.isArray(st.fb_publish_log) ? st.fb_publish_log : []) if (e && e.kind !== "story" && e.at >= Date.now() - 14 * 86400000) perDay[localDayKey(e.at)] = (perDay[localDayKey(e.at)] || 0) + 1;
+  for (const e of Array.isArray(st.fb_publish_log) ? st.fb_publish_log : []) if (e && isPageKind(e.kind || "feed") && e.at >= Date.now() - 14 * 86400000) perDay[localDayKey(e.at)] = (perDay[localDayKey(e.at)] || 0) + 1;
   s.established_high_volume = Object.values(perDay).filter(n => n >= 8).length >= 5;
   return s;
 }
@@ -3338,12 +3341,18 @@ function dailyCapFor(ms, s) {
   if (!s.warmup || target <= WARMUP_STEPS[0] || s.established_high_volume) return target;
   const start = s.ramp_start || Date.now();
   const weeks = Math.max(0, Math.floor((startOfDay(ms) - startOfDay(start)) / (7 * 86400000)));
-  return Math.min(target, WARMUP_STEPS[Math.min(weeks, WARMUP_STEPS.length - 1)]);
+  return warmupSteps(target, s.ramp_from)[Math.min(weeks, 3)];
 }
 async function saveSafetyPatch(patch) {
   const cur = (await getStorage(["fb_safety_settings"])).fb_safety_settings || {};
   const next = { ...cur, ...patch };
-  if (Number(next.max_posts_per_day) > WARMUP_STEPS[0] && !next.ramp_start) next.ramp_start = Date.now();
+  const prev = await getSafety();
+  if (patch.ramp_start) next.ramp_from = WARMUP_STEPS[0];
+  else if (Number(next.max_posts_per_day) > Math.max(WARMUP_STEPS[0], prev.max_posts_per_day)) {
+    // Raising the volume warms up again from what the Page posts today, not from zero and not in one jump.
+    next.ramp_from = prev.max_posts_per_day > WARMUP_STEPS[0] ? dailyCapFor(Date.now(), prev) : WARMUP_STEPS[0];
+    next.ramp_start = Date.now();
+  }
   const clamped = clampSafety(next);
   delete clamped.gap_auto_fitted; delete clamped.established_high_volume;
   await setStorage({ fb_safety_settings: clamped });
@@ -3363,13 +3372,16 @@ function clampSafety(s) {
   const a = hhmmToMin(out.active_start, 480), b = hhmmToMin(out.active_end, 1320);
   if (b - a < 4 * 60) { out.active_start = SAFETY_DEFAULTS.active_start; out.active_end = SAFETY_DEFAULTS.active_end; }
   else { out.active_start = minToHHMM(a); out.active_end = minToHHMM(b); }
+  // Above 20 posts/day the default posting hours widen to 07:00-23:00 so posts stay ~30 min apart.
+  if (out.max_posts_per_day > 20 && out.active_start === SAFETY_DEFAULTS.active_start && out.active_end === SAFETY_DEFAULTS.active_end) { out.active_start = "07:00"; out.active_end = "23:00"; }
   // High volume: shrink the gap so the day's posts fit evenly in posting hours, but never below the hard minimum.
-  const windowMin = hhmmToMin(out.active_end, 1320) - hhmmToMin(out.active_start, 480) - 30;
+  const windowMin = hhmmToMin(out.active_end, 1320) - hhmmToMin(out.active_start, 480) - 60;
   const fit = Math.floor(windowMin / out.max_posts_per_day);
   if (out.max_posts_per_day * out.min_gap_minutes > windowMin) { out.min_gap_minutes = Math.max(SAFETY_HARD.min_gap_minutes, fit); out.gap_auto_fitted = true; }
   if (out.max_posts_per_day * out.min_gap_minutes > windowMin + 30) out.max_posts_per_day = Math.max(1, Math.floor((windowMin + 30) / out.min_gap_minutes));
   out.warmup = out.warmup !== false;
-  out.ramp_start = Number.isFinite(Number(s.ramp_start)) ? Number(s.ramp_start) : null;
+  out.ramp_start = Number.isFinite(Number(s.ramp_start)) && s.ramp_start ? Number(s.ramp_start) : null;
+  out.ramp_from = Number.isFinite(Number(s.ramp_from)) && s.ramp_from ? Number(s.ramp_from) : null;
   return out;
 }
 
@@ -3387,7 +3399,7 @@ async function recordPublishLog(kind) {
 // Every post that is already published or still planned occupies a slot.
 function buildOccupancy(jobs, log, excludeJobId) {
   const occ = log.map(e => ({ at: e.at, kind: e.kind || "feed" }));
-  for (const j of jobs) if (j && j.job_id !== excludeJobId && ["queued", "running"].includes(j.status) && Number.isFinite(j.run_at_timestamp)) occ.push({ at: j.run_at_timestamp * 1000, kind: jobKind(j.post_type) });
+  for (const j of jobs) if (j && j.job_id !== excludeJobId && ["queued", "running"].includes(j.status) && Number.isFinite(j.run_at_timestamp)) occ.push({ at: j.run_at_timestamp * 1000, kind: jobKind(j.post_type, j.target_type) });
   return occ;
 }
 
@@ -3397,15 +3409,20 @@ function slotProblem(ms, kind, occ, s) {
   if (ms > Date.now() + s.max_horizon_days * 86400000) return `more than ${s.max_horizon_days} days ahead`;
   const day = localDayKey(ms), isStory = kind === "story";
   const sameDay = occ.filter(o => localDayKey(o.at) === day);
+  if (kind === "profile") {
+    if (sameDay.filter(o => o.kind === "profile").length >= PROFILE_LIMITS.per_day) return `profile limit (${PROFILE_LIMITS.per_day}/day): high volume is for Pages only`;
+    if (occ.some(o => o.kind === "profile" && Math.abs(o.at - ms) < PROFILE_LIMITS.gap_minutes * 60000)) return `less than ${PROFILE_LIMITS.gap_minutes} min from another profile post`;
+    return null;
+  }
   if (isStory) {
     if (sameDay.filter(o => o.kind === "story").length >= s.max_stories_per_day) return `daily story limit (${s.max_stories_per_day}) reached`;
     if (occ.some(o => o.kind === "story" && Math.abs(o.at - ms) < s.story_gap_minutes * 60000)) return `less than ${s.story_gap_minutes} min after another story`;
     return null;
   }
   const cap = dailyCapFor(ms, s);
-  if (sameDay.filter(o => o.kind !== "story").length >= cap) return cap < s.max_posts_per_day ? `warm-up limit for that day (${cap}/day, rising to ${s.max_posts_per_day})` : `daily post limit (${cap}) reached`;
+  if (sameDay.filter(o => isPageKind(o.kind)).length >= cap) return cap < s.max_posts_per_day ? `warm-up limit for that day (${cap}/day, rising to ${s.max_posts_per_day})` : `daily post limit (${cap}) reached`;
   if (kind === "reel" && sameDay.filter(o => o.kind === "reel").length >= s.max_reels_per_day) return `daily reel limit (${s.max_reels_per_day}) reached`;
-  if (occ.some(o => o.kind !== "story" && Math.abs(o.at - ms) < s.min_gap_minutes * 60000)) return `less than ${s.min_gap_minutes} min from another post`;
+  if (occ.some(o => isPageKind(o.kind) && Math.abs(o.at - ms) < s.min_gap_minutes * 60000)) return `less than ${s.min_gap_minutes} min from another post`;
   return null;
 }
 
@@ -3420,8 +3437,8 @@ function defaultTimes(perDay, s) {
 function nextSafeSlot(fromMs, kind, occ, s, preferredTimes) {
   const times = (preferredTimes && preferredTimes.length ? preferredTimes : defaultTimes(s.max_posts_per_day, s)).map(t => hhmmToMin(t, null)).filter(n => n != null).sort((x, y) => x - y);
   const start = new Date(fromMs); start.setHours(0, 0, 0, 0);
-  const spacing = (hhmmToMin(s.active_end, 1320) - hhmmToMin(s.active_start, 480)) / Math.max(1, times.length);
-  const jitter = Math.max(2, Math.min(s.jitter_minutes, Math.floor((spacing - s.min_gap_minutes) / 2)));
+  const spacing = times.length > 1 ? Math.min(...times.slice(1).map((t, i) => t - times[i])) : 24 * 60;
+  const jitter = Math.max(0, Math.min(s.jitter_minutes, Math.floor((spacing - s.min_gap_minutes) / 2)));
   for (let d = 0; d <= s.max_horizon_days + 1; d++) {
     const day = new Date(start); day.setDate(start.getDate() + d);
     const base = day.getTime();
@@ -3511,8 +3528,8 @@ async function scheduleOne(args) {
   if (Number.isNaN(asked)) return { success: false, error: "schedule_time_iso must be an ISO date/time, e.g. 2026-11-22T09:00:00+05:30" };
   const occ = buildOccupancy(jobs, await getPublishLog());
   const from = Math.max(asked || 0, Date.now() + 10 * 60000);
-  const problem = asked ? slotProblem(from, jobKind(job.post_type), occ, s) : "no time given";
-  const at = problem ? nextSafeSlot(from, jobKind(job.post_type), occ, s, args.preferred_times) : from;
+  const problem = asked ? slotProblem(from, jobKind(job.post_type, job.target_type), occ, s) : "no time given";
+  const at = problem ? nextSafeSlot(from, jobKind(job.post_type, job.target_type), occ, s, args.preferred_times) : from;
   if (!at) return { success: false, error: `No safe slot in the next ${s.max_horizon_days} days. The queue is full under the safety limits.` };
   job.run_at_timestamp = Math.floor(at / 1000);
   jobs.push(job);
@@ -3555,7 +3572,7 @@ async function scheduleBulk(args) {
     try { job = await prepareJob(p, s); } catch (e) { rejected.push({ index: i, title: p.title || null, reason: e.message }); continue; }
     if ((job.media_hashes || []).some(h => seenMedia.has(h))) { rejected.push({ index: i, title: job.title, reason: "same photo/video as another post (in this batch, the queue, or the last 30 days)" }); continue; }
     if (job.caption_hash && seen.has(job.caption_hash)) { rejected.push({ index: i, title: job.title, reason: "duplicate caption (already in this batch, the queue, or published in the last 24h)" }); continue; }
-    const kind = jobKind(job.post_type), asked = parseWhen(p);
+    const kind = jobKind(job.post_type, job.target_type), asked = parseWhen(p);
     let at = null;
     if (asked && !Number.isNaN(asked) && asked >= Date.now() + 10 * 60000 && !slotProblem(asked, kind, occ, plan)) at = asked;
     if (!at) at = nextSafeSlot(asked && !Number.isNaN(asked) ? Math.max(asked, startMs) : (kind === "story" ? startMs : cursor), kind, occ, plan, times);
@@ -3578,7 +3595,7 @@ async function scheduleBulk(args) {
     first_post_local: sorted.length ? new Date(sorted[0] * 1000).toLocaleString() : null,
     last_post_local: sorted.length ? new Date(sorted.at(-1) * 1000).toLocaleString() : null,
     days_covered: days, posts_per_day_target: perDay, preferred_times: times,
-    warmup: s.warmup && !s.established_high_volume && perDay > WARMUP_STEPS[0] ? `Warm-up: ${WARMUP_STEPS.filter(n => n < perDay).concat(perDay).join(" -> ")} posts/day, one step per week, so the Page's volume rises gradually.` : null,
+    warmup: s.warmup && !s.established_high_volume && perDay > WARMUP_STEPS[0] ? `Warm-up: ${[...new Set(warmupSteps(perDay, s.ramp_from))].join(" -> ")} posts/day, one step per week, so the Page's volume rises gradually.` : null,
     settings_changed: settingsChanged,
     per_day: perDayCount,
     preview: added.slice(0, 10).map(j => ({ job_id: j.job_id, title: j.title, post_type: j.post_type, run_at_local: new Date(j.run_at_timestamp * 1000).toLocaleString() })),
@@ -3637,7 +3654,7 @@ async function processDueScheduledJobs() {
       const due = jobs.filter(j => j.status === "queued" && Number.isFinite(j.run_at_timestamp) && j.run_at_timestamp * 1000 <= now).sort((a, b) => a.run_at_timestamp - b.run_at_timestamp);
       let chosen = null;
       for (const j of due) {
-        const kind = jobKind(j.post_type);
+        const kind = jobKind(j.post_type, j.target_type);
         const occ = buildOccupancy(jobs, log, j.job_id);
         const late = now - j.run_at_timestamp * 1000 > s.catchup_grace_minutes * 60000;
         // Gap / daily cap check against what was really published (so manual posts count too).
@@ -3687,7 +3704,7 @@ async function processDueScheduledJobs() {
       const j = jobs.find(x => x.job_id === pick.job_id); if (!j) return;
       j.result = { error: res && res.error };
       if (restriction) { j.status = "queued"; j.last_note = `Paused: ${restriction}`; j.run_at_timestamp = Math.floor((Date.now() + 24 * 3600000) / 1000); return; }
-      if (j.attempts < 2) { const at = nextSafeSlot(Date.now() + 45 * 60000, jobKind(j.post_type), buildOccupancy(jobs, log, j.job_id), s); if (at) { j.status = "queued"; j.run_at_timestamp = Math.floor(at / 1000); j.last_note = `Retry at ${new Date(at).toLocaleString()} after: ${res && res.error}`; return; } }
+      if (j.attempts < 2) { const at = nextSafeSlot(Date.now() + 45 * 60000, jobKind(j.post_type, j.target_type), buildOccupancy(jobs, log, j.job_id), s); if (at) { j.status = "queued"; j.run_at_timestamp = Math.floor(at / 1000); j.last_note = `Retry at ${new Date(at).toLocaleString()} after: ${res && res.error}`; return; } }
       j.status = "failed"; j.completed_at = Date.now();
     });
     await setStorage({ fb_sched_failures: restriction ? 0 : failures });
@@ -3718,12 +3735,17 @@ async function manualPublishGuard(kind, fromScheduler) {
   const log = await getPublishLog(), today = localDayKey(Date.now());
   const todays = log.filter(e => localDayKey(e.at) === today);
   const hardGapMin = 10;
+  if (kind === "profile") {
+    if (todays.filter(e => e.kind === "profile").length >= PROFILE_LIMITS.per_day) return { success: false, stop_loop: true, safety_block: true, error: `Safety limit: ${PROFILE_LIMITS.per_day} posts already on your personal profile today. High volume is only for Pages; profiles get restricted much faster.` };
+    return null;
+  }
   if (kind === "story") {
     if (todays.filter(e => e.kind === "story").length >= SAFETY_HARD.max_stories_per_day) return { success: false, stop_loop: true, safety_block: true, error: `Safety limit: ${SAFETY_HARD.max_stories_per_day} stories already posted today. Schedule it for tomorrow with fb_schedule.` };
     return null;
   }
-  if (todays.filter(e => e.kind !== "story").length >= SAFETY_HARD.max_posts_per_day) return { success: false, stop_loop: true, safety_block: true, error: `Safety limit: ${SAFETY_HARD.max_posts_per_day} posts already published today. More can look like spam to Meta, so schedule it with fb_schedule.` };
-  const last = log.filter(e => e.kind !== "story").map(e => e.at).sort((a, b) => b - a)[0];
+  const s = await getSafety(), manualCap = Math.min(SAFETY_HARD.max_posts_per_day, Math.max(5, dailyCapFor(Date.now(), s)));
+  if (todays.filter(e => isPageKind(e.kind || "feed")).length >= manualCap) return { success: false, stop_loop: true, safety_block: true, error: `Safety limit: ${manualCap} Page posts already published today (today's limit). More can look like spam to Meta, so schedule it with fb_schedule.` };
+  const last = log.filter(e => isPageKind(e.kind || "feed")).map(e => e.at).sort((a, b) => b - a)[0];
   if (last && Date.now() - last < hardGapMin * 60000) return { success: false, stop_loop: true, safety_block: true, error: `Safety pause: the last post went out ${Math.round((Date.now() - last) / 60000)} min ago. Posting again within ${hardGapMin} min looks like a burst to Meta; schedule it instead.` };
   return null;
 }
@@ -3760,7 +3782,17 @@ async function manageQueue(args = {}) {
   };
   if (action === "list" || action === "status") return { success: true, ...summary(), upcoming: scheduleList(jobs, args.limit || 20), safety: s };
   if (action === "pause") { await pauseQueue(args.reason || "Paused by the user.", null, "manual"); return { success: true, paused: true }; }
-  if (action === "resume") { await setStorage({ fb_queue_paused: null, fb_sched_failures: 0 }); return { success: true, paused: false, message: "Queue resumed. Overdue posts are spread out to the next safe slots, not posted at once." }; }
+  if (action === "resume") {
+    let stepDown = null;
+    // After a Meta warning, come back at half the volume and warm up again: pushing the same volume is how blocks become bans.
+    if (st.fb_queue_paused && st.fb_queue_paused.kind === "restriction") {
+      const lower = Math.max(3, Math.floor(s.max_posts_per_day / 2));
+      await saveSafetyPatch({ max_posts_per_day: lower, ramp_start: Date.now() });
+      stepDown = { max_posts_per_day: lower, warmup_restarted: lower > WARMUP_STEPS[0] };
+    }
+    await setStorage({ fb_queue_paused: null, fb_sched_failures: 0 });
+    return { success: true, paused: false, step_down: stepDown, message: `Queue resumed${stepDown ? ` at a safer ${stepDown.max_posts_per_day} posts/day (halved after the Meta warning)` : ""}. Overdue posts are spread out to the next safe slots, not posted at once.` };
+  }
   if (action === "cancel_all") { let n = 0; for (const j of jobs) if (j.status === "queued") { j.status = "cancelled"; n++; } await setStorage({ fb_scheduled_jobs: pruneJobs(jobs) }); return { success: true, cancelled: n }; }
   const job = jobs.find(j => String(j.job_id) === String(args.job_id) || String(j.post_id) === String(args.job_id));
   if (!job) return { success: false, error: `Scheduled job not found: ${args.job_id}`, upcoming: scheduleList(jobs, 10) };
@@ -3768,7 +3800,7 @@ async function manageQueue(args = {}) {
   else if (action === "reschedule" || action === "run_now") {
     const asked = action === "run_now" ? Date.now() + 60000 : parseWhen({ schedule_time_iso: args.new_schedule_time_iso });
     if (!asked || Number.isNaN(asked)) return { success: false, error: "new_schedule_time_iso must be an ISO date/time, e.g. 2026-11-22T09:00:00+05:30" };
-    const occ = buildOccupancy(jobs, await getPublishLog(), job.job_id), kind = jobKind(job.post_type);
+    const occ = buildOccupancy(jobs, await getPublishLog(), job.job_id), kind = jobKind(job.post_type, job.target_type);
     const problem = slotProblem(Math.max(asked, Date.now() + 60000), kind, occ, s);
     const at = problem ? nextSafeSlot(Math.max(asked, Date.now() + 60000), kind, occ, s) : Math.max(asked, Date.now() + 60000);
     if (!at) return { success: false, error: "No safe slot available under the safety limits." };

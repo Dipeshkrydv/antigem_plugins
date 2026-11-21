@@ -1,9 +1,9 @@
 ---
 name: meta-suite-automation
-description: "Master Autonomous Meta Suite Production Engine (v2.5.0). Enterprise Meta Business Suite Facebook Page management and scheduling engine. Enforces 1-click publishing & scheduling of Page Reels (9:16), Long Videos (16:9), Photos, Stories, and Announcements with custom video thumbnails/covers, in-memory DataTransfer injection, <100ms synthetic clipboard paste, anti-ad organic shield, anti-comment box firewall, and 100% script-fidelity DeepX Google Flow AI media generation."
+description: "Master Autonomous Meta Suite Production Engine (v2.6.0). Enterprise Meta Business Suite Facebook Page management and scheduling engine. Enforces 1-click publishing & scheduling of Page Reels (9:16), Long Videos (16:9), Photos, Stories, and Announcements with custom video thumbnails/covers, in-memory DataTransfer injection, <100ms synthetic clipboard paste, anti-ad organic shield, anti-comment box firewall, and 100% script-fidelity DeepX Google Flow AI media generation."
 ---
 
-# Master Meta Suite Page Management Engine (v2.5.0)
+# Master Meta Suite Page Management Engine (v2.6.0)
 
 The definitive autonomous production, publishing, and scheduling engine dedicated 100% to **Facebook Page Management via Meta Business Suite**. Zero delays. Zero questions. Zero friction.
 
@@ -168,27 +168,29 @@ When the user asks to "find trends", "what's trending", "search topics", "viral 
   - The built-in 1-minute scheduler publishes due posts automatically while AntiGem is running. Missed slots are MOVED to the next safe slot, never posted in a burst.
 
 ### 5A. Bulk scheduling: a week or a month of content in one call
-- For more than 3 posts use **`fb_schedule_bulk {posts:[...], start_date_iso, posts_per_day?, preferred_times?}`** (1-500 posts). Never loop `fb_schedule` 100 times.
+- For more than 3 posts use **`fb_schedule_bulk {posts:[...], start_date_iso, posts_per_day?, preferred_times?}`** (1-500 posts per call; call again for the next batch). Never loop `fb_schedule`.
 - Every post must have its own caption AND its own photo/video: repeated captions and repeated images (even renamed copies) are rejected.
-- `posts_per_day` up to **15** is allowed (high-volume photo Pages). Above 6/day the **warm-up** applies automatically: 6/day in week 1 → 9 → 12 → the target from week 4, so the Page's volume never jumps overnight. Pages that already posted 8+/day on 5 of the last 14 days skip the warm-up.
-- At 15/day the gap auto-fits to about 54 min across 08:00-22:00. A month at 15/day needs roughly 350-400 different photos.
-- More than 15/day is refused: explain that it is a burst/spam pattern and offer 15/day.
+- **Pages: up to 30 posts/day.** Above 6/day a 4-week warm-up applies automatically (30/day: 6 → 14 → 22 → 30; 15/day: 6 → 9 → 12 → 15). Raising the limit later warms up again from today's level. Pages that already posted 8+/day on 5 of the last 14 days skip the warm-up.
+- Above 20/day the posting hours widen to 07:00-23:00 and posts are spread evenly (~30 min apart at 30/day). Posts are NEVER fired back-to-back: bursts trigger Meta's "temporarily blocked / we limit how often you can post".
+- **Personal profiles: max 3 posts/day, 2 h apart.** High volume is for Pages only. If the user asks for more on a profile, explain why and suggest a Page.
+- More than 30/day is refused: offer 30/day.
 - After the call, report: scheduled count, date range, posts per day (and the warm-up), rejected items and why. Do not call it again for the same posts.
 
 ### 5B. Page Safety Governor (always on, cannot be switched off)
 | Rule | Default | Hard limit |
 | --- | --- | --- |
-| Feed posts + reels per day | 3 | 15 (with warm-up above 6) |
+| Page feed posts + reels per day | 3 | 30 (4-week warm-up above 6) |
 | Reels per day | 2 | 4 |
 | Stories per day | 3 | 10 |
-| Gap between posts | 120 min (auto-fits to the day at high volume) | ≥ 45 min |
+| Personal profile posts per day | 3 | 3 (2 h apart) |
+| Gap between Page posts | 120 min (auto-fits the day at high volume) | ≥ 25 min |
 | Gap between stories | 60 min | ≥ 20 min |
-| Posting hours (device time) | 08:00-22:00 | ≥ 4 h window |
+| Posting hours (device time) | 08:00-22:00 (07:00-23:00 above 20/day) | ≥ 4 h window |
 | Random timing offset | ±10 min (smaller when posts are dense) | ±20 min |
 | Duplicate caption / duplicate image | rejected | rejected |
-- Change limits with `fb_safety_settings {action:"set", ...}` (e.g. `max_posts_per_day: 12`). Values are clamped to the hard limits.
-- Manual `fb_publish` also counts: after 15 posts in a day, or within 10 min of the last post, it refuses and the post should be scheduled instead.
-- **Auto-pause on any Meta warning** ("temporarily blocked", "we limit how often", checkpoint/security check, "community standards", "restricted"): the whole queue and manual posting stop. Tell the user to solve any check themselves in the AntiGem browser, wait 24-48 h, look at Page Quality / Account Status in Meta Business Suite, then `fb_manage_queue {action:"resume"}`. After a pause, suggest lowering `max_posts_per_day`. Never resume, retry, or work around a warning on your own.
+- Change limits with `fb_safety_settings {action:"set", ...}` (e.g. `max_posts_per_day: 20`). Values are clamped to the hard limits.
+- Manual `fb_publish` also counts toward today's limit, and is refused within 10 min of the last post.
+- **Auto-pause on any Meta warning** ("temporarily blocked", "we limit how often", checkpoint/security check, "community standards", "restricted"): the whole queue and manual posting stop. Tell the user to solve any check themselves in the AntiGem browser, wait 24-48 h, look at Page Quality / Account Status in Meta Business Suite, then `fb_manage_queue {action:"resume"}`. **Resuming after a warning automatically halves the daily volume and restarts the warm-up.** Never resume, retry, or work around a warning on your own.
 - 3 failures in a row pause the queue for 6 hours. An interrupted post becomes `needs_review` and is never re-posted blindly.
 - At high volume, content quality decides reach: original photos only (no reposted/watermarked images), no engagement bait ("like if…", "share to win"), varied captions, 3-6 relevant hashtags.
 
