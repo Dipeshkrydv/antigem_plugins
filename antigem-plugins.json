@@ -34,9 +34,9 @@
     {
       "path": "deepx-google-flow",
       "id": "deepx-google-flow",
-      "name": "DeepX Google Flow Studio",
-      "version": "1.2.1",
-      "description": "DeepX Google Flow Studio (v1.2.1): the complete DeepX Flow extension as an AntiGem MCP plugin — no side panel. Checks Google login, asks Agent Mode vs Standard mode before every generation; Agent Mode auto-splits big batches into ≤24-item parts pasted back-to-back with 100% autopilot approvals; Standard mode runs on AntiGem's native Flow engine and auto-switches to Agent Mode when Google shows an unusual-activity / extension block. Includes storyboard analyzer, characters, references, scene chaining, upscale, downloads and all deepx_* / flow_* tools. v1.2.1: Google Flow Nov 2026 update — Agent spark switch in the prompt box, quick answers with auto side panel, and semantic project asset search (exact + similar results).",
+      "name": "DeepX Google Flow Studio (DeepX MCP)",
+      "version": "1.2.2",
+      "description": "DeepX Google Flow Studio & DeepX MCP (v1.2.2): the complete DeepX Flow extension as an AntiGem MCP plugin — no side panel. Instant 11ms fast-path execution, full Google Flow Agent panel recognition, checks Google login, asks Agent Mode vs Standard mode before every generation; Agent Mode auto-splits big batches into ≤24-item parts pasted back-to-back with 100% autopilot approvals; Standard mode runs on AntiGem's native Flow engine and auto-switches to Agent Mode when Google shows an unusual-activity / extension block. Includes storyboard analyzer, characters, references, scene chaining, upscale, downloads and all deepx_* / flow_* tools. Google Flow Nov 2026 update — Agent spark switch in the prompt box, quick answers with auto side panel, and semantic project asset search (exact + similar results).",
       "icon": "icon.png",
       "logo": "assets/logo.png",
       "toolCount": 94
