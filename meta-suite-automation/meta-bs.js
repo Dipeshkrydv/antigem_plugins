@@ -143,7 +143,9 @@ async function bsEvalTool(args = {}) {
 // File binding: catch the composer's (often detached) <input type=file> when its
 // button is clicked, then hand it real File objects built in the page. No native taps.
 // ---------------------------------------------------------------------------
-const BS_CHUNK = 3 * 1024 * 1024; // base64 chars per transfer (multiple of 4)
+const BS_CHUNK = 3 * 1024 * 1024;
+const BS_BIG_FILE = 80 * 1024 * 1024; // above this, stream via AntiGem's file chooser instead of base64
+let BS_FORCE_CHOOSER = false; // base64 chars per transfer (multiple of 4)
 
 async function bsClickByText(tabId, regexSrc, { scopeSel = "", exact = false } = {}) {
   return await bsExec(tabId, (src, scope, ex) => {
@@ -214,6 +216,21 @@ async function bsPushFilesToCapturedInput(tabId, files) {
 async function bsAttachFiles(tabId, triggerRegex, rawPaths, { preferVideo = false, scopeSel = "" } = {}) {
   const files = [];
   for (const p of rawPaths) files.push(await resolveLocalFile(p, preferVideo));
+  let total = 0;
+  for (const f of files) { let sz = f.size; if (!sz && chrome.antigem.stat) sz = (await chrome.antigem.stat({ path: f.path }).catch(() => ({}))).size || 0; total += sz || 0; }
+  if ((total > BS_BIG_FILE || BS_FORCE_CHOOSER) && chrome.antigem && typeof chrome.antigem.uploadFiles === "function" && !triggerRegex.startsWith("css:")) {
+    // Large video: let AntiGem answer the site's own file chooser with the path (streams from disk).
+    const marked = await bsExec(tabId, (src) => {
+      const re = new RegExp(src, "i");
+      document.querySelectorAll("[data-ag-upload]").forEach(e => e.removeAttribute("data-ag-upload"));
+      const el = [...document.querySelectorAll('[role="button"],button,a,label')].find(e => re.test((e.getAttribute("aria-label") || e.innerText || "").trim()) && e.getBoundingClientRect().width > 2 && !e.closest('[aria-hidden="true"]') && e.getAttribute("aria-disabled") !== "true");
+      if (!el) return false; el.setAttribute("data-ag-upload", "1"); el.scrollIntoView({ block: "center" }); return true;
+    }, [triggerRegex]);
+    if (marked) {
+      const up = await chrome.antigem.uploadFiles({ tabId, files: files.map(f => f.path), selector: '[data-ag-upload="1"]', method: "chooser", timeoutMs: 15000 }).catch(e => ({ error: e.message }));
+      if (up && !up.error) return { ok: true, method: "antigem_chooser", files: files.map(f => f.filename), bytes: total };
+    }
+  }
   await bsInstallFileCapture(tabId);
   try {
     const before = await bsExec(tabId, () => [...document.querySelectorAll('input[type="file"]')].length);
@@ -415,6 +432,94 @@ async function bsSetCaption(tabId, text, dbg) {
   throw new Error("Caption could not be written into the Business Suite text box.");
 }
 
+
+/** Reel/Story description: real keyboard input (CDP insertText). Pasting only changes the box's DOM there,
+ *  Business Suite's saved description stays empty (verified with a saved draft). */
+async function bsTypeCaption(tabId, text, dbg) {
+  if (!text) return { ok: true, skipped: true };
+  if (!dbg) throw new Error("Keyboard input (debugger) unavailable for the Reel description.");
+  const ok = await bsExec(tabId, () => {
+    const eds = [...document.querySelectorAll('[contenteditable="true"]')].filter(e => e.getBoundingClientRect().width > 50 && !e.closest('[role="dialog"]') && !e.closest('[aria-hidden="true"]'));
+    const ed = eds.find(e => /dialogue box|describe|description|what your reel/i.test(e.getAttribute("aria-label") || "")) || eds[0];
+    if (!ed) return false;
+    document.querySelectorAll("[data-ag-cap]").forEach(e => e.removeAttribute("data-ag-cap"));
+    ed.setAttribute("data-ag-cap", "1"); ed.scrollIntoView({ block: "center" }); ed.click(); ed.focus();
+    return document.activeElement === ed || ed.contains(document.activeElement);
+  });
+  if (!ok) throw new Error("Could not focus the Reel description box.");
+  // clear (keyboard)
+  await bsCdp(tabId, "Input.dispatchKeyEvent", { type: "keyDown", key: "a", code: "KeyA", modifiers: 2, windowsVirtualKeyCode: 65 });
+  await bsCdp(tabId, "Input.dispatchKeyEvent", { type: "keyUp", key: "a", code: "KeyA", modifiers: 2, windowsVirtualKeyCode: 65 });
+  await bsKey(tabId, "Backspace");
+  const lines = text.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+    if (/#[^\s#]+$/.test(line)) line += " ";            // a trailing space closes the hashtag suggestion list
+    if (line) await bsType(tabId, line);
+    if (i < lines.length - 1) {
+      await bsCdp(tabId, "Input.dispatchKeyEvent", { type: "keyDown", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, modifiers: 8 });
+      await bsCdp(tabId, "Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, modifiers: 8 });
+    }
+  }
+  await BS_W(500);
+  const norm = x => String(x || "").replace(/[​-‍﻿]/g, "").replace(/\s+/g, " ").trim();
+  const got = norm(await bsExec(tabId, () => (document.querySelector("[data-ag-cap]") || {}).innerText || ""));
+  const first = norm(text.split("\n").find(l => l.trim())).slice(0, 40);
+  if (!got.includes(first)) throw new Error("Reel description was not accepted.");
+  if (got.split(first).length > 2) throw new Error("Reel description got duplicated.");
+  return { ok: true, method: "keyboard" };
+}
+
+
+/** Primary caption writer: Business Suite text boxes are Draft.js editors. Write the text into the editor's
+ *  real state (EditorState.push + onChange) and read it back; this is what Business Suite actually publishes. */
+async function bsSetEditorState(tabId, text) {
+  return await bsExec(tabId, (t) => {
+    const eds = [...document.querySelectorAll('[contenteditable="true"]')].filter(e => e.getBoundingClientRect().width > 50 && !e.closest('[role="dialog"]') && !e.closest('[aria-hidden="true"]'));
+    const ed = eds.find(e => /dialogue box|text with your post|describe|description|what your reel/i.test(e.getAttribute("aria-label") || "")) || eds[0];
+    if (!ed) return { ok: false, why: "no editor" };
+    document.querySelectorAll("[data-ag-cap]").forEach(e => e.removeAttribute("data-ag-cap"));
+    ed.setAttribute("data-ag-cap", "1");
+    const fk = Object.keys(ed).find(k => k.startsWith("__reactFiber"));
+    let f = fk && ed[fk], p = null;
+    for (let i = 0; i < 40 && f; i++) { const mp = f.memoizedProps || {}; if (mp.editorState && mp.editorState.getCurrentContent && typeof mp.onChange === "function") { p = mp; break; } f = f.return; }
+    if (!p) return { ok: false, why: "no editorState" };
+    const ES = p.editorState.constructor, CS = p.editorState.getCurrentContent().constructor;
+    if (!ES.push || !CS.createFromText) return { ok: false, why: "no draft api" };
+    const ns = ES.push(p.editorState, CS.createFromText(t), "insert-characters");
+    p.onChange(ES.moveFocusToEnd ? ES.moveFocusToEnd(ns) : ns);
+    return { ok: true };
+  }, [text]).catch(e => ({ ok: false, why: e.message }));
+}
+async function bsReadEditorState(tabId) {
+  return await bsExec(tabId, () => {
+    const eds = [...document.querySelectorAll('[contenteditable="true"]')].filter(e => e.getBoundingClientRect().width > 50 && !e.closest('[role="dialog"]') && !e.closest('[aria-hidden="true"]'));
+    const ed = document.querySelector("[data-ag-cap]") || eds.find(e => /dialogue box|text with your post|describe|description|what your reel/i.test(e.getAttribute("aria-label") || "")) || eds[0];
+    if (!ed) return null;
+    const fk = Object.keys(ed).find(k => k.startsWith("__reactFiber")); let f = fk && ed[fk];
+    for (let i = 0; i < 40 && f; i++) { const mp = f.memoizedProps || {}; if (mp.editorState && mp.editorState.getCurrentContent) return mp.editorState.getCurrentContent().getPlainText(); f = f.return; }
+    return null;
+  }).catch(() => null);
+}
+async function bsWriteCaption(tabId, text, dbg, kind) {
+  if (!text) return { ok: true, skipped: true };
+  const norm = x => String(x || "").replace(/[​-‍﻿]/g, "").replace(/\s+/g, " ").trim();
+  for (let attempt = 1; attempt <= 6; attempt++) {
+    const r = await bsSetEditorState(tabId, text);
+    if (!r.ok) { console.log("[meta-bs] editor_state set failed", r.why); await BS_W(700); continue; }
+    await BS_W(700);
+    const got = await bsReadEditorState(tabId);
+    if (got != null && norm(got) === norm(text)) {
+      await BS_W(900);  // make sure a late re-render did not wipe it
+      const again = await bsReadEditorState(tabId);
+      if (again != null && norm(again) === norm(text)) return { ok: true, method: "editor_state", verified: true, attempts: attempt };
+    }
+    console.log("[meta-bs] editor_state not kept, retry", attempt);
+  }
+  // Fallbacks (older Business Suite builds)
+  return kind === "post" ? await bsSetCaption(tabId, text, dbg) : await bsTypeCaption(tabId, text, dbg);
+}
+
 function bsSchedParts(ms) {
   const d = new Date(ms); let h = d.getHours(); const ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12;
   const p = n => String(n).padStart(2, "0");
@@ -561,7 +666,8 @@ async function bsWaitDone(tabId, startPath, timeoutMs = 90000) {
     const err = /(couldn['’]t|could not|can['’]t|unable to|failed to) (be )?(publish|share|schedule|post|upload)[^\n]{0,80}|something went wrong[^\n]{0,60}/i.exec(boxes);
     if (err) return { ok: true, error: err[0] };
     const left = !location.pathname.startsWith(p);
-    const toast = /(post|reel|story|video)[^.\n]{0,40}(was |has been |is )?(published|scheduled|shared)/i.exec(boxes);
+    const toast = /(post|reel|story|video)[^.\n]{0,40}(was |has been |is )?(published|scheduled|shared|saved as draft)/i.exec(boxes);
+    if (toast) { const d = [...document.querySelectorAll('[role="dialog"] [role="button"]')].find(b => /^(Done|Close|OK)$/.test((b.innerText || "").trim()) && b.getBoundingClientRect().width > 2); if (d) d.click(); }
     return left || toast ? { ok: true, left, toast: toast && toast[0] } : null;
   }, [startPath], timeoutMs, 1000);
 }
@@ -582,6 +688,7 @@ function bsBuildCaption(args) {
  */
 async function bsPublish(kind, args = {}) {
   const t0 = Date.now();
+  BS_FORCE_CHOOSER = args.upload_method === "chooser";
   const media = (args.media_paths || []).filter(Boolean);
   const files = [];
   for (const p of media) files.push(await resolveLocalFile(p, kind !== "post"));
@@ -608,7 +715,7 @@ async function bsPublish(kind, args = {}) {
         const ok = await bsWaitFor(tabId, (n) => [...document.querySelectorAll('[role="button"]')].filter(b => /^Remove (photo|video)/.test((b.getAttribute("aria-label") || b.innerText || "").trim())).length >= n && !/Processing media|\b\d{1,2}%/.test(document.body.innerText) ? { ok: true } : null, [files.length], 120000, 800);
         if (!ok) throw new Error("Business Suite did not finish processing the photos.");
       }
-      await bsSetCaption(tabId, caption, dbg); steps.push("caption");
+      steps.push("caption:" + (await bsWriteCaption(tabId, caption, dbg, "post")).method);
       await bsSetToggle(tabId, "Share to Facebook Story", !!args.share_to_story);
       if (when) { sched = await bsSetSchedule(tabId, when, "post", dbg); steps.push("schedule"); }
       if (args.dry_run) return { success: true, dry_run: true, kind, steps, schedule: sched, ms: Date.now() - t0 };
@@ -618,23 +725,25 @@ async function bsPublish(kind, args = {}) {
     } else if (kind === "reel") {
       await bsAttachFiles(tabId, "^Add Video$", [files[0].path], { preferVideo: true }); steps.push("video");
       await bsDismissBanners(tabId);
-      await bsSetCaption(tabId, caption, dbg); steps.push("caption");
+      steps.push("caption:" + (await bsWriteCaption(tabId, caption, dbg, "reel")).method);
       if (args.thumbnail_path) { thumb = await bsSetReelThumbnail(tabId, args.thumbnail_path); steps.push("thumbnail:" + thumb.status); }
       if (!await bsWaitEnabled(tabId, "^Next$", 15 * 60000)) throw new Error("Video upload did not finish in Business Suite.");
       if (caption) {
         const first = caption.split("\n").find(l => l.trim()).trim().slice(0, 40);
-        const still = await bsExec(tabId, (f) => ((document.querySelector("[data-ag-cap]") || {}).innerText || "").includes(f), [first]).catch(() => false);
-        if (!still) { await bsSetCaption(tabId, caption, dbg); steps.push("caption_retry"); }
+        const st = await bsReadEditorState(tabId);
+        const still = st != null ? st.includes(first) : await bsExec(tabId, (f) => ((document.querySelector("[data-ag-cap]") || {}).innerText || "").includes(f), [first]).catch(() => false);
+        if (!still) { await bsWriteCaption(tabId, caption, dbg, "reel"); steps.push("caption_retry"); }
       }
       await bsClickLowest(tabId, "^Next$"); await BS_W(1200);            // -> Edit
       if (!await bsWaitEnabled(tabId, "^Next$", 60000)) throw new Error("Reel Edit step did not load.");
       await bsClickLowest(tabId, "^Next$"); await BS_W(1200);            // -> Share
       await bsWaitFor(tabId, () => /Scheduling options/.test(document.body.innerText), [], 20000);
       await bsSetToggle(tabId, "Share to Facebook Story", !!args.share_to_story);
-      if (when) { sched = await bsSetSchedule(tabId, when, "reel", dbg); steps.push("schedule"); }
+      if (args.save_draft) { await bsClickByText(tabId, "^Save as draft$"); steps.push("save_draft"); }
+      else if (when) { sched = await bsSetSchedule(tabId, when, "reel", dbg); steps.push("schedule"); }
       else await bsClickByText(tabId, "^Share now$");
       if (args.dry_run) return { success: true, dry_run: true, kind, steps, thumbnail: thumb, schedule: sched, ms: Date.now() - t0 };
-      const btn = when ? "^(Schedule|Share)$" : "^(Share|Publish)$";
+      const btn = args.save_draft ? "^Save$" : when ? "^(Schedule|Share)$" : "^(Share|Publish)$";
       if (!await bsWaitEnabled(tabId, btn, 60000)) throw new Error("Final Share/Schedule button stayed disabled.");
       const c = await bsClickLowest(tabId, btn); if (!c.clicked) throw new Error("Could not press Share/Schedule.");
     } else { // story
@@ -652,7 +761,7 @@ async function bsPublish(kind, args = {}) {
     if (done && done.error) throw after(`Business Suite reported: ${done.error}`);
     if (!done) throw after("Pressed the final button but Business Suite did not confirm. It may still have posted: check Business Suite > Content/Planner before retrying.");
     return {
-      success: true, via: "meta_business_suite", kind, status: when ? "scheduled" : "published",
+      success: true, via: "meta_business_suite", kind, status: args.save_draft ? "draft" : when ? "scheduled" : "published",
       scheduled_for: when ? new Date(when).toLocaleString() : undefined, schedule_fields: sched || undefined,
       thumbnail: thumb || undefined, caption, steps, asset_id: assetId, confirmation: done.toast || "composer closed", ms: Date.now() - t0
     };
@@ -718,7 +827,7 @@ async function bsRunBatch(items, timing, onProgress) {
       results.push(row);
       if (onProgress) await onProgress(results, items.length);
       // "now" mode: publishing back-to-back is fine for the composer, keep a short human pause.
-      if (!when && i < items.length - 1) await BS_W(3000);
+      if (!when && i < items.length - 1) await BS_W(1000 * (+timing.spacing_seconds || (items.length > 3 ? 120 : 3)));
     }
   } finally {
     bsBatchDepth--; clearInterval(hb); await bsLock(tab.id, false);
@@ -727,3 +836,4 @@ async function bsRunBatch(items, timing, onProgress) {
 }
 self.MetaBS.bsRunBatch = bsRunBatch;
 self.MetaBS.bsPlanTimes = bsPlanTimes;
+self.MetaBS.setForceChooser = (v) => { BS_FORCE_CHOOSER = !!v; };

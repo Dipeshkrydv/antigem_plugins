@@ -225,6 +225,19 @@
           "publish_now": {
             "type": "boolean",
             "description": "Set true only after the user chose 'publish now'. Either publish_now or schedule_time_iso is required (ask the user)."
+          },
+          "thumbnail_choice": {
+            "type": "string",
+            "enum": [
+              "flow",
+              "manual",
+              "none"
+            ],
+            "description": "User's answer for videos/reels: 'flow' = generate with Google Flow (DeepX) first, 'manual' = user gives the image (pass thumbnail_path), 'none' = no custom thumbnail. Ask the user; required for videos without thumbnail_path."
+          },
+          "save_draft": {
+            "type": "boolean",
+            "description": "Reels/videos: save as a Business Suite draft instead of publishing (counts as the timing choice)."
           }
         },
         "title": "fb_publishArguments",
@@ -324,6 +337,19 @@
           "publish_now": {
             "type": "boolean",
             "description": "Set true only after the user chose 'publish now'. Either publish_now or schedule_time_iso is required (ask the user)."
+          },
+          "thumbnail_choice": {
+            "type": "string",
+            "enum": [
+              "flow",
+              "manual",
+              "none"
+            ],
+            "description": "User's answer for videos/reels: 'flow' = generate with Google Flow (DeepX) first, 'manual' = user gives the image (pass thumbnail_path), 'none' = no custom thumbnail. Ask the user; required for videos without thumbnail_path."
+          },
+          "save_draft": {
+            "type": "boolean",
+            "description": "Reels/videos: save as a Business Suite draft instead of publishing (counts as the timing choice)."
           }
         },
         "title": "fb_publish_reelArguments",
@@ -450,6 +476,18 @@
                 },
                 "share_to_story": {
                   "type": "boolean"
+                },
+                "thumbnail_choice": {
+                  "type": "string",
+                  "enum": [
+                    "flow",
+                    "manual",
+                    "none"
+                  ],
+                  "description": "User's answer for videos/reels: 'flow' = generate with Google Flow (DeepX) first, 'manual' = user gives the image (pass thumbnail_path), 'none' = no custom thumbnail. Ask the user; required for videos without thumbnail_path."
+                },
+                "dry_run": {
+                  "type": "boolean"
                 }
               }
             }
@@ -476,6 +514,10 @@
               },
               "gap_minutes": {
                 "type": "number"
+              },
+              "spacing_seconds": {
+                "type": "number",
+                "description": "mode 'now' only: pause between posts (default 3 s for up to 3 posts, 120 s when more)."
               }
             },
             "required": [

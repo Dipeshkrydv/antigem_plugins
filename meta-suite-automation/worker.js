@@ -44,6 +44,36 @@ const DEDUPE_WINDOW_MS = 24 * 3600 * 1000; // 24 hours
 const MIN_POST_INTERVAL_MS = 8 * 1000;     // 8s anti-burst spacing
 
 const bsJobs = new Map();
+
+// ---- Instant permission check: everything the user must decide, asked in ONE go before any upload ----
+const BS_TIMING_Q = { id: "timing", question: "When should this go live?", options: ["Publish now", "Exact date & time", "Start time + gap between posts"] };
+const BS_THUMB_Q = (n) => ({ id: "thumbnail", question: n > 1 ? `Thumbnail for the ${n} videos/reels?` : "Thumbnail for the video/reel?", options: ["Generate with Google Flow (DeepX)", "I'll provide the image", "No custom thumbnail"] });
+function bsIsVideoItem(it, toolName) {
+  if (toolName === "fb_publish_reel" || /^(reel|video)$/i.test(it.post_type || "")) return true;
+  const m = it.media_paths || (it.video_path ? [it.video_path] : it.media_path ? [it.media_path] : []);
+  return m.some(p => /\.(mp4|mov|m4v|webm|mkv|avi|3gp)$/i.test(String(p)));
+}
+function bsPreflight({ toolName, items, timingGiven, multi }) {
+  const ask = [];
+  if (!timingGiven) ask.push(multi ? { ...BS_TIMING_Q, follow_up: "If gap: ask start time and the gap (minutes/hours). If exact: one time per post." } : { ...BS_TIMING_Q, options: ["Publish now", "Exact date & time"] });
+  const vids = items.filter(it => bsIsVideoItem(it, toolName));
+  const noThumb = vids.filter(it => !it.thumbnail_path && it.thumbnail_choice !== "none");
+  const needChoice = noThumb.filter(it => !it.thumbnail_choice);
+  if (needChoice.length) ask.push(BS_THUMB_Q(needChoice.length));
+  const todo = [];
+  for (const it of noThumb) {
+    if (it.thumbnail_choice === "flow") todo.push("Generate the thumbnail now with deepx_meta_generate_thumbnail (aspect_ratio 9:16 for a reel, 16:9 for a long video), poll deepx_job_status, then pass files[0].path as thumbnail_path.");
+    if (it.thumbnail_choice === "manual") ask.push({ id: "thumbnail_file", question: "Send/attach the thumbnail image (or its path) for the video.", options: [] });
+  }
+  if (!ask.length && !todo.length) return null;
+  return {
+    success: false, needs_user_input: ask.length > 0, ask_user: ask, todo_before_upload: [...new Set(todo)],
+    agent_instruction: ask.length
+      ? "ASK THE USER NOW, all questions together in ONE AskUserQuestion call, using these options. No long thinking, no extra text. Then call the same tool again with publish_now/schedule_time_iso (or timing) and thumbnail_choice ('flow' | 'manual' | 'none') / thumbnail_path."
+      : "Do the todo_before_upload steps immediately, then call the same tool again."
+  };
+}
+
 function bsCaptionOf(it) { return [it.title, it.caption, (it.hashtags || []).join(" ")].filter(Boolean).join("\n\n"); }
 let inFlightLock = null;
 const attachedDebuggerTabs = new Set();
@@ -3179,9 +3209,9 @@ async function dispatchProtectedBrowserTask(toolName, args) {
   inFlightLock = { tool: toolName, startedAt: Date.now() };
   const recordId = args.id || `fb_${Date.now()}`;
 
-  if (useBS && !args.publish_now && !args.schedule_time_iso && !args.schedule_ms && !args.dry_run && !args.from_scheduler) {
-    inFlightLock = null;
-    return { success: false, needs_user_input: true, error: "Timing not chosen.", agent_instruction: "ASK THE USER FIRST: publish now, or at an exact date/time? (For several posts use fb_publish_batch and also ask the gap between posts.) Then call again with publish_now:true or schedule_time_iso." };
+  if (useBS && !args.from_scheduler && !args.dry_run) {
+    const pf = bsPreflight({ toolName, items: [{ ...args, media_paths: mediaList, post_type: postType }], timingGiven: !!(args.publish_now || args.schedule_time_iso || args.schedule_ms || args.save_draft), multi: false });
+    if (pf) { inFlightLock = null; return pf; }
   }
   if (useBS) {
     // Business Suite job runs in the background; the call returns within ~40 s with a job_id when it needs longer.
@@ -3209,7 +3239,7 @@ async function dispatchProtectedBrowserTask(toolName, args) {
     if (args.from_scheduler) return await p;
     const quick = await Promise.race([p, sleep(40000).then(() => null)]);
     if (quick) return { job_id: jobId, ...quick };
-    return { success: true, status: "running", job_id: jobId, via: "meta_business_suite", message: "Uploading in Meta Business Suite (screen locked). Poll fb_publish_status with this job_id.", agent_instruction: "Call fb_publish_status {job_id, wait_seconds: 45} until status is done or failed. Do not start another upload meanwhile." };
+    return { success: true, status: "running", job_id: jobId, via: "meta_business_suite", message: "Uploading in Meta Business Suite (screen locked). Poll fb_publish_status with this job_id.", agent_instruction: "Call fb_publish_status {job_id, wait_seconds: 45} until finished is true. Do not start another upload meanwhile." };
   }
 
   try {
@@ -3580,7 +3610,7 @@ async function scheduleOne(args) {
       }
     })();
     const quick = await Promise.race([p, sleep(40000).then(() => null)]);
-    return quick ? { job_id: bsId, ...quick } : { success: true, status: "running", job_id: bsId, agent_instruction: "Poll fb_publish_status {job_id, wait_seconds: 50} until done. Do not stop before that." };
+    return quick ? { job_id: bsId, ...quick } : { success: true, status: "running", job_id: bsId, agent_instruction: "Poll fb_publish_status {job_id, wait_seconds: 50} until finished is true. Do not stop before that." };
   }
   const occ = buildOccupancy(jobs, await getPublishLog());
   const from = Math.max(asked || 0, Date.now() + (job.delivery === "meta" ? META_MIN_LEAD_MIN + 5 : 10) * 60000);
@@ -4851,7 +4881,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     switch (tool) {
       case "fb_publish_batch": {
-        if (!args.timing || !args.timing.mode) return { success: false, needs_user_input: true, error: "Timing not chosen.", agent_instruction: "ASK THE USER FIRST (one question): publish all now, exact time for each post, or a start time + gap between posts (how many minutes/hours). Then call fb_publish_batch again with timing." };
+        { const pf = bsPreflight({ toolName: "fb_publish_batch", items: args.items || [], timingGiven: !!(args.timing && args.timing.mode), multi: (args.items || []).length > 1 }); if (pf && !(args.items || []).every(i => i.dry_run)) return pf; if (!args.timing || !args.timing.mode) return pf || { success: false, needs_user_input: true, ask_user: [BS_TIMING_Q] }; }
         try { self.MetaBS.bsPlanTimes((args.items || []).length, args.timing); } catch (e) { return { success: false, needs_user_input: true, error: e.message, agent_instruction: "Ask the user for the missing timing detail, then call again." }; }
         const jobId = `batch_${Date.now().toString(36)}`; const startedAt = Date.now(); const total = (args.items || []).length;
         bsJobs.set(jobId, { job_id: jobId, tool: "fb_publish_batch", status: "running", started_at: startedAt, total, done: 0, results: [] });
@@ -4869,14 +4899,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }).catch(e => bsJobs.set(jobId, { job_id: jobId, tool: "fb_publish_batch", status: "failed", error: e.message, started_at: startedAt, finished_at: Date.now(), total, results: (bsJobs.get(jobId) || {}).results || [] }));
         await Promise.race([p, sleep(40000)]);
         const j = bsJobs.get(jobId);
-        return { success: true, ...j, agent_instruction: j.status === "running" ? `PROJECT IN PROGRESS (${j.done}/${total}). Keep calling fb_publish_status {job_id: "${jobId}", wait_seconds: 50} until status is done / done_with_errors. NEVER end your turn or stop before that.` : "Project finished. Report each post's result to the user." };
+        return { success: true, ...j, agent_instruction: j.status === "running" ? `PROJECT IN PROGRESS (${j.done}/${total}). Keep calling fb_publish_status {job_id: "${jobId}", wait_seconds: 50} until finished is true. NEVER end your turn or stop before that.` : "Project finished. Report each post's result to the user." };
       }
       case "fb_publish_status": {
         const id = args.job_id; const wait = Math.min(50, Math.max(0, +args.wait_seconds || 0)) * 1000; const end = Date.now() + wait;
         if (!id) return { jobs: [...bsJobs.values()].slice(-10) };
         while (Date.now() < end && bsJobs.get(id) && bsJobs.get(id).status === "running") await sleep(1000);
         const j = bsJobs.get(id); if (!j) return { success: false, error: "Unknown job_id (the plugin may have been reloaded). Check Business Suite > Content/Planner." };
-        return j.status === "running" ? { ...j, elapsed_s: Math.round((Date.now() - j.started_at) / 1000), agent_instruction: "Still working. Call fb_publish_status again with wait_seconds 50. Do NOT stop or end your turn until status is done." } : { ...j, ...(j.result || {}) };
+        return j.status === "running" ? { ...j, finished: false, elapsed_s: Math.round((Date.now() - j.started_at) / 1000), agent_instruction: "Still working. Call fb_publish_status again with wait_seconds 50. Do NOT stop or end your turn until finished is true." } : { ...(j.result || {}), ...j, post_status: j.result && j.result.status, finished: true, agent_instruction: "Finished. Report the result to the user." };
       }
       case "meta_bs_eval": return await self.MetaBS.bsEvalTool(args);
       case "meta_bs_inspect": return await self.MetaBS.bsInspect(args);

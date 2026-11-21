@@ -19,10 +19,20 @@ Before posting anything, ask the user in one message:
 
 The tools enforce this: `fb_publish*` without `publish_now:true` or `schedule_time_iso` (and `fb_publish_batch` without `timing`) return `needs_user_input`.
 
+
+**🎬 RULE 3: REEL / VIDEO THUMBNAIL: ASK INSTANTLY**
+For every Reel or video, ask in the same single question round as the timing:
+"Thumbnail? Generate with Google Flow (DeepX) / I'll provide the image / No custom thumbnail."
+- Flow → `deepx_meta_generate_thumbnail` (9:16 reel, 16:9 long video), then `thumbnail_path` = files[0].path.
+- Provide → use the user's file as `thumbnail_path`.
+- None → `thumbnail_choice: "none"`.
+
+The tools return `ask_user` (all missing questions at once). Put **all** of them into ONE AskUserQuestion call right away, with no deliberating and no extra text.
+
 **🔁 RULE 2: NEVER STOP BEFORE THE PROJECT IS COMPLETE**
 - For 2 or more posts, use **one** `fb_publish_batch {items, timing}` call. It works through every item (3 tries each), and the screen stays locked ("AI is working") until the last one is published or scheduled.
 - While the status is `running`, keep calling `fb_publish_status {job_id, wait_seconds: 50}`. **Never end your turn, summarize, or ask anything mid-project.**
-- Stop only when the status is `done` / `done_with_errors`, then report each post's result. For any failed item, say exactly which one failed and why.
+- Stop only when `finished: true`, then report each post's result. For any failed item, say exactly which one failed and why.
 - If assets must be generated first (DeepX), generate **all** of them, then start the batch, in the same turn.
 
 **Hard rules for the agent**
@@ -42,7 +52,7 @@ The tools enforce this: `fb_publish*` without `publish_now:true` or `schedule_ti
 | Several posts (a project) | `fb_publish_batch {items:[...], timing:{mode:"now"} or {mode:"exact", times:[...]} or {mode:"gap", start_time_iso, gap_minutes}}` | Runs every item in Business Suite, one after another, until all are done |
 | Test without posting | `dry_run: true` | Fills the whole composer but does not press Publish/Share/Schedule |
 
-**Long uploads:** if the tool returns `status: "running"` with a `job_id`, call `fb_publish_status {job_id, wait_seconds: 45}` until `done`/`failed`. Do not start another upload meanwhile.
+**Long uploads:** if the tool returns `status: "running"` with a `job_id`, call `fb_publish_status {job_id, wait_seconds: 45}` until `finished: true`. Do not start another upload meanwhile.
 **Page id:** Business Suite uses its own `asset_id` for the Page (found automatically and cached); `target_id: "me"` is fine.
 **Diagnostics (only when a run fails):** `meta_bs_inspect` and `meta_bs_eval` read the Business Suite screen from inside the plugin.
 
