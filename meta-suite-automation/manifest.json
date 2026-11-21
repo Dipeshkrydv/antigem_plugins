@@ -238,6 +238,10 @@
           "save_draft": {
             "type": "boolean",
             "description": "Reels/videos: save as a Business Suite draft instead of publishing (counts as the timing choice)."
+          },
+          "caption_approved": {
+            "type": "boolean",
+            "description": "Set true ONLY after the user saw the exact final caption (title + text + hashtags) and approved it. Required whenever a caption is posted."
           }
         },
         "title": "fb_publishArguments",
@@ -350,6 +354,10 @@
           "save_draft": {
             "type": "boolean",
             "description": "Reels/videos: save as a Business Suite draft instead of publishing (counts as the timing choice)."
+          },
+          "caption_approved": {
+            "type": "boolean",
+            "description": "Set true ONLY after the user saw the exact final caption (title + text + hashtags) and approved it. Required whenever a caption is posted."
           }
         },
         "title": "fb_publish_reelArguments",
@@ -428,6 +436,10 @@
           "publish_now": {
             "type": "boolean",
             "description": "Set true only after the user chose 'publish now'. Either publish_now or schedule_time_iso is required (ask the user)."
+          },
+          "caption_approved": {
+            "type": "boolean",
+            "description": "Set true ONLY after the user saw the exact final caption (title + text + hashtags) and approved it. Required whenever a caption is posted."
           }
         },
         "title": "fb_publish_storyArguments",
@@ -488,6 +500,10 @@
                 },
                 "dry_run": {
                   "type": "boolean"
+                },
+                "caption_approved": {
+                  "type": "boolean",
+                  "description": "Set true ONLY after the user saw the exact final caption (title + text + hashtags) and approved it. Required whenever a caption is posted."
                 }
               }
             }

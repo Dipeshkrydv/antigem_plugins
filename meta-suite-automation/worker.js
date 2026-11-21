@@ -65,11 +65,20 @@ function bsPreflight({ toolName, items, timingGiven, multi }) {
     if (it.thumbnail_choice === "flow") todo.push("Generate the thumbnail now with deepx_meta_generate_thumbnail (aspect_ratio 9:16 for a reel, 16:9 for a long video), poll deepx_job_status, then pass files[0].path as thumbnail_path.");
     if (it.thumbnail_choice === "manual") ask.push({ id: "thumbnail_file", question: "Send/attach the thumbnail image (or its path) for the video.", options: [] });
   }
+  // Caption permission: show the exact final caption(s) and get the user's OK before anything is posted.
+  const caps = items.map((it, i) => ({ i: i + 1, text: bsCaptionOf(it).trim() })).filter(c => c.text);
+  const unapproved = items.some(it => !it.caption_approved && bsCaptionOf(it).trim());
+  if (unapproved) ask.push({
+    id: "caption",
+    question: caps.length > 1 ? `Use these ${caps.length} captions as they are?` : "Use this caption for the post?",
+    show_user: caps.map(c => (caps.length > 1 ? `Post ${c.i}:\n` : "") + c.text).join("\n\n———\n\n"),
+    options: ["Yes, use it", "Edit it (I'll tell you the changes)", "Write a new one", "Post without caption"]
+  });
   if (!ask.length && !todo.length) return null;
   return {
     success: false, needs_user_input: ask.length > 0, ask_user: ask, todo_before_upload: [...new Set(todo)],
     agent_instruction: ask.length
-      ? "ASK THE USER NOW, all questions together in ONE AskUserQuestion call, using these options. No long thinking, no extra text. Then call the same tool again with publish_now/schedule_time_iso (or timing) and thumbnail_choice ('flow' | 'manual' | 'none') / thumbnail_path."
+      ? "ASK THE USER NOW, all questions together in ONE AskUserQuestion call, using these options. For the caption question, put the exact show_user text in the question so the user sees the full caption. No long thinking, no extra text. Then call the same tool again with publish_now/schedule_time_iso (or timing), thumbnail_choice ('flow' | 'manual' | 'none') / thumbnail_path, and caption_approved:true (after edits, send the edited caption with caption_approved:true; 'without caption' = empty caption, title and hashtags)."
       : "Do the todo_before_upload steps immediately, then call the same tool again."
   };
 }

@@ -29,6 +29,12 @@ For every Reel or video, ask in the same single question round as the timing:
 
 The tools return `ask_user` (all missing questions at once). Put **all** of them into ONE AskUserQuestion call right away, with no deliberating and no extra text.
 
+
+**✍️ RULE 4: CAPTION PERMISSION BEFORE POSTING**
+Before any post, show the user the **exact final caption** (title + text + hashtags; every caption for a batch) in the same single question round:
+"Use this caption? Yes / Edit it / Write a new one / Post without caption."
+Send `caption_approved: true` only after a "Yes" (or after applying the user's edits). The tools refuse to post an unapproved caption.
+
 **🔁 RULE 2: NEVER STOP BEFORE THE PROJECT IS COMPLETE**
 - For 2 or more posts, use **one** `fb_publish_batch {items, timing}` call. It works through every item (3 tries each), and the screen stays locked ("AI is working") until the last one is published or scheduled.
 - While the status is `running`, keep calling `fb_publish_status {job_id, wait_seconds: 50}`. **Never end your turn, summarize, or ask anything mid-project.**
