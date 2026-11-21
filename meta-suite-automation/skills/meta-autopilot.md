@@ -1,12 +1,11 @@
 ---
 name: meta-autopilot
-description: >-
-  Autonomous Meta Business Suite Page Management Autopilot. Use when the user requests to post, publish, or schedule anything (photos, reels, videos, stories, announcements, text posts) to managed Facebook Pages via Meta Business Suite, or mentions 'manage page', 'page scheduler', 'meta suite', 'schedule post to page', 'meta bridge', 'page automation', or 'handle my facebook page'. Enforces permanent one-time setup, zero-tab prompts (never ask the user to open tabs, switch windows, or click UI buttons), automatic media generation for zero-friction posts, authentic page grounding via Meta Business Suite (target_type: "page", target_id: "me" or explicit page ID), viral SEO hooks and hashtags, and continuous background dispatch via SQLite WAL and WebSocket bridge.
+description: "Meta Business Suite Page Autopilot (v2.9.1): use whenever the user wants to post, publish, schedule or batch-upload photos, posters, reels, videos or stories to their Facebook Page, or says manage page / page scheduler / meta suite. Uploads ONLY through Meta Business Suite via this plugin (never browser MCP, never facebook.com). First ask in one instant question round: timing (now / exact time / start + gap), reel thumbnail (Google Flow / own image / none) and caption approval; then run the whole project with fb_publish_batch and never stop until every post is done."
 ---
 
-# Meta Business Suite Page Autopilot (v2.9.0)
+# Meta Business Suite Page Autopilot (v2.9.1)
 
-## ⚡ v2.9.0 — META BUSINESS SUITE ENGINE (overrides anything below that disagrees)
+## ⚡ v2.9.1 — META BUSINESS SUITE ENGINE (overrides anything below that disagrees)
 
 Every Page upload now runs **inside Meta Business Suite** (`business.facebook.com`), driven by the plugin itself.
 It never uses the facebook.com composer, never switches profile, never needs native taps, and **locks the screen** while it works.

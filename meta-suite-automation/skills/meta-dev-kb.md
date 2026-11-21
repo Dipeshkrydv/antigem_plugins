@@ -1,7 +1,6 @@
 ---
 name: meta-dev-kb
-description: >-
-  Authoritative Meta Developer Platform Knowledge Base & Architecture Engine. Use when the user asks questions about Meta Graph API, Instagram Graph API, Facebook Pages API, Messenger Platform, Threads API, WhatsApp Business Cloud API, Marketing API, Webhooks, error codes (#1-#80004), token lifecycle (never-expiring page token, 60-day user token exchange), permissions, rate limits, or mentions 'meta error', 'graph api', 'instagram api', 'access token expired', 'error 190', 'page token', 'rate limit', 'webhook verification', or 'meta-dev-knowledge-base'. Backed by 83 local documentation files, 6 production workflows, and instant MCP/CLI lookup tools.
+description: "Authoritative Meta Developer Platform Knowledge Base & Architecture Engine. Use when the user asks questions about Meta Graph API, Instagram Graph API, Facebook Pages API, Messenger Platform, Threads API, WhatsApp Business Cloud API, Marketing API, Webhooks, error codes (#1-#80004), token lifecycle (never-expiring page token, 60-day user token exchange), permissions, rate limits, or mentions 'meta error', 'graph api', 'instagram api', 'access token expired', 'error 190', 'page token', 'rate limit', 'webhook verification', or 'meta-dev-knowledge-base'. Backed by 83 local documentation files, 6 production workflows, and instant MCP/CLI lookup tools."
 ---
 
 # Meta Developer Platform Knowledge Base & Architecture Engine
