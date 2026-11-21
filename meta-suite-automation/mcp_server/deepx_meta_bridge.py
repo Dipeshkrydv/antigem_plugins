@@ -1,233 +1,105 @@
-"""
-Antigravity Meta Suite - DeepX Google Flow Bridge Integration Module (v1.0.0)
-Exclusively connects Meta Suite Automation to the latest DeepX Google Flow Extension (v1.5.5)
-at http://127.0.0.1:8792 and ws://127.0.0.1:8792/ws.
+# -*- coding: utf-8 -*-
+"""deepx_meta_bridge.py -- Meta Suite media generation through the built-in DeepX Google Flow engine.
 
-Provides zero-cost AI asset generation:
-- 🍌 Nano Banana 2.1 / Nano Banana Pro design & photo card generation
-- High-CTR 20M viral thumbnail cover generation (16:9 & 9:16)
-- Veo 3.1 & Omni Flash 1.2 vertical Reels & video ad generation
-- Direct integration with Meta Business Suite & Facebook/Instagram controllers
+The old DeepX Chrome bridge (http://127.0.0.1:8792) is gone. This module calls the Meta Suite AntiGem
+plugin's own MCP tools (plugin host http://127.0.0.1:8865/mcp?extension=meta-suite-automation):
+deepx_meta_status / deepx_meta_generate_design / deepx_meta_generate_thumbnail / deepx_meta_generate_video
+and polls deepx_job_status. The engine checks the Google Flow login, asks Agent Mode vs Standard
+(pass generation_mode or set DEEPX_GENERATION_MODE), and auto-switches to Agent Mode on
+"unusual activity" blocks.
 """
-
-import os
 import json
+import os
 import time
-import uuid
-import base64
-import logging
-from typing import Dict, Any, List, Optional
-import httpx
+import urllib.request
+from typing import Any, Dict, Optional
 
-from mcp_server.meta_viral_seo_engine import meta_viral_seo
+try:
+    from .meta_viral_seo_engine import meta_viral_seo
+except Exception:  # pragma: no cover - CLI import path
+    from mcp_server.meta_viral_seo_engine import meta_viral_seo
 
-logger = logging.getLogger("meta_suite.deepx_bridge")
-
-DEEPX_HTTP_BASE = os.getenv("DEEPX_HTTP_BASE", "http://127.0.0.1:8792")
-ASSETS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "assets"))
-os.makedirs(ASSETS_DIR, exist_ok=True)
+EXT_ID = os.getenv("META_PLUGIN_ID", "meta-suite-automation")
+DEEPX_MCP_URL = os.getenv("DEEPX_MCP_URL", f"http://127.0.0.1:8865/mcp?extension={EXT_ID}")
+DEVICE_ID = os.getenv("ANTIGEM_DEVICE_ID") or os.getenv("FLOW_DEVICE_ID", "78668db31e6bec3a")
 
 
 class DeepXMetaBridge:
-    """Production client connecting Meta Suite automation to DeepX Google Flow."""
+    """Client for the built-in DeepX Google Flow engine of the Meta Suite plugin."""
 
-    def __init__(self, base_url: str = DEEPX_HTTP_BASE):
-        self.base_url = base_url.rstrip("/")
+    def __init__(self, base_url: str = DEEPX_MCP_URL):
+        self.base_url = base_url
+
+    def _call(self, tool: str, args: Dict[str, Any], timeout: float = 200.0) -> Dict[str, Any]:
+        body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": tool, "arguments": args}}).encode()
+        req = urllib.request.Request(self.base_url, data=body, headers={"X-Device-Id": DEVICE_ID, "Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            resp = json.loads(r.read().decode("utf-8"))
+        if "error" in resp:
+            raise RuntimeError(resp["error"])
+        res = resp.get("result", {})
+        text = "".join(c.get("text", "") for c in res.get("content", []))
+        try:
+            data = json.loads(text)
+        except ValueError:
+            data = {"text": text}
+        if res.get("isError"):
+            raise RuntimeError(data.get("error") if isinstance(data, dict) else text)
+        return data.get("structuredContent", data) if isinstance(data, dict) else data
 
     def get_status(self) -> Dict[str, Any]:
-        """Probes local DeepX bridge status."""
         try:
-            with httpx.Client(timeout=3.0) as client:
-                resp = client.get(f"{self.base_url}/status")
-                if resp.status_code == 200:
-                    data = resp.json()
-                    return {
-                        "bridge_online": True,
-                        "extension_connected": bool(data.get("extensionConnected", False)),
-                        "connected_clients": data.get("connectedClients", 0),
-                        "extension_info": data.get("extensionInfo"),
-                        "message": "Connected! Google Flow is ready." if data.get("extensionConnected") else "Bridge online. Open flow.google.com with DeepX extension loaded."
-                    }
+            r = self._call("deepx_meta_status", {}, timeout=60)
+            return {"connected": bool(r.get("google_flow_logged_in")), **r}
         except Exception as e:
-            logger.debug("DeepX bridge probe failed: %s", e)
-        return {
-            "bridge_online": False,
-            "extension_connected": False,
-            "connected_clients": 0,
-            "message": "DeepX bridge offline. Ensure DeepX extension is installed."
-        }
+            return {"connected": False, "error": f"Meta Suite plugin not reachable at {self.base_url}: {e}"}
 
-    def execute_command(self, command: str, payload: Dict[str, Any], timeout_seconds: float = 120.0) -> Dict[str, Any]:
-        """Sends an autonomous command to Google Flow via DeepX extension."""
-        url = f"{self.base_url}/api/command"
-        timeout_ms = int(timeout_seconds * 1000)
-        body = {
-            "command": command,
-            "payload": payload,
-            "timeout": timeout_ms
-        }
+    def _run(self, tool: str, args: Dict[str, Any], generation_mode: Optional[str], wait_for_render: bool) -> Dict[str, Any]:
+        mode = generation_mode or os.getenv("DEEPX_GENERATION_MODE")
+        if mode:
+            args["generation_mode"] = mode
         try:
-            with httpx.Client(timeout=timeout_seconds + 5.0) as client:
-                resp = client.post(url, json=body)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    if data.get("success"):
-                        return data.get("result", {})
-                    raise RuntimeError(data.get("error", "DeepX command failed"))
-                raise RuntimeError(f"DeepX bridge returned HTTP {resp.status_code}: {resp.text}")
+            r = self._call(tool, args)
         except Exception as e:
-            logger.error("Failed executing DeepX command '%s': %s", command, e)
-            raise
+            return {"success": False, "error": str(e)}
+        if r.get("action_required"):
+            return {"success": False, **r}
+        if not wait_for_render or not r.get("job_id"):
+            return {"success": True, **r}
+        job = r["job_id"]
+        deadline = time.time() + 1800
+        while r.get("status") not in ("done", "failed", "cancelled") and time.time() < deadline:
+            r = self._call("deepx_job_status", {"job_id": job, "wait_seconds": 30}, timeout=90)
+        files = r.get("files") or []
+        path = files[0].get("path") if files else None
+        return {"success": r.get("status") == "done" and bool(path), "job_id": job, "status": r.get("status"),
+                "stage": r.get("stage"), "saved_path": path, "files": files, "mode": r.get("mode") or r.get("mode_used"),
+                "error": r.get("error")}
 
-    # -------------------------------------------------------------
-    # 1. Design & Photo Generation (🍌 Nano Banana 2.1 on Google Flow)
-    # -------------------------------------------------------------
-    def generate_image(
-        self,
-        prompt: str,
-        aspect_ratio: str = "4:5",  # 1:1, 4:5, 9:16, 16:9
-        model: str = "gemini-nano-banana-2.1",
-        count: int = 1,
-        wait_for_render: bool = True
-    ) -> Dict[str, Any]:
-        """Generates social designs & photo cards on Google Flow without API costs."""
-        payload = {
-            "prompt": prompt,
-            "aspectRatio": aspect_ratio,
-            "model": model,
-            "count": count,
-            "wait_for_render": wait_for_render
-        }
-        logger.info("Dispatching image generation to Google Flow (%s in %s)...", model, aspect_ratio)
-        try:
-            res = self.execute_command("generateImage", payload, timeout_seconds=90.0)
-        except Exception as e:
-            logger.error("generate_image failed: %s", e)
-            return {
-                "success": False,
-                "error": str(e),
-                "model": model,
-                "aspect_ratio": aspect_ratio,
-                "prompt": prompt
-            }
+    def generate_image(self, prompt: str, aspect_ratio: str = "4:5", model: str = "gemini-nano-banana-2.1",
+                       count: int = 1, wait_for_render: bool = True, generation_mode: Optional[str] = None) -> Dict[str, Any]:
+        """Social designs & photo cards on Google Flow (Nano Banana) through the built-in DeepX engine."""
+        return self._run("deepx_meta_generate_design", {"prompt": prompt, "aspect_ratio": aspect_ratio, "model": model},
+                         generation_mode, wait_for_render)
 
-        # If base64 or download URL returned, save to assets
-        saved_path = None
-        if isinstance(res, dict):
-            b64 = res.get("base64") or res.get("data")
-            if b64:
-                img_name = f"flow_img_{int(time.time())}_{uuid.uuid4().hex[:6]}.jpg"
-                saved_path = os.path.join(ASSETS_DIR, img_name)
-                clean_b64 = b64.split(",")[-1] if "," in b64 else b64
-                with open(saved_path, "wb") as f:
-                    f.write(base64.b64decode(clean_b64))
-                logger.info("Saved DeepX image locally to %s", saved_path)
+    def generate_viral_thumbnail(self, topic: str, title_hook: Optional[str] = None, subtitle: Optional[str] = None,
+                                 aspect_ratio: str = "16:9", archetype: str = "classical_contrast",
+                                 generation_mode: Optional[str] = None) -> Dict[str, Any]:
+        args = {"topic": topic, "aspect_ratio": aspect_ratio, "archetype": archetype}
+        if title_hook:
+            args["title_hook"] = title_hook
+        if subtitle:
+            args["subtitle"] = subtitle
+        r = self._run("deepx_meta_generate_thumbnail", args, generation_mode, True)
+        r["thumbnail_path"] = r.get("saved_path")
+        return r
 
-        return {
-            "success": True,
-            "model": model,
-            "aspect_ratio": aspect_ratio,
-            "prompt": prompt,
-            "saved_path": saved_path,
-            "raw_result": res
-        }
+    def generate_video(self, prompt: str, model: str = "veo-3.1-lite", duration: int = 10, aspect_ratio: str = "9:16",
+                       wait_for_render: bool = True, generation_mode: Optional[str] = None) -> Dict[str, Any]:
+        """Video reels/scenes on Google Flow (Veo 3.1 / Omni) through the built-in DeepX engine."""
+        return self._run("deepx_meta_generate_video", {"prompt": prompt, "model": model, "duration": duration,
+                                                        "aspect_ratio": aspect_ratio}, generation_mode, wait_for_render)
 
-    # -------------------------------------------------------------
-    # 2. Viral Thumbnail Generation (Rule 8: AI Image Model ONLY)
-    # -------------------------------------------------------------
-    def generate_viral_thumbnail(
-        self,
-        topic: str,
-        title_hook: Optional[str] = None,
-        subtitle: Optional[str] = None,
-        aspect_ratio: str = "16:9",  # 16:9 for FB landscape / YT, 9:16 for Reels
-        archetype: str = "classical_contrast"
-    ) -> Dict[str, Any]:
-        """
-        Creates an agency-grade high-CTR viral thumbnail via 🍌 Nano Banana 2.1 on Google Flow.
-        Enforces Rule 8 (AI Image Model ONLY, volumetric rim lighting, 3D gradient text).
-        """
-        viral_pkg = meta_viral_seo.generate_20m_viral_package(
-            topic=topic,
-            video_type="reel" if aspect_ratio == "9:16" else "feed_video"
-        )
-        ai_prompt = viral_pkg["ai_thumbnail_prompt"]
-
-        logger.info("Generating high-CTR thumbnail for '%s' (%s) on Google Flow...", topic, aspect_ratio)
-        gen_res = self.generate_image(
-            prompt=ai_prompt,
-            aspect_ratio=aspect_ratio,
-            model="gemini-nano-banana-2.1",
-            wait_for_render=True
-        )
-
-        return {
-            "success": True,
-            "topic": topic,
-            "aspect_ratio": aspect_ratio,
-            "dominant_hook": viral_pkg["headline"]["dominant_thumbnail_hook"],
-            "subtitle": viral_pkg["headline"]["secondary_subtitle"],
-            "ai_prompt": ai_prompt,
-            "thumbnail_path": gen_res.get("saved_path"),
-            "raw_result": gen_res
-        }
-
-    # -------------------------------------------------------------
-    # 3. Reel & Video Ad Generation (Veo 3.1 & Omni Flash on Google Flow)
-    # -------------------------------------------------------------
-    def generate_video(
-        self,
-        prompt: str,
-        model: str = "veo-3.1-lite",
-        duration: int = 10,
-        aspect_ratio: str = "9:16",
-        wait_for_render: bool = True
-    ) -> Dict[str, Any]:
-        """Generates video reels/scenes on Google Flow via Veo 3.1."""
-        payload = {
-            "prompt": prompt,
-            "model": model,
-            "duration": duration,
-            "aspectRatio": aspect_ratio,
-            "wait_for_render": wait_for_render
-        }
-        logger.info("Dispatching video generation to Google Flow (%s, %ds, %s)...", model, duration, aspect_ratio)
-        try:
-            res = self.execute_command("generateVideo", payload, timeout_seconds=240.0)
-        except Exception as e:
-            logger.error("generate_video failed: %s", e)
-            return {
-                "success": False,
-                "error": str(e),
-                "model": model,
-                "duration": duration,
-                "aspect_ratio": aspect_ratio,
-                "prompt": prompt
-            }
-
-        saved_path = None
-        if isinstance(res, dict):
-            b64 = res.get("base64") or res.get("data")
-            if b64:
-                vid_name = f"flow_reel_{int(time.time())}_{uuid.uuid4().hex[:6]}.mp4"
-                saved_path = os.path.join(ASSETS_DIR, vid_name)
-                clean_b64 = b64.split(",")[-1] if "," in b64 else b64
-                with open(saved_path, "wb") as f:
-                    f.write(base64.b64decode(clean_b64))
-                logger.info("Saved DeepX video locally to %s", saved_path)
-
-        return {
-            "success": True,
-            "model": model,
-            "duration": duration,
-            "aspect_ratio": aspect_ratio,
-            "saved_path": saved_path,
-            "raw_result": res
-        }
-
-    # -------------------------------------------------------------
-    # 4. Full End-to-End Meta Suite Autopilot Production
-    # -------------------------------------------------------------
     def produce_and_package_post(
         self,
         topic: str,

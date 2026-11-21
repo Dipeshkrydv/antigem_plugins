@@ -1,8 +1,8 @@
 {
   "name": "facebook-automation",
   "displayName": "Facebook Automation & SEO Studio",
-  "version": "1.8.0",
-  "description": "Pre-Trained Phone (Desktop-on-Phone www.facebook.com & Mobile Touch m.facebook.com) and Desktop Facebook Automation Engine (v1.8.0): Dedicated Feed Posts (Text/Photo/Carousel/Video), Anti-Comment Firewall (strictly never posts into comments), Reels (/reels/create + automatic mobile fallback + video event dispatch), Stories (/stories/create Photo/Video with overlay story_text & Text Story), Real Video/Reel Thumbnail & Cover Uploader, Multiline Formatted Caption Engine (Title + Description + Bullets + CTA + 3-6 #Hashtags), and Zero-Overthinking 1-Call Dispatch, and built-in DeepX Google Flow engine for AI thumbnails, Reel covers and post designs (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
+  "version": "1.8.1",
+  "description": "Pre-Trained Phone (Desktop-on-Phone www.facebook.com & Mobile Touch m.facebook.com) and Desktop Facebook Automation Engine (v1.8.1): Dedicated Feed Posts (Text/Photo/Carousel/Video), Anti-Comment Firewall (strictly never posts into comments), Reels (/reels/create + automatic mobile fallback + video event dispatch), Stories (/stories/create Photo/Video with overlay story_text & Text Story), Real Video/Reel Thumbnail & Cover Uploader, Multiline Formatted Caption Engine (Title + Description + Bullets + CTA + 3-6 #Hashtags), and Zero-Overthinking 1-Call Dispatch, and built-in DeepX Google Flow engine for AI thumbnails, Reel covers and post designs (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
   "logo": "icon.png",
   "author": {
     "name": "Dipesh Kr Yadav",

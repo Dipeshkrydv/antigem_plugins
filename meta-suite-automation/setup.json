@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "project": "Meta Suite Page Management",
-  "version": "2.3.0",
+  "version": "2.4.1",
   "status": "ready",
   "connection": {
     "server": "meta-scheduler-mcp",
@@ -12,9 +12,8 @@
     "status": "ready"
   },
   "deepxFlowBridge": {
-    "server": "deepx-flow",
-    "wsUrl": "ws://127.0.0.1:8792/ws",
-    "port": 8792,
+    "server": "built-in",
+    "engine": "DeepX Google Flow engine inside this plugin (deepx-bundle.js)",
     "status": "ready"
   },
   "accounts": {

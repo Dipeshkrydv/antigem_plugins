@@ -2,7 +2,7 @@
 
 ## Sequence per job
 1. Open/find the Google Flow tab in the AntiGem browser, use the current project (or create one).
-2. Turn the **Agent** pill on. Open Agent settings: **Confirm before generating: Never** (100% autopilot), default image/video model, aspect ratio, quality. Save, close.
+2. Turn the Agent on: flip the **spark switch inside the prompt box, next to the generate button** (Flow Nov 2026 UI; older canvases use the **Agent** pill). Open Agent settings: **Confirm before generating: Never** (100% autopilot), default image/video model, aspect ratio, quality. Save, close.
 3. Sync custom instructions (`article_spark` panel). Default: *DeepX Master Autopilot Director* (no questions, every item now, zero style drift, @handle identity lock, faithful prompts). Override with `custom_instructions`.
 4. Build parts of **≤24 items** (`max_per_part`, hard cap 24, Google Flow Agent's per-request limit):
    - prompt list → `[Image k/N] <prompt>` lines, 24 per part, with a header like `Generate all 24 images at once using Nano Banana 2.1 in 9:16 ratio (Part 2 of 5, items 25 to 48 of 100)`.
@@ -22,3 +22,8 @@ Per-part wait limit: 480 s for images, 900 s for videos (`part_timeout_sec`). On
 ## Models in Agent settings
 Images: Nano Banana 2.1 (default), Nano Banana Pro, Nano Banana 2 Lite, Imagen 3.
 Videos: Omni Flash 1.2 (default, 15 s with audio), Omni 1.1 Flash, Veo 3.1 - Quality, Veo 3.1 - Fast, Veo 3.1 - Lite.
+
+## Google Flow Nov 2026 Agent update
+- **Spark switch**: the Agent lives in the prompt box. `deepx_flow_agent_status` reports `control: "spark_switch"` (new UI) or `"agent_pill"` (old UI).
+- **Quick answers above the prompt box**: short Agent replies appear right above the prompt box with **Read more** / **Use side panel**. When an approval or question is waiting there, DeepX opens the side panel once and handles it. `deepx_flow_agent_open_chat` opens the full chat on demand; `deepx_flow_agent_status` returns the latest quick answer as `compact_reply`.
+- **Faster model**: Flow upgraded the Agent model (faster, more reliable multi-step tasks), and the Tool Builder for custom Flow Tools got better coding quality and precise edits. The 24-items-per-request limit still applies, so DeepX still splits big batches.

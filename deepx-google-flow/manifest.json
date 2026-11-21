@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "id": "deepx-google-flow",
   "name": "DeepX Google Flow Studio",
-  "version": "1.1.0",
-  "description": "DeepX Google Flow Studio (v1.1.0): the complete DeepX Flow extension as an AntiGem MCP plugin — no side panel. Checks Google login, asks Agent Mode vs Standard mode before every generation; Agent Mode auto-splits big batches into ≤24-item parts pasted back-to-back with 100% autopilot approvals; Standard mode runs on AntiGem's native Flow engine and auto-switches to Agent Mode when Google shows an unusual-activity / extension block. Includes storyboard analyzer, characters, references, scene chaining, upscale, downloads and all deepx_* / flow_* tools.",
+  "version": "1.2.0",
+  "description": "DeepX Google Flow Studio (v1.2.0): the complete DeepX Flow extension as an AntiGem MCP plugin — no side panel. Checks Google login, asks Agent Mode vs Standard mode before every generation; Agent Mode auto-splits big batches into ≤24-item parts pasted back-to-back with 100% autopilot approvals; Standard mode runs on AntiGem's native Flow engine and auto-switches to Agent Mode when Google shows an unusual-activity / extension block. Includes storyboard analyzer, characters, references, scene chaining, upscale, downloads and all deepx_* / flow_* tools. v1.2.0: Google Flow Nov 2026 update — Agent spark switch in the prompt box, quick answers with auto side panel, and semantic project asset search (exact + similar results).",
   "author": "Dipesh Kr Yadav",
   "icon": "icon.png",
   "icons": {
@@ -43,7 +43,8 @@
     "omni-flash",
     "batch-generation",
     "storyboard",
-    "antigem"
+    "antigem",
+    "asset-search"
   ],
   "mcp_tools": [
     {
@@ -286,7 +287,7 @@
     },
     {
       "name": "flow_agent_status",
-      "description": "Google Flow Agent Mode pill status on the current canvas (found / active / busy).",
+      "description": "Google Flow Agent Mode pill status on the current canvas (found / active / busy). Also reports which control was found (spark_switch / agent_pill) and the latest quick Agent answer shown above the prompt box.",
       "inputSchema": {
         "type": "object",
         "properties": {},
@@ -295,7 +296,7 @@
     },
     {
       "name": "deepx_flow_agent_status",
-      "description": "Google Flow Agent Mode pill status on the current canvas (found / active / busy).",
+      "description": "Google Flow Agent Mode pill status on the current canvas (found / active / busy). Also reports which control was found (spark_switch / agent_pill) and the latest quick Agent answer shown above the prompt box.",
       "inputSchema": {
         "type": "object",
         "properties": {},
@@ -304,7 +305,7 @@
     },
     {
       "name": "flow_agent_toggle",
-      "description": "Turn Google Flow Agent Mode on or off (omit active to toggle).",
+      "description": "Turn Google Flow Agent on or off (omit active to toggle). Works with the new spark switch inside the prompt box (next to the generate button) and the older Agent pill.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -318,7 +319,7 @@
     },
     {
       "name": "deepx_flow_agent_toggle",
-      "description": "Turn Google Flow Agent Mode on or off (omit active to toggle).",
+      "description": "Turn Google Flow Agent on or off (omit active to toggle). Works with the new spark switch inside the prompt box (next to the generate button) and the older Agent pill.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -4852,6 +4853,90 @@
           "code"
         ],
         "type": "object"
+      }
+    },
+    {
+      "name": "flow_search_assets",
+      "description": "Search assets inside a Google Flow project with Flow's new semantic search. Returns 'exact' matches first (name / prompt / metadata text) and then 'similar' results that Flow found from the image or video content itself (color, subject, mood). Use it to find a shot or ingredient by describing it.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "What to find: an asset name, words from its prompt, OR a description of what it looks like / is about (e.g. 'blue neon city at night', 'sad mood close-up', 'red car')."
+          },
+          "project_id": {
+            "type": "string",
+            "description": "Flow project to search (default: current project)."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Max results (default 60)."
+          },
+          "wait_ms": {
+            "type": "integer",
+            "description": "How long to wait for Similar results to load (800–15000, default 3500)."
+          },
+          "clear_after": {
+            "type": "boolean",
+            "description": "Clear the search box afterwards."
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "deepx_search_assets",
+      "description": "Search assets inside a Google Flow project with Flow's new semantic search. Returns 'exact' matches first (name / prompt / metadata text) and then 'similar' results that Flow found from the image or video content itself (color, subject, mood). Use it to find a shot or ingredient by describing it.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "What to find: an asset name, words from its prompt, OR a description of what it looks like / is about (e.g. 'blue neon city at night', 'sad mood close-up', 'red car')."
+          },
+          "project_id": {
+            "type": "string",
+            "description": "Flow project to search (default: current project)."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Max results (default 60)."
+          },
+          "wait_ms": {
+            "type": "integer",
+            "description": "How long to wait for Similar results to load (800–15000, default 3500)."
+          },
+          "clear_after": {
+            "type": "boolean",
+            "description": "Clear the search box afterwards."
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "flow_agent_open_chat",
+      "description": "Open the full Google Flow Agent chat. Flow now shows quick Agent answers right above the prompt box; this clicks 'Use side panel' / 'Read more' to open the full conversation.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "deepx_flow_agent_open_chat",
+      "description": "Open the full Google Flow Agent chat. Flow now shows quick Agent answers right above the prompt box; this clicks 'Use side panel' / 'Read more' to open the full conversation.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
       }
     }
   ]

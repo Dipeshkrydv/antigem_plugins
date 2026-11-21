@@ -198,9 +198,16 @@ Flow Agent supports persistent project guidelines:
 - **@character Tagging**: Characters saved in Flow's Character Studio are automatically referenced using \`@handle\` (e.g. \`@sam_detective\`, \`@maya\`). Flow Agent binds the corresponding reference card across scenes.
 - **Terminal Frame Chaining**: For continuous video sequences, DeepX can extract in-memory HTML5 Canvas video terminal frames to anchor sequential visual continuity.
 
-### 6. Selecting & Disconnecting Flow Agent
-- **Select / Connect Agent Mode**: Click \`button.agent-mode-chip\` (\`aria-pressed="true"\`). DeepX switches the prompt box to Agent Mode and enables the autonomous dispatch engine.
-- **Disconnect / Exit Agent Mode**: Click \`button.agent-mode-chip\` again (\`aria-pressed="false"\`). DeepX restores the standard single-shot prompt box, settings trigger, and manual model selectors.
+### 6. Selecting & Disconnecting Flow Agent (Nov 2026 UI)
+- **Spark switch**: Google Flow Agent is now a **spark switch inside the prompt box, next to the generate button**. Flip it on at any time to brainstorm ideas, generate batches of images or videos, or organize the project. DeepX finds it automatically (older canvases with the \`button.agent-mode-chip\` pill still work).
+- **Quick answers above the prompt box**: Agent replies and updates appear right above the prompt box. "Read more" or "Use side panel" opens the full chat; DeepX opens the side panel automatically when an approval or question is waiting (\`deepx_flow_agent_open_chat\` does it on demand).
+- **Faster model**: Flow upgraded the Agent model for faster responses and better reliability on multi-step creative tasks; the Tool Builder (custom Flow Tools) improved coding quality and precise edits.
+- **Disconnect / Exit Agent Mode**: flip the spark switch off. DeepX restores the standard prompt box, settings trigger, and manual model selectors.
+
+### 6b. Project Asset Search (Nov 2026)
+- Search inside a project by name, prompt text, **or by describing what the asset looks like or is about**.
+- **Exact matches show first** (name / prompt / metadata). **Similar results show second**: Flow matches on the image or video content itself (color, subject, mood). First pass from Google; quality of similar results is still improving.
+- Tool: \`deepx_search_assets\` {query} → \`exact[]\` + \`similar[]\`.
 - Toggle programmatically via \`deepx_flow_agent_toggle\`.
 
 ### 7. Google Flow Agent 24-Item Hard Ceiling & Smart Auto-Chunking Architecture

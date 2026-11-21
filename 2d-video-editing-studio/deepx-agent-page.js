@@ -2,7 +2,7 @@
 // (service-worker.js agent functions + content-script-isolated.js autopilot watcher).
 // Injected lazily by deepx-agent.js through chrome.scripting.executeScript({files}).
 (function () {
-  var VERSION = 3;
+  var VERSION = 4; // v4: Flow Nov-2026 UI (spark switch in prompt box, compact replies, semantic asset search)
   if (window.__deepxAgent && window.__deepxAgent.v === VERSION) return;
 
   var BLOCK_RE = /unusual (?:activity|traffic|behaviou?r|request|usage)|suspicious (?:activity|traffic|request)|automated (?:queries|requests|traffic|software|access)|(?:browser )?extensions? (?:is|are|may be|might be)? ?(?:interfering|blocking|not (?:allowed|supported))|unsupported (?:browser|extension)|disable (?:your |any )?(?:browser )?extensions?|verify (?:that )?(?:you(?:'|’)re|you are) (?:a )?human|not a robot|re-?captcha|captcha (?:failed|required|verification)|couldn(?:'|’)t verify|PUBLIC_ERROR_UNUSUAL|UNUSUAL_ACTIVITY|PERMISSION_DENIED|request (?:was )?blocked by google/i;
@@ -41,8 +41,53 @@
     return { fx: (cx - ox) / vw, fy: (cy - oy) / vh, canTap: !!hit && (hit === el || el.contains(hit)) };
   }
 
-  // ---------- Agent pill ----------
+  // ---------- Agent toggle ----------
+  // Nov 2026 Flow UI: the Agent is a "spark" switch INSIDE the prompt box, next to the generate
+  // button. Older UI: an "Agent" pill/chip. Both are supported; the spark switch is tried first.
+  function iconText(el) {
+    var out = '';
+    var ics = el.querySelectorAll ? el.querySelectorAll('mat-icon, .material-symbols-outlined, .material-symbols-rounded, .google-symbols, i') : [];
+    for (var i = 0; i < ics.length; i++) out += ' ' + norm(ics[i].textContent);
+    return out.toLowerCase();
+  }
+  function promptRoot() {
+    return document.querySelector('flow-prompt-box, flow-base-prompt-box, .agent-prompt-box, div.prompt-box') || (promptBox() && promptBox().closest('form, [class*="prompt-box"], [class*="composer"]'));
+  }
+  function sparkSwitch() {
+    var roots = [promptRoot(), document];
+    for (var r = 0; r < roots.length; r++) {
+      if (!roots[r]) continue;
+      var list = roots[r].querySelectorAll("button[role='switch'], [role='switch'], mat-slide-toggle, mat-mdc-slide-toggle, .mat-mdc-slide-toggle, .mdc-switch, button.agent-toggle, button.spark-toggle, [class*='agent-switch'], [class*='agent-toggle'], [class*='spark-switch'], [class*='spark-toggle'], button[aria-pressed]");
+      for (var i = 0; i < list.length; i++) {
+        var el = list[i];
+        if (!shown(el)) continue;
+        var aria = norm((el.getAttribute('aria-label') || '') + ' ' + (el.getAttribute('mattooltip') || el.getAttribute('title') || '')).toLowerCase();
+        var ic = iconText(el), cls = String(el.className || '').toLowerCase();
+        if (/article_spark|tune|settings/.test(ic) && !/agent/.test(aria)) continue; // instructions / settings buttons
+        if (/agent|spark|brainstorm/.test(aria) || /(^|\s)(spark|auto_awesome|magic_button|wand_stars)(\s|$)/.test(ic) || /(agent|spark)[-_]?(switch|toggle)/.test(cls)) {
+          // Prefer the actual clickable switch element
+          var inner = el.matches("button, [role='switch']") ? el : (el.querySelector("button[role='switch'], [role='switch'], button, input[type='checkbox']") || el);
+          return inner;
+        }
+      }
+      if (r === 0 && roots[0]) {
+        // Positional fallback: an icon-only toggle sitting right next to the generate button
+        var sb = submitButton();
+        if (sb && sb.parentElement) {
+          var sibs = sb.parentElement.parentElement ? sb.parentElement.parentElement.querySelectorAll('button') : [];
+          for (var k = 0; k < sibs.length; k++) {
+            var b = sibs[k];
+            if (b === sb || !shown(b)) continue;
+            if (/(^|\s)(spark|auto_awesome)(\s|$)/.test(iconText(b))) return b;
+          }
+        }
+      }
+    }
+    return null;
+  }
   function agentPill() {
+    var sw = sparkSwitch();
+    if (sw) return sw;
     var direct = document.querySelector('button.agent-mode-chip, button.agent-chip');
     if (direct && shown(direct)) return direct;
     var list = document.querySelectorAll('button[aria-pressed], flow-prompt-box button, button');
@@ -58,7 +103,13 @@
   function pillActive(p) {
     if (!p) return false;
     var cls = String(p.className || '');
-    var sel = p.getAttribute('aria-pressed') || p.getAttribute('aria-selected');
+    var sel = p.getAttribute('aria-pressed') || p.getAttribute('aria-selected') || p.getAttribute('aria-checked');
+    var host = p.closest && p.closest('mat-slide-toggle, .mat-mdc-slide-toggle, .mdc-switch');
+    var hostCls = host ? String(host.className || '') : '';
+    var box = p.matches && p.matches("input[type='checkbox']") ? p : (p.querySelector && p.querySelector("input[type='checkbox']"));
+    if (box && box.checked) return true;
+    if (/mat-mdc-slide-toggle-checked|mat-checked|mdc-switch--selected|mdc-switch--checked/.test(cls + ' ' + hostCls)) return true;
+    if (/(^|\s)(on|checked|is-on|agent-on|toggle-on)(\s|$)/.test(cls)) return true;
     return sel === 'true' || cls.indexOf('agent-mode-chip-checked') >= 0 || /(^|\s)(active|selected)(\s|$)/.test(cls) || cls.indexOf('mat-mdc-tab-active') >= 0;
   }
   function status() {
@@ -66,7 +117,10 @@
     return {
       found: !!p,
       active: pillActive(p),
-      label: p ? norm(p.innerText || p.getAttribute('aria-label') || 'Agent') : null,
+      label: p ? norm(p.getAttribute('aria-label') || p.innerText || 'Agent') : null,
+      control: p ? (sparkSwitch() === p ? 'spark_switch' : 'agent_pill') : null,
+      compact_reply: compactReply() ? norm(compactReply().innerText).slice(0, 300) : null,
+      full_chat_open: !!document.querySelector('flow-agent-chat, flow-agent-panel flow-agent-chat-message, .agent-side-panel'),
       instructions_button: !!instructionsButton(),
       prompt_box: !!promptBox(),
       busy: busy().isBusy,
@@ -75,7 +129,7 @@
   }
   async function setAgent(desired) {
     var p = agentPill();
-    if (!p) return { success: false, found: false, error: 'Google Flow Agent pill not found on this canvas. Open a project canvas first.' };
+    if (!p) return { success: false, found: false, error: 'Google Flow Agent switch (spark icon in the prompt box) not found on this canvas. Open a project canvas first.' };
     var before = pillActive(p);
     var want = desired == null ? !before : !!desired;
     if (before !== want) {
@@ -210,10 +264,42 @@
     return { success: !!(title || desc), instructionsSynced: !!(title || desc), reused_entry: existing };
   }
 
+  // ---------- Compact Agent replies (Nov 2026) ----------
+  // Quick answers now appear right above the prompt box with "Read more" / "Use side panel".
+  function textButton(re, root) {
+    var list = (root || document).querySelectorAll("button, a, [role='button']");
+    for (var i = 0; i < list.length; i++) if (shown(list[i]) && re.test(norm(list[i].innerText || list[i].getAttribute('aria-label')))) return list[i];
+    return null;
+  }
+  function compactReply() {
+    var direct = document.querySelector("flow-agent-quick-reply, flow-agent-inline-response, flow-agent-preview, [class*='agent-quick'], [class*='quick-answer'], [class*='agent-inline'], [class*='agent-preview']");
+    if (direct && shown(direct)) return direct;
+    var b = textButton(/^(read more|use side panel|open (in )?side panel)$/i);
+    if (!b) return null;
+    var el = b;
+    for (var i = 0; i < 6 && el.parentElement; i++) { el = el.parentElement; if (norm(el.innerText).length > 40) break; }
+    return el;
+  }
+  async function openFullChat() {
+    if (document.querySelector('flow-agent-chat-message, flow-agent-message, .agent-message-container')) return { open: true, already: true };
+    var b = textButton(/^(use side panel|open (in )?side panel)$/i) || textButton(/^read more$/i);
+    if (!b) return { open: false };
+    mdcClick(b);
+    for (var i = 0; i < 30; i++) { await sleep(60); if (document.querySelector('flow-agent-chat-message, flow-agent-message, .agent-message-container')) return { open: true, via: norm(b.innerText) }; }
+    return { open: false, clicked: norm(b.innerText) };
+  }
+
   // ---------- Autopilot approvals + question resolver ----------
   var handled = new WeakSet();
   function approve(keywords, allowReply) {
-    var cards = Array.prototype.slice.call(document.querySelectorAll('flow-agent-chat-message, flow-agent-message, .agent-message-container, .choice-container, flow-agent-approval-card, [class*="approval"]'));
+    // Compact strip may hide approval cards / questions: expand it into the full side-panel chat.
+    var cr = !document.querySelector('flow-agent-chat-message, flow-agent-message, .agent-message-container') && compactReply();
+    if (cr && !handled.has(cr)) {
+      handled.add(cr); // expand once per reply; never toggle it back and forth
+      var sp = textButton(/^(use side panel|open (in )?side panel)$/i) || textButton(/^read more$/i);
+      if (sp) mdcClick(sp);
+    }
+    var cards = Array.prototype.slice.call(document.querySelectorAll('flow-agent-chat-message, flow-agent-message, .agent-message-container, .choice-container, flow-agent-approval-card, [class*="approval"], flow-agent-quick-reply, flow-agent-inline-response, [class*="agent-quick"], [class*="quick-answer"], [class*="agent-inline"]'));
     var scope = cards.length ? cards : [document];
     for (var c = 0; c < scope.length; c++) {
       var buttons = Array.prototype.slice.call(scope[c].querySelectorAll("button, [role='button'], div.option-row"));
@@ -242,7 +328,7 @@
     if (confirm && /confirm|continue|generate/i.test(confirm.innerText || '') && !isDisabled(confirm)) { mdcClick(confirm); return { approved: true, type: 'dialog_confirm', label: norm(confirm.innerText) }; }
 
     var msgs = document.querySelectorAll('flow-agent-chat-message, flow-agent-message, .agent-message-container');
-    var last = msgs[msgs.length - 1];
+    var last = msgs[msgs.length - 1] || compactReply();
     if (allowReply !== false && last && !handled.has(last) && last.getAttribute('data-deepx-handled') !== 'true' && !busy().isBusy) {
       var isUser = last.classList.contains('user-message') || !!last.querySelector('.user-message, [data-author="user"]');
       var text = norm(last.innerText);
@@ -327,7 +413,7 @@
   }
   function busy() {
     var stop = document.querySelector("button.stop-icon-button, button.stop-button, button[aria-label*='stop' i]");
-    var streaming = !!document.querySelector('flow-agent-message.streaming, .agent-streaming, flow-agent-chat mat-spinner, flow-agent-chat mat-progress-spinner');
+    var streaming = !!document.querySelector('flow-agent-message.streaming, .agent-streaming, flow-agent-chat mat-spinner, flow-agent-chat mat-progress-spinner, [class*="agent-quick"] mat-spinner, [class*="agent-quick"] mat-progress-spinner, [class*="agent-inline"] mat-progress-bar, [class*="thinking"]');
     var sb = submitButton();
     var box = promptBox();
     var boxText = box ? norm(box.tagName === 'TEXTAREA' ? box.value : box.innerText) : '';
@@ -353,10 +439,79 @@
   }
   function isBlockText(t) { return BLOCK_RE.test(String(t || '')); }
 
+  // ---------- Project asset search (Nov 2026: exact matches first, then "Similar results") ----------
+  function searchInput() {
+    var list = document.querySelectorAll("input[type='search'], input[placeholder*='search' i], input[aria-label*='search' i], textarea[placeholder*='search' i]");
+    for (var i = 0; i < list.length; i++) if (shown(list[i]) && !list[i].closest('flow-add-menu-popover-content, .cdk-overlay-pane')) return list[i];
+    return null;
+  }
+  function tileInfo(t) {
+    var img = t.querySelector('img'), vid = t.querySelector('video');
+    var link = t.querySelector('a[href]');
+    var href = link ? link.getAttribute('href') : '';
+    var idm = (href || '').match(/\/(?:edit|media|asset|tile)s?\/([\w-]{6,})/i);
+    return {
+      id: t.getAttribute('data-tile-id') || t.getAttribute('data-media-id') || (idm && idm[1]) || null,
+      type: vid ? 'video' : 'image',
+      name: norm(t.getAttribute('aria-label') || t.getAttribute('title') || (img && img.alt) || t.innerText).slice(0, 160) || null,
+      thumbnail: (img && img.src) || (vid && (vid.poster || vid.src)) || null,
+      href: href || null
+    };
+  }
+  async function searchAssets(query, opts) {
+    opts = opts || {};
+    var input = searchInput();
+    if (!input) {
+      var btn = Array.prototype.slice.call(document.querySelectorAll('button')).find(function (b) {
+        return shown(b) && (/search/i.test(b.getAttribute('aria-label') || '') || /^search$/.test(iconText(b).trim()));
+      });
+      if (btn) { mdcClick(btn); for (var i = 0; i < 25 && !input; i++) { await sleep(60); input = searchInput(); } }
+    }
+    if (!input) return { success: false, error: 'Project search box not found. Open a Flow project first.' };
+    input.focus();
+    setValue(input, String(query || ''));
+    var ev = { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true };
+    input.dispatchEvent(new KeyboardEvent('keydown', ev)); input.dispatchEvent(new KeyboardEvent('keyup', ev));
+    var wait = Math.max(800, Math.min(15000, opts.waitMs || 3500));
+    var t0 = Date.now(), lastCount = -1, stable = 0;
+    var tileSel = 'flow-grid-tile-container, flow-tile-container, [data-tile-id], [data-media-id]';
+    while (Date.now() - t0 < wait) { // wait until "Similar results" finish streaming in
+      await sleep(300);
+      var c = document.querySelectorAll(tileSel).length;
+      if (c === lastCount) { if (++stable >= 3 && Date.now() - t0 > 900) break; } else { stable = 0; lastCount = c; }
+    }
+    var tiles = Array.prototype.filter.call(document.querySelectorAll(tileSel), shown);
+    // Find a "Similar results" heading: tiles after it in document order are similar, before it exact.
+    var heading = null;
+    var hs = document.querySelectorAll('h1, h2, h3, h4, h5, [role="heading"], .section-header, [class*="section-title"], [class*="similar"], span, div');
+    for (var h = 0; h < hs.length; h++) {
+      var tx = norm(hs[h].childElementCount <= 2 ? hs[h].innerText : '');
+      if (/^similar( results)?$/i.test(tx) && shown(hs[h])) { heading = hs[h]; break; }
+    }
+    var exact = [], similar = [];
+    for (var k = 0; k < tiles.length && exact.length + similar.length < (opts.limit || 60); k++) {
+      var info = tileInfo(tiles[k]);
+      var after = heading && (heading.compareDocumentPosition(tiles[k]) & Node.DOCUMENT_POSITION_FOLLOWING);
+      (after ? similar : exact).push(info);
+    }
+    var empty = /no (results|assets) found/i.test(norm(document.body.innerText));
+    return { success: true, query: query, exact: exact, similar: similar, similar_section_found: !!heading, no_results: empty || !tiles.length };
+  }
+  function clearSearch() {
+    var input = searchInput();
+    if (!input) return { cleared: false };
+    setValue(input, '');
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }));
+    return { cleared: true };
+  }
+
   window.__deepxAgent = {
     v: VERSION,
     status: status, setAgent: setAgent, configure: configure, syncInstructions: syncInstructions,
     approve: approve, fillPrompt: fillPrompt, submitPoint: submitPoint, clickSubmit: clickSubmit,
-    pressEnter: pressEnter, busy: busy, blockMark: blockMark, blockScan: blockScan, isBlockText: isBlockText
+    pressEnter: pressEnter, busy: busy, blockMark: blockMark, blockScan: blockScan, isBlockText: isBlockText,
+    openFullChat: openFullChat, compactReply: function () { var c = compactReply(); return c ? norm(c.innerText).slice(0, 2000) : null; },
+    searchAssets: searchAssets, clearSearch: clearSearch,
+    agentToggle: agentPill, agentActive: function () { return pillActive(agentPill()); }
   };
 })();

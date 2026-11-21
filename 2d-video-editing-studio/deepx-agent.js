@@ -4,7 +4,7 @@
 // 24-item back-to-back batch queue. Page DOM work lives in deepx-agent-page.js (MAIN world).
 
 export const AGENT_MAX_PER_PART = 24;
-export const AGENT_PAGE_VERSION = 3;
+export const AGENT_PAGE_VERSION = 4;
 
 export const DEFAULT_MASTER_AGENT_INSTRUCTIONS =
 `DEEPX MASTER AUTOPILOT & VISUAL CONSISTENCY MANDATE:
@@ -349,6 +349,14 @@ export function createDeepXAgent({ chrome, client, jobs, awaitJobs }) {
     async toggle(active) { const tabId = await canvasTab(); return page(tabId, 'setAgent', active ?? null); },
     async configure(cfg) { const tabId = await canvasTab(); await page(tabId, 'setAgent', true); return page(tabId, 'configure', cfg); },
     async setInstructions(text, title) { const tabId = await canvasTab(); await page(tabId, 'setAgent', true); return page(tabId, 'syncInstructions', { text: text || DEFAULT_MASTER_AGENT_INSTRUCTIONS, title: title || 'DeepX Master Autopilot Director' }); },
+    async openChat() { const tabId = await canvasTab(); return page(tabId, 'openFullChat'); },
+    async searchAssets(query, opts = {}) {
+      if (!String(query || '').trim()) throw new Error('query is required (a name, prompt text, or a description like "red sports car at sunset").');
+      const tabId = await canvasTab(opts.projectId);
+      const res = await page(tabId, 'searchAssets', String(query), { waitMs: opts.waitMs, limit: opts.limit });
+      if (opts.clear) await page(tabId, 'clearSearch').catch(() => {});
+      return { ...res, note: 'Exact matches = name/prompt text matches. Similar results = Flow semantic matches on the image/video content (color, subject, mood).' };
+    },
     async approveAll(keywords) { const tabId = await canvasTab(); const r = await page(tabId, 'approve', keywords || '', true); if (r?.needs_reply && r.reply) { await submit(tabId, r.reply); return { ...r, replied: true }; } return r; },
     async blockMark(tabId) { return page(tabId, 'blockMark').catch(() => ({ texts: [] })); },
     async blockScan(tabId, mark) { return page(tabId, 'blockScan', mark || { texts: [] }).catch(() => ({ blocked: false, texts: [] })); },

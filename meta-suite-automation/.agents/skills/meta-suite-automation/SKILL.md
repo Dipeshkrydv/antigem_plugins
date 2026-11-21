@@ -1,9 +1,9 @@
 ---
 name: meta-suite-automation
-description: "Master Autonomous Meta Suite Production Engine (v2.3.0). Enterprise Meta Business Suite Facebook Page management and scheduling engine. Enforces 1-click publishing & scheduling of Page Reels (9:16), Long Videos (16:9), Photos, Stories, and Announcements with custom video thumbnails/covers, in-memory DataTransfer injection, <100ms synthetic clipboard paste, anti-ad organic shield, anti-comment box firewall, and 100% script-fidelity DeepX Google Flow AI media generation."
+description: "Master Autonomous Meta Suite Production Engine (v2.4.1). Enterprise Meta Business Suite Facebook Page management and scheduling engine. Enforces 1-click publishing & scheduling of Page Reels (9:16), Long Videos (16:9), Photos, Stories, and Announcements with custom video thumbnails/covers, in-memory DataTransfer injection, <100ms synthetic clipboard paste, anti-ad organic shield, anti-comment box firewall, and 100% script-fidelity DeepX Google Flow AI media generation."
 ---
 
-# Master Meta Suite Page Management Engine (v2.3.0)
+# Master Meta Suite Page Management Engine (v2.4.1)
 
 The definitive autonomous production, publishing, and scheduling engine dedicated 100% to **Facebook Page Management via Meta Business Suite**. Zero delays. Zero questions. Zero friction.
 
@@ -26,8 +26,8 @@ result = fb_status()
 | `false` | Call `fb_open_browser()` once → tell user to sign in to Meta Business Suite once → STOP until confirmed |
 
 **EXECUTION RULES ACCORDING TO USER'S RESPONSE:**
-1. **Asset Generation**: ALWAYS use **Google Flow** (`deepx-flow` / `gemini-nano-banana-2.1` for designs, photos, and thumbnails; `veo-3.1` for video reels). Never use PIL, OpenCV, or external mock generators.
-2. **New Trend & Topic Search**: ALWAYS use the **Python Trend Search Engine** (`core/trends.py` or `python cli.py trends` across YouTube/Google Trends, Twitter/X, and Reddit) to discover real-time viral topics, virality scores (0-100), and 5-stage concept blueprints.
+1. **Asset Generation**: ALWAYS use the plugin's **built-in DeepX Google Flow engine** (`deepx_meta_generate_design` / `deepx_meta_generate_thumbnail` / `deepx_meta_generate_video`): Google login check → one question *Agent Mode or Standard (without Agent)?* → autopilot (§3).
+2. **New Trend & Topic Search**: ALWAYS call **`fb_trend_search(keywords=..., sources="all", limit=5)`**. It scans Google/YouTube Trends, Reddit and X live inside the plugin and returns virality scores (0-100) and 5-stage blueprints. No Python needed.
 3. **Dispatch & Autopilot**: Once generated, pipe assets directly into `fb_publish`, `fb_publish_reel`, `fb_publish_story`, or `fb_schedule` with zero intermediate confirmation pauses.
 
 ---
@@ -38,8 +38,8 @@ result = fb_status()
 | :--- | :--- | :--- | :--- |
 | **Meta Business Suite Page** | Managed Facebook Page | `target_type: "page"`, `target_id: "me"` (or `<page_id>`) | Dedicated Page composer, organic reach, multi-page selection |
 
-- **Dynamic Page Discovery**: Automatically detects connected Facebook Pages from the active Meta Business Suite session (`business.facebook.com`).
-- **Target Selection**: Use `target_id="me"` for the primary/currently active page, or specify the numerical `page_id` when managing multiple business pages.
+- **Dynamic Page Discovery & Acting as the Page**: Managed Pages are discovered automatically (`meta_list_pages`; cached). Before every Page post, Reel or Story the engine opens the Page and **switches the Facebook session into the Page** (New Pages Experience "Switch"), so content is published AS the Page, never on the personal profile. If it cannot switch, it stops with a clear error instead of posting in the wrong place.
+- **Target Selection**: `target_id="me"` = default Page (first managed Page, or the one set with `meta_set_default_page`). Use a Page URL, username or numeric ID when managing several Pages.
 
 ---
 
@@ -108,41 +108,22 @@ fb_publish(
 
 ---
 
-## 3. Mandatory Google Flow Engine for All Design & Video Generation (COMPULSORY)
+## 3. Google Flow Media: built-in DeepX engine (ONLY path for designs, thumbnails & videos)
 
-**ALWAYS USE GOOGLE FLOW FOR ALL DESIGN AND VIDEO GENERATION:**
-- Strictly zero Python PIL / OpenCV mock thumbnail rendering.
-- Strictly zero external fallback image renderers.
-- **Designs & Photo Posts** → DeepX Google Flow (🍌 Nano Banana 2.1 / `deepx_meta_generate_design` or `deepx_generate_image`).
-- **Custom Thumbnails** → DeepX Google Flow (`deepx_meta_generate_thumbnail`).
-- **Video Reels & Promos** → DeepX Google Flow (Veo 3.1 / `deepx_meta_generate_video` or `deepx_generate_video`).
-
-**Trigger detection (ANY of these phrases → auto-route to Google Flow via DeepX):**
-- "generate image", "make a photo", "create visual", "design a post", "redesign", "make it engaging", "edit this photo", "create thumbnail", "make thumbnail", "AI image", "generate thumbnail", "create a reel visual", "make video", "create promo video"
-
-**Auto-routing decision:**
+**Every design, photo card, thumbnail, Reel cover and promo video is generated by this plugin's built-in DeepX Google Flow engine.** Never use any other Google Flow extension, the old `deepx-flow` bridge on port 8792, Python PIL/OpenCV, or external generators. Never tell the user to open Google Flow, paste prompts or download files.
 
 | Intent | Tool | Then |
 |---|---|---|
-| Design / photo post | `deepx_meta_generate_design(prompt=<desc>, aspect_ratio="1:1" or "9:16")` | Auto-attach result to `fb_publish` |
-| Thumbnail for video/reel | `deepx_meta_generate_thumbnail(prompt=<desc>, format="16:9" or "9:16")` | Auto-attach to `fb_publish` / `fb_publish_reel` as `thumbnail_path` |
-| Promo / reel video | `deepx_meta_generate_video(prompt=<desc>, aspect_ratio="9:16", duration=10)` | Auto-attach to `fb_publish_reel` |
+| Design / photo post | `deepx_meta_generate_design(prompt=..., aspect_ratio="4:5" / "1:1" / "9:16")` | `files[0].path` → `fb_publish(media_paths=[...])` |
+| Thumbnail / Reel cover | `deepx_meta_generate_thumbnail(topic=..., title_hook=..., aspect_ratio="16:9" or "9:16")` | `files[0].path` → `thumbnail_path` |
+| Promo / Reel video | `deepx_meta_generate_video(prompt=..., aspect_ratio="9:16", duration=8)` | `files[0].path` → `fb_publish_reel(video_path=...)` |
 
-**When Agent Mode is selected:**
-DeepX Google Flow executes the generation autonomously and pipes the resulting asset directly into `fb_publish` / `fb_publish_reel` in full unbroken autopilot.
-
-**Pipeline — zero pauses between generation and publishing:**
-```
-User: "generate a motivational post about focus and post it"
-  → deepx_meta_generate_design(prompt="motivational focus visual, bold typography")
-  → [wait for render complete]
-  → fb_publish(target_type="page", target_id="me", post_type="photo",
-               media_paths=[<generated_image_path>], ...)
-```
-
-**NEVER ask "should I post the generated image?" — pipe it directly.**
-
----
+**Exact protocol (autopilot):**
+1. Call the tool. It **checks the Google Flow login itself**. On `LOGIN_REQUIRED`, tell the user its one message (sign in to Google in the Flow tab of the AntiGem browser) and stop until they reply. If signed in, it continues.
+2. On `ASK_GENERATION_MODE`, ask ONE multiple-choice question: **"Agent Mode or Standard mode (without Agent)?"** Then call again with `generation_mode`. Ask it once per request. Several assets in one request share the answer.
+3. Poll `deepx_job_status {job_id, wait_seconds:30}` until `done`. Take `files[0].path` and pipe it straight into `fb_publish` / `fb_publish_reel` / `fb_publish_story` / `fb_schedule`. **NEVER ask "should I post the generated image?"**
+- Agent Mode sends ≤24 prompts per part back-to-back. Standard mode switches to Agent Mode automatically on Google "unusual activity" / extension errors. Do not stop, cancel or retry by hand.
+- `deepx_generate` (any prompt list, image or video) and `deepx_meta_status` (login check) are also available.
 
 ## 3.1 Mandatory Python Trend Search Engine for Viral Discovery (COMPULSORY)
 
@@ -151,13 +132,7 @@ When the user asks to "find trends", "what's trending", "search topics", "viral 
 - **Multi-Source Real-Time Scan**: Automatically scans YouTube / Google Trends, Twitter/X breaking trends, and Reddit (r/todayilearned, r/explainlikeimfive, r/Damnthatsinteresting, r/science, r/technology).
 - **Virality Scoring Algorithm**: Calculates velocity, freshness, and curiosity trigger keywords (0-100).
 - **5-Stage Blueprint Generator**: Automatically structures findings into a high-retention video/post script (Golden Hook → Disrupt Assumptions → Unveil Insider Secrets → Ultimate Truth → Elevation & Discussion).
-- **Execution Command**:
-  ```python
-  # CLI execution
-  python cli.py trends --keywords "<topic>" --sources "youtube,twitter,reddit"
-  # Or via core engine
-  python core/trends.py --sources all --limit 5
-  ```
+- **Execution**: `fb_trend_search(keywords="<topic>", sources="all", limit=5)` (MCP tool, live, no Python). Desktop CLI alternative: `python cli.py trends --keywords "<topic>"`.
 
 ---
 
@@ -189,8 +164,8 @@ When the user asks to "find trends", "what's trending", "search topics", "viral 
   - `Tomorrow 9:00 AM`: Next morning wake-up rush.
 - **Time Zone Engine**:
   - Automatically calculates local machine time and converts to UTC Unix epoch timestamp (`run_at_timestamp`).
-  - Persisted in SQLite WAL table `scheduled_jobs`.
-  - APScheduler executes jobs automatically without requiring open browser windows.
+  - Persisted in the plugin's storage (`fb_scheduled_jobs`); list / cancel / reschedule with `fb_manage_queue`.
+  - The built-in 1-minute scheduler publishes due posts automatically while AntiGem is running (missed slots run at the next start).
 
 ---
 
@@ -243,8 +218,8 @@ Every publication or scheduling action on Meta Business Suite MUST execute in th
 3. **Step 3 — Content Preparation, Google Flow Media Generation, Python Trend Radar & Anti-Duplicate Check**
    - Structure viral SEO package: Title + multiline description (`\n\n` preserved) + 3 to 6 targeted `#Hashtags`.
    - Verify SHA-256 hash against published content and queued jobs to prevent duplicate uploads.
-   - **For all visual design and video generation, ALWAYS invoke Google Flow** (`deepx_meta_generate_design` / `deepx_meta_generate_thumbnail` / `deepx_meta_generate_video`).
-   - **For new trend discovery, ALWAYS use Python Trend Search Engine** (`core/trends.py` or `python cli.py trends`).
+   - **For all visual design and video generation, ALWAYS invoke Google Flow** (`deepx_meta_generate_design` / `deepx_meta_generate_thumbnail` / `deepx_meta_generate_video`; Google login check → *Agent Mode or Standard?* → poll `deepx_job_status` → `files[0].path`).
+   - **For new trend discovery, ALWAYS call `fb_trend_search`** (live, inside the plugin).
 
 4. **Step 4 — In-Memory Asset & Custom Thumbnail / Cover Injection**
    - Ingest media files via in-memory `DataTransfer` buffer directly in RAM (<400ms).

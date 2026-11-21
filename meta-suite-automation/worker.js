@@ -1,5 +1,9 @@
 /**
- * AntiGem WebView MCP Service Worker for Facebook Automation & SEO Studio (v1.5.0)
+ * AntiGem WebView MCP Service Worker for Meta Suite Page Management (v2.4.1)
+ * Built on the Facebook Automation precision engine + Meta Suite layer (managed Page routing,
+ * queue manager, viral SEO, algorithm audit, trend radar, DeepX Google Flow media).
+ *
+ * Facebook engine notes (v1.5.0):
  *
  * Pre-Trained Phone (Mobile UI + Desktop-on-Phone UI) & Desktop Precision Engine:
  * 1. Complete Built-In Knowledge Graph (`FB_UI_ATLAS`) for:
@@ -23,8 +27,15 @@
  *    - Instantly resolves any user-supplied file path (`file:///...`, `/sdcard/...`, `/storage/emulated/0/...`, `.user_uploaded/...`, `~/...`, or `"latest"`) with zero search delay.
  */
 
-const PLUGIN_ID = "facebook-automation";
-const PLUGIN_VERSION = "1.5.0";
+// ---- Built-in DeepX Google Flow engine (AI thumbnails / post designs / videos) ----
+// deepx-bundle.js is generated from deepx-google-flow (tools/build_classic_bundle.py).
+importScripts("deepx-bundle.js");
+const DEEPX = self.DeepXFlow;
+DEEPX.configureDeepX({ pluginId: "meta-suite-automation", version: "2.4.1" });
+const DEEPX_TOOLS = new Set(["deepx_generate", "deepx_job_status", "deepx_check_login", "deepx_status", "deepx_cancel_job", "deepx_get_options", "deepx_flow_agent_status", "deepx_flow_agent_toggle", "deepx_flow_agent_configure", "deepx_flow_agent_set_instructions", "deepx_flow_agent_approve_all", "deepx_flow_agent_batch_queue", "deepx_upscale_media", "deepx_download_media", "deepx_upload_asset", "flow_get_last_media", "flow_get_media", "flow_list_media"]);
+
+const PLUGIN_ID = "meta-suite-automation";
+const PLUGIN_VERSION = "2.4.1";
 const FB_HOME_URL = "https://www.facebook.com/";
 const FB_REELS_CREATE_URL = "https://www.facebook.com/reels/create";
 const FB_STORIES_CREATE_URL = "https://www.facebook.com/stories/create";
@@ -3078,6 +3089,16 @@ async function dispatchProtectedBrowserTask(toolName, args) {
   }
 
   const tabId = loginState.active_tab_id;
+  let actingPage = null;
+  const wantsPage = (args.target_type || "page") === "page" && !["fb_edit_post", "fb_delete_post", "fb_comments"].includes(toolName);
+  if (wantsPage) {
+    try {
+      actingPage = await ensureActingAsPage(tabId, args.target_id);
+      args = { ...args, target_type: "page", target_id: actingPage.page.url };
+    } catch (e) {
+      return { success: false, stop_loop: true, error: e.message, error_code: e.code || "PAGE_ROUTING_FAILED", agent_instruction: "Tell the user this in one sentence and stop. Do not retry." };
+    }
+  }
   let mediaList =
     args.media_paths ||
     (args.video_path ? [args.video_path] : args.media_path ? [args.media_path] : []);
@@ -3168,7 +3189,7 @@ async function dispatchProtectedBrowserTask(toolName, args) {
             fb_post_id: result.fb_post_id,
             post_url: result.post_url,
             post_type: result.post_type || postType,
-            target_type: args.target_type || "profile",
+            target_type: args.target_type || "page",
             title: result.title || args.title || "",
             caption: finalCap,
             hashtags: result.hashtags || args.hashtags || [],
@@ -3272,7 +3293,7 @@ async function processDueScheduledJobs() {
         thumbnail_path: job.thumbnail_path || null,
         media_paths: job.media_paths || [],
         post_type: job.post_type || "text",
-        target_type: job.target_type || "profile",
+        target_type: job.target_type || "page",
         target_id: job.target_id || null
       });
 
@@ -3631,6 +3652,295 @@ function auditFacebookCaption(captionText, titleText = "") {
   };
 }
 
+
+// ============================================================================
+// META SUITE LAYER (v2.4.1): managed Page routing, queue manager, viral SEO,
+// algorithm audit, live trend radar and DeepX Google Flow media tools.
+// ============================================================================
+
+const META_PAGES_URL = "https://www.facebook.com/pages/?category=your_pages";
+const PAGE_EXCLUDE = /^\/(pages|groups|watch|marketplace|gaming|events|bookmarks|friends|help|settings|business|ads|latest|reel|reels|stories|notifications|messages|search|photo|photos|videos|hashtag|privacy|policies|login|recover|me|profile\.php\?id=$)/i;
+
+async function tabUrl(tabId) { try { return (await chrome.tabs.get(tabId)).url || ""; } catch (_) { return ""; } }
+
+async function discoverManagedPages(tabId, { refresh = false } = {}) {
+  const store = await getStorage(["meta_pages", "meta_pages_at"]);
+  if (!refresh && Array.isArray(store.meta_pages) && store.meta_pages.length && Date.now() - (store.meta_pages_at || 0) < 6 * 3600 * 1000) {
+    return store.meta_pages;
+  }
+  const back = await tabUrl(tabId);
+  await chrome.tabs.update(tabId, { url: META_PAGES_URL, active: true });
+  await waitForTabComplete(tabId, 20000);
+  let pages = [];
+  for (let attempt = 0; attempt < 8 && !pages.length; attempt++) {
+    await sleep(900);
+    const [res] = await chrome.scripting.executeScript({
+      world: "MAIN", target: { tabId }, args: [PAGE_EXCLUDE.source],
+      func: (excludeSrc) => {
+        const exclude = new RegExp(excludeSrc, "i");
+        const main = document.querySelector('[role="main"]') || document.body;
+        const out = new Map();
+        for (const a of main.querySelectorAll('a[href]')) {
+          let u; try { u = new URL(a.href, location.href); } catch (_) { continue; }
+          if (!/(^|\.)facebook\.com$/.test(u.hostname)) continue;
+          const path = u.pathname.replace(/\/+$/, "") + (u.pathname.startsWith("/profile.php") ? `?id=${u.searchParams.get("id")}` : "");
+          if (!path || path === "" || exclude.test(path + "/") || path.split("/").length > 2) continue;
+          const name = (a.innerText || a.getAttribute("aria-label") || "").split("\n")[0].trim();
+          if (!name || name.length < 2 || name.length > 90 || /^(see all|create|more|home|pages?|settings|manage)$/i.test(name)) continue;
+          const url = `https://www.facebook.com${path}`;
+          if (!out.has(url)) out.set(url, { name, url, id: u.searchParams.get("id") || path.slice(1) });
+        }
+        return [...out.values()].slice(0, 25);
+      }
+    }).catch(() => [{ result: [] }]);
+    pages = res?.result || [];
+  }
+  await setStorage({ meta_pages: pages, meta_pages_at: Date.now() });
+  if (back && isFacebookUrl(back) && back !== META_PAGES_URL) {
+    await chrome.tabs.update(tabId, { url: back }).catch(() => {});
+    await waitForTabComplete(tabId, 15000).catch(() => {});
+  }
+  return pages;
+}
+
+async function resolveTargetPage(tabId, targetId) {
+  const raw = String(targetId || "").trim();
+  if (raw && raw !== "me" && raw !== "default") {
+    const url = raw.startsWith("http") ? raw : /^\d+$/.test(raw) ? `https://www.facebook.com/profile.php?id=${raw}` : `https://www.facebook.com/${raw.replace(/^@/, "")}`;
+    const known = ((await getStorage(["meta_pages"])).meta_pages || []).find(p => p.url === url || p.id === raw || p.name.toLowerCase() === raw.toLowerCase());
+    return known || { name: raw, url, id: raw };
+  }
+  const store = await getStorage(["meta_default_page"]);
+  if (store.meta_default_page?.url) return store.meta_default_page;
+  const pages = await discoverManagedPages(tabId);
+  if (!pages.length) return null;
+  await setStorage({ meta_default_page: pages[0] });
+  return pages[0];
+}
+
+/** New Pages Experience: switch the whole Facebook session into the Page so every composer posts AS the Page. */
+async function ensureActingAsPage(tabId, targetId) {
+  const page = await resolveTargetPage(tabId, targetId);
+  if (!page) {
+    const err = new Error("No managed Facebook Page was found for this account. Create a Page or pass target_id (Page URL / ID), or call meta_set_default_page.");
+    err.code = "NO_MANAGED_PAGE";
+    throw err;
+  }
+  const cur = await tabUrl(tabId);
+  if (!cur.startsWith(page.url)) {
+    await chrome.tabs.update(tabId, { url: page.url, active: true });
+    await waitForTabComplete(tabId, 20000);
+    await sleep(1200);
+  }
+  const findSwitch = async () => {
+    const [r] = await chrome.scripting.executeScript({
+      world: "MAIN", target: { tabId },
+      func: () => {
+        const vis = el => { const b = el.getBoundingClientRect(); const s = getComputedStyle(el); return b.width > 6 && b.height > 6 && s.visibility !== "hidden" && s.display !== "none"; };
+        const els = [...document.querySelectorAll('div[role="button"], button, a[role="link"], span[role="button"]')].filter(vis);
+        const hit = els.find(el => /^(switch now|switch|switch profiles?|switch into .{1,60}|switch to .{1,60}|use (facebook )?as .{1,60})$/i.test((el.innerText || el.getAttribute("aria-label") || "").trim()));
+        if (!hit) return { found: false };
+        const b = hit.getBoundingClientRect(), v = window.visualViewport;
+        return { found: true, label: (hit.innerText || hit.getAttribute("aria-label") || "").trim(), fx: (b.left + b.width / 2 - (v?.offsetLeft || 0)) / (v?.width || innerWidth), fy: (b.top + b.height / 2 - (v?.offsetTop || 0)) / (v?.height || innerHeight) };
+      }
+    }).catch(() => [{ result: { found: false } }]);
+    return r?.result || { found: false };
+  };
+  let switched = false, last = await findSwitch();
+  for (let i = 0; i < 4 && last.found; i++) {
+    const tapped = await trustedTap(tabId, last);
+    if (!tapped) {
+      await chrome.scripting.executeScript({ world: "MAIN", target: { tabId }, args: [last.label], func: (label) => { const el = [...document.querySelectorAll('div[role="button"], button')].find(e => (e.innerText || e.getAttribute("aria-label") || "").trim() === label); el?.click(); } }).catch(() => {});
+    }
+    switched = true;
+    await sleep(1800);
+    await waitForTabComplete(tabId, 15000).catch(() => {});
+    await sleep(1200);
+    last = await findSwitch();
+  }
+  if (last.found) {
+    const err = new Error(`Could not switch into the Page "${page.name}". Open ${page.url} in the AntiGem browser, tap "Switch" once, then retry.`);
+    err.code = "PAGE_SWITCH_FAILED";
+    throw err;
+  }
+  await setStorage({ meta_acting_page: { ...page, at: Date.now() } });
+  return { page, switched };
+}
+
+function scheduleList(jobs, limit = 20) {
+  return jobs
+    .filter(j => ["queued", "awaiting_login", "running"].includes(j.status))
+    .sort((a, b) => (a.run_at_timestamp || 0) - (b.run_at_timestamp || 0))
+    .slice(0, limit)
+    .map(j => ({ job_id: j.job_id, post_type: j.post_type, title: j.title, run_at_iso: new Date((j.run_at_timestamp || 0) * 1000).toISOString(), status: j.status, target_type: j.target_type, target_id: j.target_id }));
+}
+
+async function manageQueue(args = {}) {
+  const action = String(args.action || "list").toLowerCase();
+  const store = await getStorage(["fb_scheduled_jobs"]);
+  const jobs = Array.isArray(store.fb_scheduled_jobs) ? store.fb_scheduled_jobs : [];
+  const find = () => jobs.find(j => String(j.job_id) === String(args.job_id) || String(j.post_id) === String(args.job_id));
+  if (action === "list") return { success: true, upcoming: scheduleList(jobs, args.limit || 20), total_queued: jobs.filter(j => j.status === "queued").length };
+  const job = find();
+  if (!job) return { success: false, error: `Scheduled job not found: ${args.job_id}`, upcoming: scheduleList(jobs, 10) };
+  if (action === "cancel") job.status = "cancelled";
+  else if (action === "reschedule") {
+    const t = Date.parse(args.new_schedule_time_iso || "");
+    if (!Number.isFinite(t)) return { success: false, error: "new_schedule_time_iso must be an ISO date/time, e.g. 2026-11-22T09:00:00+05:30" };
+    if (t < Date.now() + 60000) return { success: false, error: "New time must be at least 1 minute in the future." };
+    job.run_at_timestamp = Math.floor(t / 1000); job.status = "queued";
+  } else if (action === "run_now") { job.run_at_timestamp = Math.floor(Date.now() / 1000) - 1; job.status = "queued"; }
+  else return { success: false, error: "action must be list, cancel, reschedule or run_now" };
+  await setStorage({ fb_scheduled_jobs: jobs });
+  if (action === "run_now") processDueScheduledJobs().catch(() => {});
+  return { success: true, action, job: scheduleList([job], 1)[0] || { job_id: job.job_id, status: job.status }, upcoming: scheduleList(jobs, 10) };
+}
+
+const META_HOOKS = [
+  t => `Nobody tells you this about ${t}.`,
+  t => `Stop scrolling: ${t} is not what you think.`,
+  t => `I wish I knew this about ${t} 5 years ago.`,
+  t => `The ${t} mistake 90% of people make.`,
+  t => `${t} in 30 seconds (save this).`
+];
+function metaViralSeo(args = {}) {
+  const topic = String(args.topic || "Growth").trim();
+  const type = String(args.video_type || args.format || "reel").toLowerCase();
+  const base = generateViralSeo({ ...args, topic, post_type: type === "long_video" ? "video" : type });
+  const hooks = META_HOOKS.map(f => f(topic));
+  const platform = String(args.target_platform || "business_suite");
+  const hashtagCap = type === "reel" || type === "story" ? 5 : 6;
+  return {
+    ...base,
+    hashtags: (base.hashtags || []).slice(0, hashtagCap),
+    format: type, target_platform: platform,
+    retention_hook_line_1: hooks[0],
+    alternative_hooks: hooks.slice(1),
+    comment_trigger_cta: `Comment "${topic.split(/\s+/)[0].toUpperCase()}" and I'll send you the full breakdown.`,
+    first_3_seconds_script: type === "reel" || type === "video" || type === "long_video" ? `[0-1s] Bold on-screen text: "${hooks[0]}"\n[1-3s] Show the result first, then the problem.` : null,
+    posting_window_tip: "Best organic windows: 7-9 AM, 12-1 PM and 7-10 PM in your audience's local time; reply to every comment in the first 60 minutes.",
+    audience_persona: args.audience_persona || "ambitious_practitioner",
+    algorithm_notes: ["No outbound links in the caption (use first comment)", "Line 1 must work before 'See more'", "3-6 targeted hashtags", "Native upload, no watermarks from other apps"]
+  };
+}
+
+function metaAlgorithmAudit(args = {}) {
+  const a = auditFacebookCaption(args.caption || "", args.title || "");
+  const lines = String(args.caption || "").split("\n");
+  const firstLine = (lines.find(l => l.trim()) || "").trim();
+  const penalties = [...a.penalties], suggestions = [...a.suggestions];
+  let score = a.seo_score;
+  if (firstLine.length > 125) { score -= 10; penalties.push("Line 1 longer than 125 characters: the hook is cut by 'See more' (-10)."); suggestions.push("Put a ≤ 90-character hook on line 1."); }
+  if (/\b(like|share|tag|comment)\b.*\b(win|giveaway|if you agree)\b/i.test(args.caption || "")) { score -= 15; penalties.push("Engagement-bait phrasing detected (-15): Meta demotes 'like/share/tag if…' prompts."); suggestions.push("Ask a genuine open question instead."); }
+  if (!/\?/.test(args.caption || "")) { score -= 5; suggestions.push("End with a real question to trigger comments (+reach)."); }
+  score = Math.max(5, Math.min(100, score));
+  const tier = score >= 90 ? "2M-20M viral potential" : score >= 75 ? "100K-2M strong reach" : score >= 55 ? "10K-100K average" : "below 10K (fix penalties first)";
+  return { ...a, seo_score: score, viral_reach_tier: tier, retention_hook: firstLine.slice(0, 140), penalties, suggestions, is_ready_for_publish: score >= 70 };
+}
+
+const VIRAL_TRIGGERS = ["why", "how", "secret", "truth", "hidden", "mystery", "shock", "forbidden", "banned", "myth", "real reason", "history", "ancient", "future", "brain", "money", "death", "disaster", "first", "million", "billion", "solved", "paradox"];
+function scoreTrend(title, weight = 1) {
+  const t = String(title).toLowerCase();
+  let s = 50 * weight;
+  for (const k of VIRAL_TRIGGERS) if (new RegExp(`\\b${k.replace(/ /g, "\\s")}\\b`).test(t)) s += 7.5;
+  if (title.length >= 35 && title.length <= 120) s += 10; else if (title.length < 20) s -= 10;
+  if (title.includes("?")) s += 6;
+  if (/ vs\.? |: | - /.test(title)) s += 5;
+  return Math.round(Math.min(99, Math.max(20, s)) * 10) / 10;
+}
+const decodeXml = s => String(s || "").replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n)).trim();
+async function fetchText(url, ms = 8000) {
+  const ac = new AbortController(); const timer = setTimeout(() => ac.abort(), ms);
+  try { const r = await fetch(url, { signal: ac.signal, headers: { "User-Agent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/124 Mobile Safari/537.36", "Accept": "*/*" } }); return r.ok ? await r.text() : null; } catch (_) { return null; } finally { clearTimeout(timer); }
+}
+async function scanGoogleTrends(geos, limit) {
+  const out = [];
+  await Promise.all(geos.map(async geo => {
+    const xml = await fetchText(`https://trends.google.com/trending/rss?geo=${geo}`);
+    if (!xml) return;
+    for (const item of xml.split("<item>").slice(1, limit + 1)) {
+      const title = decodeXml((item.match(/<title>([\s\S]*?)<\/title>/) || [])[1]);
+      const traffic = decodeXml((item.match(/<ht:approx_traffic>([\s\S]*?)<\/ht:approx_traffic>/) || [])[1]);
+      if (title) out.push({ platform: "google_youtube", source: `Google/YouTube Trends (${geo})`, title, traffic, link: `https://www.youtube.com/results?search_query=${encodeURIComponent(title)}`, score: scoreTrend(title, 1) });
+    }
+  }));
+  return out;
+}
+async function scanReddit(subs, limit) {
+  const out = [];
+  await Promise.all(subs.map(async sub => {
+    const txt = await fetchText(`https://www.reddit.com/r/${sub}/hot.json?limit=${limit}`);
+    try {
+      for (const c of JSON.parse(txt).data.children.slice(0, limit)) {
+        const raw = c.data.title || "", title = raw.replace(/^(TIL (that|about|how)|ELI5:?|YSK:?)\s*/i, "").trim();
+        if (title && !c.data.stickied) out.push({ platform: "reddit", source: `r/${sub}`, title, upvotes: c.data.ups, link: `https://www.reddit.com${c.data.permalink}`, score: scoreTrend(title, 1.1) });
+      }
+    } catch (_) {}
+  }));
+  return out;
+}
+async function scanTwitter(regions, limit) {
+  const out = [];
+  await Promise.all(regions.map(async reg => {
+    const html = await fetchText(`https://trends24.in/${reg}/`);
+    if (!html) return;
+    const seen = new Set();
+    for (const m of html.matchAll(/<a[^>]*class="trend-link"[^>]*>([^<]+)<\/a>|>([^<]{3,80})<\/a><\/li>/g)) {
+      const t = decodeXml(m[1] || m[2]);
+      if (!t || seen.has(t) || t.startsWith("&")) continue; seen.add(t);
+      out.push({ platform: "twitter_x", source: `X trends (${reg})`, title: t, link: `https://x.com/search?q=${encodeURIComponent(t)}`, score: scoreTrend(t, 0.95) });
+      if (seen.size >= limit) break;
+    }
+  }));
+  return out;
+}
+function blueprintFor(title) {
+  return [
+    `[Stage 1: Golden Hook 0-5s] Why does "${title.slice(0, 60)}" contradict what everyone believes?`,
+    "[Stage 2: Disrupt Assumptions 5-20s] Break the common myth with one striking fact or visual.",
+    "[Stage 3: Unveil Insider Secrets 20-45s] Reveal the hidden mechanism, data or story behind it.",
+    "[Stage 4: Ultimate Truth 45-65s] The epiphany: what really happened / what it means for the viewer.",
+    "[Stage 5: Elevation & Discussion 65-75s] Ask a genuine question that invites comments."
+  ];
+}
+async function trendSearch(args = {}) {
+  const limit = Math.max(1, Math.min(15, Number(args.limit) || 5));
+  const src = String(args.sources || "all").toLowerCase();
+  const want = k => src === "all" || src.includes(k);
+  const [g, r, x] = await Promise.all([
+    want("youtube") || want("google") ? scanGoogleTrends(["IN", "US", "GB"], limit * 2) : [],
+    want("reddit") ? scanReddit(["todayilearned", "Damnthatsinteresting", "science", "technology", "history", "explainlikeimfive"], limit) : [],
+    want("twitter") || want("x") ? scanTwitter(["india", "united-states"], limit * 2) : []
+  ]);
+  let all = [...g, ...r, ...x];
+  const kw = String(args.keywords || "").toLowerCase().split(/[,\s]+/).filter(w => w.length > 2);
+  if (kw.length) all = all.map(t => ({ ...t, score: t.score + (kw.some(k => t.title.toLowerCase().includes(k)) ? 15 : 0) }));
+  const seen = new Set();
+  const ranked = all.sort((a, b) => b.score - a.score).filter(t => { const k = t.title.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, limit * 3);
+  if (!ranked.length) return { success: false, error: "No trend sources were reachable right now (network). Try again in a minute.", trends: [] };
+  const top = ranked.slice(0, limit).map(t => ({ ...t, virality_score: Math.min(99, t.score), blueprint: blueprintFor(t.title), seo_hint: metaViralSeo({ topic: t.title, video_type: "reel" }).title }));
+  return { success: true, scanned: { google_youtube: g.length, reddit: r.length, twitter_x: x.length }, keywords: args.keywords || null, trends: top };
+}
+
+// ---- Google Flow media through the built-in DeepX engine
+const META_IMAGE_MODEL = v => { const s = String(v || "").toLowerCase(); return s.includes("pro") ? "Nano Banana Pro" : s.includes("lite") ? "Nano Banana 2 Lite" : "Nano Banana 2.1"; };
+const META_VIDEO_MODEL = v => { const s = String(v || "").toLowerCase(); return s.includes("quality") ? "Veo 3.1 - Quality" : s.includes("fast") ? "Veo 3.1 - Fast" : s.includes("lite") ? "Veo 3.1 - Lite" : s.includes("1.2") ? "Omni Flash 1.2" : "Omni 1.1 Flash"; };
+const META_IMAGE_ASPECT = v => ({ "4:5": "3:4", "2:3": "3:4", "1.91:1": "16:9", "16:9": "16:9", "9:16": "9:16", "1:1": "1:1", "3:4": "3:4", "4:3": "4:3" }[String(v || "").trim()] || "1:1");
+function deepxNext(res) {
+  if (res && res.job_id && !res.action_required) res.next_step = "Poll deepx_job_status {job_id, wait_seconds:30} until done, then pass files[0].path to fb_publish media_paths / thumbnail_path or fb_publish_reel video_path.";
+  return res;
+}
+async function metaGenerate(kind, args = {}) {
+  const common = { generation_mode: args.generation_mode, download: true, wait_seconds: args.wait_seconds ?? 20 };
+  if (kind === "design") return deepxNext(await DEEPX.deepxGenerate({ ...common, prompt: args.prompt, media_type: "image", aspect_ratio: META_IMAGE_ASPECT(args.aspect_ratio || "4:5"), image_model: META_IMAGE_MODEL(args.model), count: 1 }));
+  if (kind === "thumbnail") {
+    const spec = buildAiImageModelThumbnailPrompt({ topic: args.topic || args.prompt, title_hook: args.title_hook, subtitle: args.subtitle, archetype: args.archetype, aspect_ratio: args.aspect_ratio || "16:9" });
+    const res = await DEEPX.deepxGenerate({ ...common, prompt: spec.ai_image_model_prompt || String(args.topic || args.prompt), media_type: "image", aspect_ratio: META_IMAGE_ASPECT(args.aspect_ratio || "16:9"), image_model: "Nano Banana 2.1" });
+    return deepxNext({ ...res, thumbnail_prompt: spec.ai_image_model_prompt });
+  }
+  return deepxNext(await DEEPX.deepxGenerate({ ...common, prompt: args.prompt, media_type: "video", aspect_ratio: args.aspect_ratio === "16:9" ? "16:9" : "9:16", video_model: META_VIDEO_MODEL(args.model), duration: Number(args.duration) || 8 }));
+}
+
 // ============================================================================
 // 10. Service Worker Lifecycle & MCP Tool Call Listener
 // ============================================================================
@@ -3653,8 +3963,35 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
     const tool = message.tool;
     const args = message.args || {};
+    if (DEEPX_TOOLS.has(tool)) return await DEEPX.deepxExecute(tool, args);
 
     switch (tool) {
+      case "fb_manage_queue": return await manageQueue(args);
+      case "meta_viral_seo_generate": return metaViralSeo(args);
+      case "meta_viral_algorithm_audit": return metaAlgorithmAudit(args);
+      case "fb_trend_search": return await trendSearch(args);
+      case "deepx_meta_status": {
+        const login = await DEEPX.deepxExecute("deepx_check_login", {});
+        return { engine: "built-in DeepX Google Flow engine", google_flow_logged_in: !!login.logged_in, ...login, modes: ["agent", "standard"], tools: ["deepx_meta_generate_design", "deepx_meta_generate_thumbnail", "deepx_meta_generate_video", "deepx_generate", "deepx_job_status"] };
+      }
+      case "deepx_meta_generate_design": return await metaGenerate("design", args);
+      case "deepx_meta_generate_thumbnail": return await metaGenerate("thumbnail", args);
+      case "deepx_meta_generate_video": return await metaGenerate("video", args);
+      case "meta_list_pages": {
+        const login = await checkFacebookLogin({ openIfMissing: true, activateOnLoginNeeded: true });
+        if (!login.logged_in) return login;
+        const pages = await discoverManagedPages(login.active_tab_id, { refresh: !!args.refresh });
+        const store = await getStorage(["meta_default_page", "meta_acting_page"]);
+        return { pages, default_page: store.meta_default_page || pages[0] || null, acting_as: store.meta_acting_page || null };
+      }
+      case "meta_set_default_page": {
+        const login = await checkFacebookLogin({ openIfMissing: true, activateOnLoginNeeded: true });
+        if (!login.logged_in) return login;
+        const page = await resolveTargetPage(login.active_tab_id, args.page || args.page_url || args.page_id || args.name);
+        if (!page) return { success: false, error: "Page not found" };
+        await setStorage({ meta_default_page: page });
+        return { success: true, default_page: page };
+      }
       case "fb_status": {
         const shouldOpen = args.open_browser !== false;
         const login = await checkFacebookLogin({
@@ -3671,7 +4008,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           ...login,
           scheduled_jobs_queued: jobs.filter((j) => j.status === "queued").length,
           recent_posts_count: history.length,
-          pending_task: store.fb_pending_task || null
+          pending_task: store.fb_pending_task || null,
+          ...(await (async () => {
+            const p = await getStorage(["meta_pages", "meta_default_page", "meta_acting_page"]);
+            return { managed_pages: p.meta_pages || [], default_page: p.meta_default_page || null, acting_as_page: p.meta_acting_page || null, page_hint: (p.meta_pages || []).length ? null : "Pages are discovered automatically on the first page post (or call meta_list_pages)." };
+          })())
         };
       }
 
@@ -3753,7 +4094,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           thumbnail_path: args.thumbnail_path || null,
           media_paths: mediaPaths,
           post_type: args.post_type || (mediaPaths.length > 0 ? "photo" : "text"),
-          target_type: args.target_type || "profile",
+          target_type: args.target_type || "page",
           target_id: args.target_id || null,
           run_at_timestamp: runAt,
           status: "queued",

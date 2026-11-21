@@ -514,6 +514,8 @@ async function execute(tool, args = {}) {
       return agent.configure({ autopilot: args.autopilot !== false, aspectRatio: args.aspect_ratio, quality: args.quality, agentVideoModel: media === 'video' || args.video_model ? agentVideoModel(args.video_model) : null, agentImageModel: media === 'image' || args.image_model ? agentImageModel(args.image_model) : null });
     }
     case 'flow_agent_set_instructions': case 'deepx_flow_agent_set_instructions': return agent.setInstructions(args.instructions_text || args.text, args.title);
+    case 'flow_agent_open_chat': case 'deepx_flow_agent_open_chat': return agent.openChat();
+    case 'flow_search_assets': case 'deepx_search_assets': return agent.searchAssets(args.query || args.description || args.text, { projectId: args.project_id, limit: args.limit, waitMs: args.wait_ms, clear: args.clear_after });
     case 'flow_agent_approve_all': case 'deepx_flow_agent_approve_all': return agent.approveAll(args.keywords);
     case 'flow_agent_dispatch': case 'deepx_flow_agent_dispatch': return agentQueueFromArgs(args, 'agent_dispatch');
     case 'flow_agent_batch_queue': case 'deepx_flow_agent_batch_queue': return agentQueueFromArgs(args, 'agent_batch_queue');

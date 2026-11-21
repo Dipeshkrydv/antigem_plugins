@@ -1,20 +1,34 @@
 ---
 name: meta-suite-automation
-description: "Master Autonomous Meta Suite Production Engine (v2.0.0). Enterprise Meta Business Suite Facebook Page management and scheduling engine. Enforces 1-click publishing & scheduling of Page Reels (9:16), Long Videos (16:9), Photos, Stories, and Announcements with custom video thumbnails/covers, in-memory DataTransfer injection, <100ms synthetic clipboard paste, anti-ad organic shield, anti-comment box firewall, and 100% script-fidelity DeepX Google Flow AI media generation."
+description: "Master Autonomous Meta Suite Production Engine (v2.4.1). Enterprise Meta Business Suite Facebook Page management and scheduling engine. Enforces 1-click publishing & scheduling of Page Reels (9:16), Long Videos (16:9), Photos, Stories, and Announcements with custom video thumbnails/covers, in-memory DataTransfer injection, <100ms synthetic clipboard paste, anti-ad organic shield, anti-comment box firewall, and 100% script-fidelity DeepX Google Flow AI media generation."
 ---
 
-# Master Meta Suite Page Management Engine (v2.0.0)
+# Master Meta Suite Page Management Engine (v2.4.1)
 
-The definitive autonomous production, publishing, and scheduling engine dedicated 100% to **Facebook Page Management via Meta Business Suite**.
+The definitive autonomous production, publishing, and scheduling engine dedicated 100% to **Facebook Page Management via Meta Business Suite**. Zero delays. Zero questions. Zero friction.
 
 ---
 
-## 0. Instant Architecture & Zero Overhead (CRITICAL)
+## 0. INSTANT BOOT — Call `fb_status` AS LITERAL FIRST TOOL CALL (CRITICAL MANDATE)
 
-- **WebSocket Bridge**: Active and listening at `ws://127.0.0.1:8765` (connecting the Python FastMCP server to the Chrome Extension).
-- **DeepX Google Flow Bridge**: Active and listening at `ws://127.0.0.1:8792/ws` (generating high-impact page visuals, viral thumbnails, and Veo 3.1 video reels with 100% script and prompt fidelity).
-- **Background Scheduler Daemon**: Running via SQLite WAL (`meta_suite.db`) and APScheduler with automatic 30-second execution ticks.
-- **ZERO Manual Interruption**: Never prompt the user to open Meta Business Suite or Chrome tabs manually. All operations run directly in the background.
+**On ANY meta suite task, page post, reel, story, or publish request, the FIRST tool call is ALWAYS `fb_status`. No exceptions.**
+
+```python
+# ALWAYS FIRST — no questions before this
+result = fb_status()
+```
+
+**Decision tree after `fb_status`:**
+
+| `result.logged_in` | Action |
+|---|---|
+| `true` | Move immediately to the next step. Ask ONE clean, grammatical one-line question: *"What would you like to create or schedule today for your Facebook Page?"* |
+| `false` | Call `fb_open_browser()` once → tell user to sign in to Meta Business Suite once → STOP until confirmed |
+
+**EXECUTION RULES ACCORDING TO USER'S RESPONSE:**
+1. **Asset Generation**: ALWAYS use the plugin's **built-in DeepX Google Flow engine** (`deepx_meta_generate_design` / `deepx_meta_generate_thumbnail` / `deepx_meta_generate_video`): Google login check → one question *Agent Mode or Standard (without Agent)?* → autopilot (§3).
+2. **New Trend & Topic Search**: ALWAYS call **`fb_trend_search(keywords=..., sources="all", limit=5)`**. It scans Google/YouTube Trends, Reddit and X live inside the plugin and returns virality scores (0-100) and 5-stage blueprints. No Python needed.
+3. **Dispatch & Autopilot**: Once generated, pipe assets directly into `fb_publish`, `fb_publish_reel`, `fb_publish_story`, or `fb_schedule` with zero intermediate confirmation pauses.
 
 ---
 
@@ -24,12 +38,105 @@ The definitive autonomous production, publishing, and scheduling engine dedicate
 | :--- | :--- | :--- | :--- |
 | **Meta Business Suite Page** | Managed Facebook Page | `target_type: "page"`, `target_id: "me"` (or `<page_id>`) | Dedicated Page composer, organic reach, multi-page selection |
 
-- **Dynamic Page Discovery**: Automatically detects connected Facebook Pages from the active Meta Business Suite session (`business.facebook.com`).
-- **Target Selection**: Use `target_id="me"` for the primary/currently active page, or specify the numerical `page_id` when managing multiple business pages.
+- **Dynamic Page Discovery & Acting as the Page**: Managed Pages are discovered automatically (`meta_list_pages`; cached). Before every Page post, Reel or Story the engine opens the Page and **switches the Facebook session into the Page** (New Pages Experience "Switch"), so content is published AS the Page, never on the personal profile. If it cannot switch, it stops with a clear error instead of posting in the wrong place.
+- **Target Selection**: `target_id="me"` = default Page (first managed Page, or the one set with `meta_set_default_page`). Use a Page URL, username or numeric ID when managing several Pages.
 
 ---
 
-## 2. Multi-Format Production Matrix
+## 2. Autopilot Intent → Dispatch Pipeline (ZERO ALIGNMENT QUESTIONS)
+
+Once the user describes what to post, **proceed immediately** with no confirmation rounds:
+
+### 2A. Photo / Image Post
+```python
+fb_publish(
+    target_type="page", target_id="me",
+    post_type="photo",
+    media_paths=["<path_or_latest>"],
+    title="<viral_title>",
+    caption="<hook>\n\n<body>\n\n<CTA>",
+    hashtags=["#tag1", "#tag2", "#tag3"]
+)
+```
+
+### 2B. Reel (9:16 Vertical)
+```python
+fb_publish_reel(
+    target_type="page", target_id="me",
+    media_path="<reel_video.mp4>",
+    thumbnail_path="<cover.png>",
+    title="<viral_title>",
+    caption="<hook>\n\n<body>\n\n<CTA>",
+    hashtags=["#tag1", "#tag2", "#tag3"]
+)
+```
+
+### 2C. Scheduled Post (any format)
+```python
+fb_schedule(
+    target_type="page", target_id="me",
+    post_type="photo",   # or reel / video / story
+    media_paths=["<path>"],
+    run_at_timestamp=<utc_epoch>,
+    title="<title>",
+    caption="<caption>",
+    hashtags=["#tag1", "#tag2"]
+)
+```
+
+### 2D. Story
+```python
+fb_publish_story(
+    target_type="page", target_id="me",
+    media_path="<story_media>",
+    story_text="<overlay_text_max_120_chars>"
+)
+```
+
+### 2E. Long-Form Video (16:9)
+```python
+fb_publish(
+    target_type="page", target_id="me",
+    post_type="video",
+    media_paths=["<video.mp4>"],
+    thumbnail_path="<thumbnail.png>",
+    title="<title>",
+    caption="<caption>",
+    hashtags=["#tag1", "#tag2"]
+)
+```
+
+---
+
+## 3. Google Flow Media: built-in DeepX engine (ONLY path for designs, thumbnails & videos)
+
+**Every design, photo card, thumbnail, Reel cover and promo video is generated by this plugin's built-in DeepX Google Flow engine.** Never use any other Google Flow extension, the old `deepx-flow` bridge on port 8792, Python PIL/OpenCV, or external generators. Never tell the user to open Google Flow, paste prompts or download files.
+
+| Intent | Tool | Then |
+|---|---|---|
+| Design / photo post | `deepx_meta_generate_design(prompt=..., aspect_ratio="4:5" / "1:1" / "9:16")` | `files[0].path` → `fb_publish(media_paths=[...])` |
+| Thumbnail / Reel cover | `deepx_meta_generate_thumbnail(topic=..., title_hook=..., aspect_ratio="16:9" or "9:16")` | `files[0].path` → `thumbnail_path` |
+| Promo / Reel video | `deepx_meta_generate_video(prompt=..., aspect_ratio="9:16", duration=8)` | `files[0].path` → `fb_publish_reel(video_path=...)` |
+
+**Exact protocol (autopilot):**
+1. Call the tool. It **checks the Google Flow login itself**. On `LOGIN_REQUIRED`, tell the user its one message (sign in to Google in the Flow tab of the AntiGem browser) and stop until they reply. If signed in, it continues.
+2. On `ASK_GENERATION_MODE`, ask ONE multiple-choice question: **"Agent Mode or Standard mode (without Agent)?"** Then call again with `generation_mode`. Ask it once per request. Several assets in one request share the answer.
+3. Poll `deepx_job_status {job_id, wait_seconds:30}` until `done`. Take `files[0].path` and pipe it straight into `fb_publish` / `fb_publish_reel` / `fb_publish_story` / `fb_schedule`. **NEVER ask "should I post the generated image?"**
+- Agent Mode sends ≤24 prompts per part back-to-back. Standard mode switches to Agent Mode automatically on Google "unusual activity" / extension errors. Do not stop, cancel or retry by hand.
+- `deepx_generate` (any prompt list, image or video) and `deepx_meta_status` (login check) are also available.
+
+## 3.1 Mandatory Python Trend Search Engine for Viral Discovery (COMPULSORY)
+
+**ALWAYS USE PYTHON TREND ENGINE FOR TREND & TOPIC SEARCH:**
+When the user asks to "find trends", "what's trending", "search topics", "viral ideas", or "what should I post about":
+- **Multi-Source Real-Time Scan**: Automatically scans YouTube / Google Trends, Twitter/X breaking trends, and Reddit (r/todayilearned, r/explainlikeimfive, r/Damnthatsinteresting, r/science, r/technology).
+- **Virality Scoring Algorithm**: Calculates velocity, freshness, and curiosity trigger keywords (0-100).
+- **5-Stage Blueprint Generator**: Automatically structures findings into a high-retention video/post script (Golden Hook → Disrupt Assumptions → Unveil Insider Secrets → Ultimate Truth → Elevation & Discussion).
+- **Execution**: `fb_trend_search(keywords="<topic>", sources="all", limit=5)` (MCP tool, live, no Python). Desktop CLI alternative: `python cli.py trends --keywords "<topic>"`.
+
+---
+
+## 4. Multi-Format Production Matrix
 
 1. **Reels (9:16 Vertical)**:
    - Dedicated Reels composer (`/reels/create` or Meta Business Suite Reel drawer).
@@ -37,7 +144,7 @@ The definitive autonomous production, publishing, and scheduling engine dedicate
    - 1-line hook + formatted multiline caption + 3–6 diamond hashtags.
 2. **Long-Form Videos (16:9 Landscape)**:
    - Landscape video streaming via in-memory `DataTransfer`.
-   - Custom thumbnail uploaded inside **Edit Video $\to$ Thumbnail** (strictly never attached as a second post photo).
+   - Custom thumbnail uploaded inside **Edit Video → Thumbnail** (strictly never attached as a second post photo).
 3. **High-CTR Photo Posts**:
    - Single-image integrity: automatically verifies and purges stale draft photos before attaching.
    - Formatted description preserving blank lines (`\n\n`) between title, quote, bullets, and CTA.
@@ -48,7 +155,7 @@ The definitive autonomous production, publishing, and scheduling engine dedicate
 
 ---
 
-## 3. The Killer Scheduling Engine
+## 5. The Killer Scheduling Engine
 
 - **Quick-Schedule Offsets**:
   - `+15 min`: Immediate next-slot broadcast.
@@ -57,12 +164,31 @@ The definitive autonomous production, publishing, and scheduling engine dedicate
   - `Tomorrow 9:00 AM`: Next morning wake-up rush.
 - **Time Zone Engine**:
   - Automatically calculates local machine time and converts to UTC Unix epoch timestamp (`run_at_timestamp`).
-  - Persisted in SQLite WAL table `scheduled_jobs`.
-  - APScheduler executes jobs automatically without requiring open browser windows.
+  - Persisted in the plugin's storage (`fb_scheduled_jobs`); list / cancel / reschedule with `fb_manage_queue`.
+  - The built-in 1-minute scheduler publishes due posts automatically while AntiGem is running (missed slots run at the next start).
 
 ---
 
-## 4. Human-Grade Anti-Ban Execution Law
+## 6. Viral SEO Caption Architecture
+
+Every caption MUST follow this structure — no wall-of-text:
+
+```
+🔥 <Hook — bold 1-line claim or question>
+
+<Body — 3-5 bullet points with emojis, scannable value>
+
+<CTA — "Comment 'WORD' below" or "Save this post if...">
+
+#hashtag1 #hashtag2 #hashtag3 #hashtag4 #hashtag5
+```
+
+Use `fb_seo_generate(topic=<user_topic>)` to auto-generate viral SEO packages when the user provides a topic.
+Use `meta_viral_seo_generate(topic=<topic>, format=<post_type>)` for advanced format-specific viral copy.
+
+---
+
+## 7. Human-Grade Anti-Ban Execution Law
 
 - **In-Memory File Input Interceptor**:
   - Intercepts dynamic in-memory `HTMLInputElement.prototype.click` calls from Meta Business Suite composer, attaching binary blobs via `DataTransfer` in `<400ms`.
@@ -75,57 +201,34 @@ The definitive autonomous production, publishing, and scheduling engine dedicate
 
 ---
 
-## 5. 1-Call Autonomous Dispatch Protocol
-
-Keep reasoning under 2 seconds and dispatch directly:
-1. **Publish to Facebook Page Page**:
-   ```python
-   fb_publish(
-       target_type="page",
-       target_id="me",
-       post_type="photo",
-       media_paths=["latest"],
-       title="The Power of Relentless Focus",
-       caption="🔥 The 1% Rule\n\nSuccess isn't about giant leaps...",
-       hashtags=["#Mindset", "#Motivation", "#Success"]
-   )
-   ```
-2. **Schedule Reel with Custom Cover**:
-   ```python
-   fb_schedule(
-       target_type="page",
-       target_id="me",
-       post_type="reel",
-       media_paths=["/path/to/reel_video.mp4"],
-       thumbnail_path="/path/to/cover_image.png",
-       run_at_timestamp=1732000000,
-       title="Stop Waiting for Perfection",
-       caption="⚡ Action creates clarity...",
-       hashtags=["#ReelsViral", "#Focus", "#Discipline"]
-   )
-   ```
-
----
-
-## 6. Mandatory Sequential Execution Order Rule (STRICT WORKFLOW PIPELINE)
+## 8. Mandatory Sequential Execution Order Rule (STRICT WORKFLOW PIPELINE)
 
 Every publication or scheduling action on Meta Business Suite MUST execute in this exact, immutable order:
 
-1. **Step 1: Meta Business Suite Login & Session Verification (FIRST STEP)**
-   - Check and verify active login session on `business.facebook.com`.
-   - If unauthenticated, open browser for one-time login verification and wait for user completion. Never spam login checks.
-2. **Step 2: Managed Facebook Page Target Selection**
+1. **Step 1 — Instant `fb_status` Check (ALWAYS FIRST, NO EXCEPTIONS)**
+   - Call `fb_status()` immediately as the literal first tool call (<100ms).
+   - If `logged_in: true` → confirm connected, move to the next step, and ask ONE clean, grammatical one-line question: *"What would you like to create or schedule today for your Facebook Page?"*.
+   - If `logged_in: false` → call `fb_open_browser()` once → tell user to log in to Meta Business Suite once → STOP.
+   - **NEVER ask status before calling `fb_status`.** The check is instant (<100ms).
+
+2. **Step 2 — Managed Facebook Page Target Selection**
    - Confirm routing: `target_type="page"`, `target_id="me"` (or numerical Page ID).
    - Direct all actions strictly to the managed Page composer in Meta Business Suite.
-3. **Step 3: Content Preparation & Anti-Duplicate Check**
+
+3. **Step 3 — Content Preparation, Google Flow Media Generation, Python Trend Radar & Anti-Duplicate Check**
    - Structure viral SEO package: Title + multiline description (`\n\n` preserved) + 3 to 6 targeted `#Hashtags`.
    - Verify SHA-256 hash against published content and queued jobs to prevent duplicate uploads.
-4. **Step 4: In-Memory Asset & Custom Thumbnail / Cover Injection**
+   - **For all visual design and video generation, ALWAYS invoke Google Flow** (`deepx_meta_generate_design` / `deepx_meta_generate_thumbnail` / `deepx_meta_generate_video`; Google login check → *Agent Mode or Standard?* → poll `deepx_job_status` → `files[0].path`).
+   - **For new trend discovery, ALWAYS call `fb_trend_search`** (live, inside the plugin).
+
+4. **Step 4 — In-Memory Asset & Custom Thumbnail / Cover Injection**
    - Ingest media files via in-memory `DataTransfer` buffer directly in RAM (<400ms).
-   - For Video/Reel: Open **Edit Video -> Thumbnail** or **Reel Cover -> Upload cover** and upload custom thumbnail (strictly never attach as a second post photo).
-5. **Step 5: Anti-Ad Organic Shield Verification**
+   - For Video/Reel: Open **Edit Video → Thumbnail** or **Reel Cover → Upload cover** and upload custom thumbnail (strictly never attach as a second post photo).
+
+5. **Step 5 — Anti-Ad Organic Shield Verification**
    - Inspect and confirm that the "Make this an ad post" switch is strictly **OFF** for 100% organic algorithmic distribution.
-6. **Step 6: Synthetic Paste & Final Publish or Schedule**
+
+6. **Step 6 — Synthetic Paste & Final Publish or Schedule**
    - Paste formatted text into the Page Create Post dialog using synthetic clipboard paste (<100ms). Strictly avoid feed comment boxes.
    - **Immediate Post**: Click the native **"Publish"** button.
    - **Scheduled Post**: Toggle the native **"Set date and time"** switch, configure the scheduled date/time, and click **"Schedule"**.

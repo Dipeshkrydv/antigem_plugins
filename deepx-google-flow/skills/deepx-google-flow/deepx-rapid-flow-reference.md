@@ -89,8 +89,8 @@ This skill governs the high-speed, zero-latency execution pipeline between Antig
    - `deepx_auto_chain_scene`: Autonomous video analysis, terminal frame grab, reference binding, and next scene submission.
    - `deepx_generate_character`: Native Google Flow Character Studio generator.
    - `flow_agent_dispatch` / `deepx_flow_agent_dispatch`: 1-Click Multi-Scene Storyboard Dispatch directly to Google Flow's native Agent Mode (<1s) for autonomous scene clustering, continuity, and orchestration on 100% autopilot.
-   - `flow_agent_status` / `deepx_flow_agent_status`: Inspect whether Google Flow Agent Mode pill is detected and active on canvas.
-   - `flow_agent_toggle` / `deepx_flow_agent_toggle`: 1-Click Toggle Google Flow Agent Mode pill on or off on canvas (select vs disconnect Agent Mode).
+   - `flow_agent_status` / `deepx_flow_agent_status`: Inspect whether the Google Flow Agent spark switch (or legacy pill) is detected and active, plus the latest quick answer above the prompt box.
+   - `flow_agent_toggle` / `deepx_flow_agent_toggle`: 1-Click Toggle the Google Flow Agent spark switch (prompt box, next to generate) on or off (select vs disconnect Agent Mode).
    - `flow_agent_configure` / `deepx_flow_agent_configure`: Sets confirmation policy ('Confirm before generating: Never' for zero-interruption autonomous generation), default video model (Omni Flash 1.2, Veo 3.1 Quality, etc.), default image model (🍌 Nano Banana 2.1, etc.), and canvas aspect ratio directly inside Google Flow Agent settings.
    - `flow_agent_set_instructions` / `deepx_flow_agent_set_instructions`: Injects persistent directorial rules, style guidelines, and character directives directly into Flow Agent ('article_spark' panel) so the agent maintains visual consistency across all autonomous scenes.
    - `flow_agent_approve_all` / `deepx_flow_agent_approve_all`: Instantly approves any pending credit confirmation card in Google Flow Agent ('Always approve in project' or 'Approve') for zero-interruption execution.

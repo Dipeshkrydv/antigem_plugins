@@ -4,9 +4,9 @@ description: >-
   Autonomous Meta Business Suite Page Management Autopilot. Use when the user requests to post, publish, or schedule anything (photos, reels, videos, stories, announcements, text posts) to managed Facebook Pages via Meta Business Suite, or mentions 'manage page', 'page scheduler', 'meta suite', 'schedule post to page', 'meta bridge', 'page automation', or 'handle my facebook page'. Enforces permanent one-time setup, zero-tab prompts (never ask the user to open tabs, switch windows, or click UI buttons), automatic media generation for zero-friction posts, authentic page grounding via Meta Business Suite (target_type: "page", target_id: "me" or explicit page ID), viral SEO hooks and hashtags, and continuous background dispatch via SQLite WAL and WebSocket bridge.
 ---
 
-# Meta Business Suite Page Autopilot (v2.3.0)
+# Meta Business Suite Page Autopilot (v2.4.1)
 
-This skill governs the high-speed, zero-interruption execution pipeline between Antigravity, local SQLite scheduler, and the Chrome Extension bridge (`ws://127.0.0.1:8765`) to manage connected **Facebook Pages via Meta Business Suite** autonomously in the background.
+This skill governs the high-speed, zero-interruption execution pipeline of the Meta Suite AntiGem plugin (its MCP tools drive the AntiGem browser directly; scheduled posts are stored in the plugin and published by its built-in 1-minute scheduler) to manage connected **Facebook Pages via Meta Business Suite** autonomously in the background.
 
 ---
 
@@ -29,9 +29,9 @@ result = fb_status()   # <-- first tool call, every time, no exceptions
 ## 1. Zero Setup Overhead & Autonomous Background Mandate (CRITICAL)
 
 - **ONE-TIME SETUP IS ALREADY ACTIVE & RUNNING**:
-  - The WebSocket bridge is active at `ws://127.0.0.1:8765`.
-  - The Chrome Extension is loaded and continuously syncs active business page sessions.
-  - The background scheduler daemon (`cli.py bridge`) actively processes jobs every 30 seconds.
+  - The plugin's MCP tools drive Facebook directly in the AntiGem browser (no WebSocket bridge, no Chrome extension, no daemon to start).
+  - Managed Pages are discovered automatically and every Page action runs while switched into the Page.
+  - The built-in scheduler checks queued posts every minute while AntiGem is running (`fb_manage_queue` to list / cancel / reschedule).
 - **ZERO DUMMY QUESTIONS & ZERO TAB PROMPTS MANDATE**:
   - Antigravity MUST **NEVER** ask the user to open `business.facebook.com` or switch Chrome tabs.
   - Antigravity MUST **NEVER** ask the user to open the Chrome Extension popup.
@@ -57,7 +57,7 @@ Antigravity operates with authentic, dynamically discovered Facebook Pages:
 
 - **Page Media Ingestion**:
   - If user provides video or image: Upload via RAM `DataTransfer` buffer without triggering OS file dialogs.
-  - If user requests creative media (generate / redesign / make engaging): **Automatically route to DeepX** without asking permission.
+  - If user requests creative media (generate / redesign / make engaging): **Automatically route to the built-in DeepX Google Flow engine**. Its only question is *Agent Mode or Standard (without Agent)?*, and a Google login check runs first; see the protocol below.
   - Text announcements: Format cleanly with title, formatted multiline description, and CTA.
 
 ### DeepX Auto-Routing Decision Table
@@ -68,6 +68,8 @@ Antigravity operates with authentic, dynamically discovered Facebook Pages:
 | "make thumbnail", "create thumbnail", "thumbnail for this" | `deepx_meta_generate_thumbnail(...)` | Attach as `thumbnail_path` to publish call |
 | "make video", "promo reel", "generate reel video" | `deepx_meta_generate_video(...)` | Pipe result directly to `fb_publish_reel` |
 | "redesign", "make it more engaging", "edit this photo" | `deepx_meta_generate_design(...)` | Pipe result directly to `fb_publish` |
+
+**Google Flow protocol:** the tool checks the Google Flow login first (`LOGIN_REQUIRED` → give the user its one sign-in message and stop). On `ASK_GENERATION_MODE`, ask once: "Agent Mode or Standard mode (without Agent)?" Then poll `deepx_job_status` until done and use `files[0].path`. Standard mode auto-switches to Agent Mode on Google "unusual activity" errors. Never tell the user to generate in Google Flow manually.
 
 **NEVER pause after generation to ask "should I post it?" — pipe directly to publish.**
 
@@ -114,7 +116,7 @@ target_id = "me"  # or explicit page_id
 
 ### Step 3 — Content Package Preparation
 - Build viral SEO package: Title + formatted caption + hashtags
-- If AI media needed → call DeepX NOW (before step 4)
+- If AI media needed → call `deepx_meta_generate_*` NOW (before step 4): login check → mode question → poll → `files[0].path`
 - SHA-256 duplicate check against published and queued posts
 
 ### Step 4 — Asset Injection (In-Memory)

@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "id": "meta-suite-automation",
   "name": "Meta Suite Page Management",
-  "version": "2.3.0",
-  "description": "Master Autonomous Meta Suite Production Engine (v2.3.0): Enterprise Meta Business Suite Facebook Page management, auto-open Meta Business Suite on login, persistent bridge background thread, embedded multi-platform trend radar, 1-click publishing & scheduling of Page Reels, Long Videos, Photos, Stories with in-memory DataTransfer injection, synthetic clipboard paste, anti-ad organic shield, and Google Flow AI media generation.",
+  "version": "2.4.1",
+  "description": "Master Autonomous Meta Suite Production Engine (v2.4.1): Facebook Page management that really posts AS your Page (auto Page discovery + profile switch, default Page), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
   "author": "Dipesh Kr Yadav",
   "icon": "icon.png",
   "icons": {
@@ -23,10 +23,19 @@
     "antigemFiles"
   ],
   "host_permissions": [
-    "*://*.facebook.com/*",
     "*://*.business.facebook.com/*",
+    "*://*.facebook.com/*",
+    "*://*.flow.google.com/*",
     "*://*.instagram.com/*",
-    "*://*.flow.google.com/*"
+    "*://facebook.com/*",
+    "https://*.google.com/*",
+    "https://aisandbox-pa.googleapis.com/*",
+    "https://flow.google.com/*",
+    "https://labs.google.com/*",
+    "https://labs.google/*",
+    "https://trends.google.com/*",
+    "https://trends24.in/*",
+    "https://www.reddit.com/*"
   ],
   "background": {
     "service_worker": "worker.js"
@@ -480,16 +489,25 @@
     },
     {
       "name": "fb_manage_queue",
-      "description": "\n    Controls and inspects the local SQLite APScheduler post queue for Meta Business Suite & Facebook:\n    - action='list': Lists upcoming and pending scheduled posts.\n    - action='cancel': Cancels a scheduled job by `job_id`.\n    - action='reschedule': Changes scheduled time for `job_id` to `new_schedule_time_iso`.\n    - action='pause_all': Emergency pauses all upcoming jobs in queue.\n    - action='resume_all': Resumes paused jobs in queue.\n    ",
+      "description": "Inspect and control the scheduled post queue (stored in the plugin; due jobs publish automatically while AntiGem runs): action='list' | 'cancel' (job_id) | 'reschedule' (job_id + new_schedule_time_iso) | 'run_now' (job_id).",
       "inputSchema": {
         "properties": {
           "action": {
+            "type": "string",
+            "enum": [
+              "list",
+              "cancel",
+              "reschedule",
+              "run_now"
+            ],
             "default": "list",
-            "title": "Action",
-            "type": "string"
+            "title": "Action"
           },
           "job_id": {
             "anyOf": [
+              {
+                "type": "string"
+              },
               {
                 "type": "integer"
               },
@@ -639,7 +657,7 @@
     },
     {
       "name": "fb_thumbnail_prompt",
-      "description": "\n    Craft a hyper-detailed, creative Master Art Direction prompt for generating a viral video/reel/post thumbnail\n    using an AI Image Model (Nano Banana Pro / `image-generator` / Google Flow / Imagen 3).\n    STRICT MANDATE: NEVER use Python (PIL, Pillow, OpenCV, ThumbnailEngine, or FreeMediaEngine) to generate thumbnails!\n    ",
+      "description": "Craft an ultra-detailed, creative Master Art Direction prompt for generating a high-CTR clickbait thumbnail using an AI Image Model (Nano Banana Pro / Google Flow / image-generator subagent). STRICT MANDATE: NEVER use Python (PIL/Pillow/OpenCV) to generate thumbnails! Always pass this tool's prompt to the AI Image Model to render the thumbnail. Then generate the image with deepx_generate in THIS plugin (Google login check → ask Agent Mode or Standard → download:true) and pass files[0].path as thumbnail_path.",
       "inputSchema": {
         "properties": {
           "topic": {
@@ -766,7 +784,7 @@
     },
     {
       "name": "fb_trend_search",
-      "description": "\n    Real-Time Multi-Platform Viral Topic & Trend Search Engine:\n    Scans YouTube / Google Trends, Twitter/X breaking topics, and Reddit in real time.\n    Returns:\n    - Ranked viral trends with Virality Momentum Scores (0-100)\n    - 5-Stage High-Retention Script Blueprint (Golden Hook -> Disrupt Assumptions -> Unveil Insider Secrets -> Ultimate Truth -> Elevation & Discussion)\n    - Google Flow character and asset visual generation prompt\n    ",
+      "description": "\n    Real-Time Multi-Platform (live fetch inside the plugin, no Python needed) Viral Topic & Trend Search Engine:\n    Scans YouTube / Google Trends, Twitter/X breaking topics, and Reddit in real time.\n    Returns:\n    - Ranked viral trends with Virality Momentum Scores (0-100)\n    - 5-Stage High-Retention Script Blueprint (Golden Hook -> Disrupt Assumptions -> Unveil Insider Secrets -> Ultimate Truth -> Elevation & Discussion)\n    - Google Flow character and asset visual generation prompt\n    ",
       "inputSchema": {
         "properties": {
           "keywords": {
@@ -798,7 +816,7 @@
     },
     {
       "name": "deepx_meta_status",
-      "description": "Check connection status between Meta Suite and the latest DeepX Google Flow Extension.",
+      "description": "Check the built-in DeepX Google Flow engine: Google Flow login state in the AntiGem browser (LOGIN_REQUIRED with one message if not signed in) and available modes.",
       "inputSchema": {
         "properties": {},
         "title": "deepx_meta_statusArguments",
@@ -807,7 +825,7 @@
     },
     {
       "name": "deepx_meta_generate_design",
-      "description": "Generate high-converting social designs and photo cards on Google Flow via DeepX (🍌 Nano Banana 2.1).",
+      "description": "Generate high-converting social designs and photo cards on Google Flow  (🍌 Nano Banana 2.1). Built-in DeepX Google Flow engine: checks the Google Flow login first (LOGIN_REQUIRED → tell the user to sign in, stop), asks Agent Mode vs Standard once (ASK_GENERATION_MODE), downloads the result; poll deepx_job_status and use files[0].path. Standard mode auto-switches to Agent Mode on Google 'unusual activity' blocks. Never tell the user to generate in Google Flow manually.",
       "inputSchema": {
         "properties": {
           "prompt": {
@@ -815,26 +833,41 @@
             "type": "string"
           },
           "aspect_ratio": {
+            "type": "string",
             "default": "4:5",
-            "title": "Aspect Ratio",
-            "type": "string"
+            "description": "4:5 / 3:4 portrait feed (4:5 maps to 3:4), 1:1 square, 9:16 story, 16:9 landscape."
           },
           "model": {
             "default": "gemini-nano-banana-2.1",
             "title": "Model",
             "type": "string"
+          },
+          "generation_mode": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "standard"
+            ],
+            "description": "User's answer to 'Agent Mode or Standard mode (without Agent)?'. Omit until answered: the tool then returns ASK_GENERATION_MODE (after the Google login check)."
+          },
+          "wait_seconds": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 40,
+            "description": "Seconds to wait before returning (default 20); then poll deepx_job_status."
           }
         },
         "required": [
           "prompt"
         ],
         "title": "deepx_meta_generate_designArguments",
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       }
     },
     {
       "name": "deepx_meta_generate_thumbnail",
-      "description": "\n    Generate an agency-grade high-CTR viral thumbnail for Facebook/Instagram via DeepX Google Flow.\n    Strictly follows Rule 8 (AI Image Model ONLY: volumetric rim lighting, 3D gradient text, translucent glass badge).\n    ",
+      "description": "Generate an agency-grade high-CTR viral thumbnail for Facebook/Instagram  Google Flow. Built-in DeepX Google Flow engine: checks the Google Flow login first (LOGIN_REQUIRED → tell the user to sign in, stop), asks Agent Mode vs Standard once (ASK_GENERATION_MODE), downloads the result; poll deepx_job_status and use files[0].path. Standard mode auto-switches to Agent Mode on Google 'unusual activity' blocks. Never tell the user to generate in Google Flow manually.",
       "inputSchema": {
         "properties": {
           "topic": {
@@ -845,18 +878,45 @@
             "default": "16:9",
             "title": "Aspect Ratio",
             "type": "string"
+          },
+          "generation_mode": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "standard"
+            ],
+            "description": "User's answer to 'Agent Mode or Standard mode (without Agent)?'. Omit until answered: the tool then returns ASK_GENERATION_MODE (after the Google login check)."
+          },
+          "wait_seconds": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 40,
+            "description": "Seconds to wait before returning (default 20); then poll deepx_job_status."
+          },
+          "title_hook": {
+            "type": "string",
+            "description": "Big headline text for the thumbnail."
+          },
+          "subtitle": {
+            "type": "string",
+            "description": "Secondary line."
+          },
+          "archetype": {
+            "type": "string",
+            "description": "Visual archetype key (optional)."
           }
         },
         "required": [
           "topic"
         ],
         "title": "deepx_meta_generate_thumbnailArguments",
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       }
     },
     {
       "name": "deepx_meta_generate_video",
-      "description": "Generate vertical Reels or video ads on Google Flow via Veo 3.1 & DeepX.",
+      "description": "Generate vertical Reels or video ads on Google Flow via Veo 3.1 . Built-in DeepX Google Flow engine: checks the Google Flow login first (LOGIN_REQUIRED → tell the user to sign in, stop), asks Agent Mode vs Standard once (ASK_GENERATION_MODE), downloads the result; poll deepx_job_status and use files[0].path. Standard mode auto-switches to Agent Mode on Google 'unusual activity' blocks. Never tell the user to generate in Google Flow manually.",
       "inputSchema": {
         "properties": {
           "prompt": {
@@ -877,13 +937,28 @@
             "default": "veo-3.1-lite",
             "title": "Model",
             "type": "string"
+          },
+          "generation_mode": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "standard"
+            ],
+            "description": "User's answer to 'Agent Mode or Standard mode (without Agent)?'. Omit until answered: the tool then returns ASK_GENERATION_MODE (after the Google login check)."
+          },
+          "wait_seconds": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 40,
+            "description": "Seconds to wait before returning (default 20); then poll deepx_job_status."
           }
         },
         "required": [
           "prompt"
         ],
         "title": "deepx_meta_generate_videoArguments",
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       }
     },
     {
@@ -916,6 +991,666 @@
         "title": "fb_doctorArguments",
         "type": "object"
       }
+    },
+    {
+      "name": "meta_list_pages",
+      "description": "List the Facebook Pages this account manages (auto-discovered from facebook.com/pages, cached 6 h) plus the default Page used for target_id='me' and the Page currently acted as.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "refresh": {
+            "type": "boolean",
+            "description": "Re-scan Pages now."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "meta_set_default_page",
+      "description": "Set the default managed Page used when target_id is 'me' (by Page URL, numeric ID, username or name).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "string",
+            "description": "Page URL, ID, username or name."
+          }
+        },
+        "required": [
+          "page"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "deepx_generate",
+      "description": "AI images/videos for Facebook (thumbnails, Reel covers, post designs, short clips) through the built-in DeepX Google Flow engine. Checks the Google Flow login first (LOGIN_REQUIRED → tell the user to sign in, stop). If generation_mode is missing it returns ASK_GENERATION_MODE: ask 'Agent Mode or Standard mode (without Agent)?' and call again. Pass download:true and use files[0].path from deepx_job_status as thumbnail_path/media_paths. Standard mode auto-switches to Agent Mode on Google 'unusual activity' blocks; Agent Mode sends ≤24 prompts per part back-to-back. Never ask the user to generate in Google Flow manually.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "generation_mode": {
+            "type": "string",
+            "description": "REQUIRED answer from the user: 'agent' (Google Flow Agent Mode) or 'standard' (without Agent). Never guess: if the user has not chosen for this request, omit it and the tool returns ASK_GENERATION_MODE so you can ask.",
+            "enum": [
+              "agent",
+              "standard"
+            ]
+          },
+          "media_type": {
+            "type": "string",
+            "description": "'image' or 'video'. Pass it explicitly when known.",
+            "enum": [
+              "image",
+              "video"
+            ]
+          },
+          "prompt": {
+            "type": "string",
+            "description": "One prompt, or a bulk request like '100 images of vintage cars' / '1 to 500 number designs' (auto-expanded)."
+          },
+          "prompts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of prompts, one output item each (any length; Agent Mode splits into parts of ≤24, Standard mode accepts ≤500)."
+          },
+          "script_text": {
+            "type": "string",
+            "description": "Storyboard/script; scenes separated by blank lines (or numbered lines). Use auto_breakdown for raw stories."
+          },
+          "auto_breakdown": {
+            "type": "boolean",
+            "description": "Analyze a raw story into scenes with @handles before generating."
+          },
+          "aspect_ratio": {
+            "type": "string",
+            "description": "Aspect ratio. Video supports 16:9 / 9:16.",
+            "enum": [
+              "16:9",
+              "9:16",
+              "1:1",
+              "4:3",
+              "3:4"
+            ]
+          },
+          "model": {
+            "type": "string",
+            "description": "Model shortcut for the media type (e.g. 'Nano Banana 2.1', 'Nano Banana Pro', 'Omni Flash 1.2', 'Veo 3.1 - Quality')."
+          },
+          "image_model": {
+            "type": "string",
+            "description": "Image model (Agent: Nano Banana 2.1/Pro/2 Lite/Imagen 3; Standard: Nano Banana 2.1/Pro/2 Lite)."
+          },
+          "video_model": {
+            "type": "string",
+            "description": "Video model (Agent: Omni Flash 1.2/Omni 1.1 Flash/Veo 3.1 Quality/Fast/Lite; Standard: Omni 1.1 Flash/Veo 3.1 Lite/Fast/Quality)."
+          },
+          "duration": {
+            "type": "integer",
+            "description": "Video seconds (Omni 4/6/8/10, Veo 8)."
+          },
+          "count": {
+            "type": "integer",
+            "description": "Standard mode: outputs per prompt (1–4).",
+            "minimum": 1,
+            "maximum": 4
+          },
+          "quality": {
+            "type": "string",
+            "description": "Agent settings quality hint: 720p, 1080p, 2k, 4k."
+          },
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Standard mode: reference media IDs, @handles or local image paths."
+          },
+          "no_references": {
+            "type": "boolean",
+            "description": "Do not attach reference images."
+          },
+          "max_per_part": {
+            "type": "integer",
+            "description": "Agent Mode items per pasted part (max 24, default 24).",
+            "minimum": 1,
+            "maximum": 24
+          },
+          "total_count": {
+            "type": "integer",
+            "description": "Explicit total for a single subject prompt (e.g. 100)."
+          },
+          "range_start": {
+            "type": "integer",
+            "description": "Range start for numbered sets (default 1)."
+          },
+          "range_end": {
+            "type": "integer",
+            "description": "Range end for numbered sets (e.g. 1000)."
+          },
+          "custom_instructions": {
+            "type": "string",
+            "description": "Agent Mode: persistent custom instructions to sync before pasting (defaults to DeepX Master Autopilot Director)."
+          },
+          "style_lock": {
+            "type": "string",
+            "description": "Shared style sentence appended to every Agent part for consistency."
+          },
+          "auto_fallback": {
+            "type": "boolean",
+            "description": "Standard mode: switch to Agent Mode automatically when Google shows an unusual-activity / extension / captcha block (default true)."
+          },
+          "autopilot": {
+            "type": "boolean",
+            "description": "Agent Mode: auto-approve credit cards and answer Flow Agent questions (default true)."
+          },
+          "download": {
+            "type": "boolean",
+            "description": "Agent Mode: download new media to ~/flow-media when finished."
+          },
+          "project_id": {
+            "type": "string",
+            "description": "Target Flow project (default: current)."
+          },
+          "new_project": {
+            "type": "boolean",
+            "description": "Standard mode: create a new project first."
+          },
+          "title": {
+            "type": "string",
+            "description": "Title for new_project."
+          },
+          "part_timeout_sec": {
+            "type": "integer",
+            "description": "Agent Mode: max seconds to wait for one part before sending the next (default 480 image / 900 video)."
+          },
+          "wait_seconds": {
+            "type": "integer",
+            "description": "Seconds to wait before returning (0–45). Poll deepx_job_status afterwards.",
+            "minimum": 0,
+            "maximum": 45
+          },
+          "dry_run": {
+            "type": "boolean",
+            "description": "Standard mode: prepare and guard-block the request without spending credits."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "deepx_job_status",
+      "description": "Poll any DeepX job (Agent Mode queue, standard batch, auto-fallback) by job_id. Waits up to wait_seconds (default 30, max 50) for completion. Shows parts done, stage, media_ids and fallback_job when standard mode was switched to Agent Mode.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "description": "Job id from deepx_generate or another tool."
+          },
+          "job_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Several job ids."
+          },
+          "wait_seconds": {
+            "type": "integer",
+            "description": "0–50 seconds to wait.",
+            "minimum": 0,
+            "maximum": 50
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "deepx_check_login",
+      "description": "Check that a Google account is signed in to Google Flow in the AntiGem browser (opens Flow if needed). If not signed in it returns LOGIN_REQUIRED with one message to tell the user; otherwise continue with the task.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "deepx_status",
+      "description": "One-call readiness check: Google Flow tab, sign-in, project, Agent pill state, running jobs and whether standard mode was recently blocked. Opens Flow in the AntiGem browser if needed. Call at most once per session; never before deepx_generate.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "deepx_cancel_job",
+      "description": "Cancel a DeepX job (Agent Mode queue or standard batch) and its children. Omit job_id to cancel everything running.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "description": "Job id."
+          },
+          "batch_id": {
+            "type": "string",
+            "description": "Legacy alias of job_id."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "deepx_get_options",
+      "description": "DeepX knowledge: all Flow models, modes, ratios, durations, @handle referencing, prompt cinematography and the Agent vs Standard mode table.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "deepx_flow_agent_status",
+      "description": "Google Flow Agent Mode pill status on the current canvas (found / active / busy).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "deepx_flow_agent_toggle",
+      "description": "Turn Google Flow Agent Mode on or off (omit active to toggle).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean",
+            "description": "true = on, false = off."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "deepx_flow_agent_configure",
+      "description": "Configure Flow Agent settings: 100% autopilot ('Confirm before generating: Never'), default video/image model, aspect ratio, quality.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "autopilot": {
+            "type": "boolean",
+            "description": "Set Confirm before generating: Never (default true)."
+          },
+          "media_type": {
+            "type": "string",
+            "description": "'image' or 'video'. Pass it explicitly when known.",
+            "enum": [
+              "image",
+              "video"
+            ]
+          },
+          "video_model": {
+            "type": "string",
+            "description": "Default agent video model."
+          },
+          "image_model": {
+            "type": "string",
+            "description": "Default agent image model."
+          },
+          "aspect_ratio": {
+            "type": "string",
+            "description": "16:9, 9:16 or 1:1.",
+            "enum": [
+              "16:9",
+              "9:16",
+              "1:1"
+            ]
+          },
+          "quality": {
+            "type": "string",
+            "description": "720p, 1080p, 2k or 4k."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "deepx_flow_agent_set_instructions",
+      "description": "Write persistent custom instructions into Flow Agent (article_spark panel) for style/character consistency.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instructions_text": {
+            "type": "string",
+            "description": "Instructions text (default: DeepX Master Autopilot Director)."
+          },
+          "title": {
+            "type": "string",
+            "description": "Entry title."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "deepx_flow_agent_approve_all",
+      "description": "Approve any pending Flow Agent credit card ('Always approve in project' / 'Approve') and answer a pending Agent question.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "keywords": {
+            "type": "string",
+            "description": "Topic words to pick the matching choice."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "deepx_flow_agent_batch_queue",
+      "description": "Agent Mode bulk queue for 1–5000 items (ranges like 1 to 1000, '100 images of X', or long prompt lists): ≤24 items per part, back-to-back, autopilot approvals. Returns a job.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "prompt_or_storyboard": {
+            "type": "string",
+            "description": "Bulk request ('100 images of cyber cars', '1 to 1000 numbers') or multi-item storyboard text (blank-line separated)."
+          },
+          "storyboard_text": {
+            "type": "string",
+            "description": "Alias of prompt_or_storyboard."
+          },
+          "prompts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Explicit prompt list (split into parts of ≤24)."
+          },
+          "media_type": {
+            "type": "string",
+            "description": "'image' or 'video'. Pass it explicitly when known.",
+            "enum": [
+              "image",
+              "video"
+            ]
+          },
+          "aspect_ratio": {
+            "type": "string",
+            "description": "Aspect ratio. Video supports 16:9 / 9:16.",
+            "enum": [
+              "16:9",
+              "9:16",
+              "1:1",
+              "4:3",
+              "3:4"
+            ]
+          },
+          "image_model": {
+            "type": "string",
+            "description": "Agent image model."
+          },
+          "video_model": {
+            "type": "string",
+            "description": "Agent video model."
+          },
+          "duration": {
+            "type": "integer",
+            "description": "Video seconds per clip."
+          },
+          "quality": {
+            "type": "string",
+            "description": "720p, 1080p, 2k or 4k."
+          },
+          "total_count": {
+            "type": "integer",
+            "description": "Explicit total item count."
+          },
+          "range_start": {
+            "type": "integer",
+            "description": "Range start (default 1)."
+          },
+          "range_end": {
+            "type": "integer",
+            "description": "Range end."
+          },
+          "max_per_batch": {
+            "type": "integer",
+            "description": "Items per part (max 24).",
+            "minimum": 1,
+            "maximum": 24
+          },
+          "custom_instructions": {
+            "type": "string",
+            "description": "Instructions to sync into Flow Agent first."
+          },
+          "character_names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Character @handles to keep in every item."
+          },
+          "autopilot": {
+            "type": "boolean",
+            "description": "Auto-approve + auto-answer (default true)."
+          },
+          "download": {
+            "type": "boolean",
+            "description": "Download new media when done."
+          },
+          "project_id": {
+            "type": "string",
+            "description": "Target project."
+          },
+          "wait_seconds": {
+            "type": "integer",
+            "description": "Seconds to wait before returning (0–45).",
+            "minimum": 0,
+            "maximum": 45
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "deepx_upscale_media",
+      "description": "Upscale a Flow image (2K/4K) or video (1080p/4K). Omit media_id to upscale the latest media.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "media_id": {
+            "type": "string",
+            "description": "Media id (default latest)."
+          },
+          "type": {
+            "type": "string",
+            "description": "image or video.",
+            "enum": [
+              "image",
+              "video"
+            ]
+          },
+          "quality": {
+            "type": "string",
+            "description": "1080p, 2k or 4k."
+          },
+          "wait_seconds": {
+            "type": "integer",
+            "description": "0–45.",
+            "minimum": 0,
+            "maximum": 45
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "deepx_download_media",
+      "description": "Chrome Flow MCP compatibility alias for flow_download_media. Download media by ID or URL into local terminal storage, with an optional filename and folder.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "filename": {
+            "description": "Target filename e.g. 'hero_scene_01.mp4'.",
+            "type": "string"
+          },
+          "folder": {
+            "default": "deepx_renders",
+            "description": "Subfolder under Chrome Downloads.",
+            "type": "string"
+          },
+          "url": {
+            "description": "Direct FifeURL or download redirect URL of the media.",
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "dry_run": {
+            "type": "boolean"
+          },
+          "wait_seconds": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 50
+          },
+          "wait_for_completion": {
+            "type": "boolean"
+          },
+          "max_credits": {
+            "type": "number",
+            "minimum": 0
+          },
+          "media_id": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "deepx_upload_asset",
+      "description": "Chrome Flow MCP compatibility alias for flow_upload_media. Upload local image/video files into a Flow project (through Flow's own upload, so they appear in the project). Returns their new media ids, usable as references or frames. Not needed before flow_generate_*: those accept local paths directly.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "file_name": {
+            "description": "Optional display filename.",
+            "type": "string"
+          },
+          "file_path": {
+            "description": "Absolute local path to the image or video file.",
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "dry_run": {
+            "type": "boolean"
+          },
+          "wait_seconds": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 50
+          },
+          "wait_for_completion": {
+            "type": "boolean"
+          },
+          "max_credits": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "file_path"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "flow_get_last_media",
+      "description": "Get the newest images or videos (\"the last image\", \"the previous 2 videos\"): first the results of this session's tools, then the newest items of the project. Use the returned media_id with other flow_* tools.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video"
+            ],
+            "description": "Only images or only videos"
+          },
+          "count": {
+            "type": "integer",
+            "description": "How many (default 1)"
+          },
+          "project_id": {
+            "type": "string",
+            "description": "Project to look in (default: the open project)"
+          }
+        }
+      }
+    },
+    {
+      "name": "flow_get_media",
+      "description": "Get a Flow image or video as a local file (saved once in ~/flow-media; later calls reuse the same file, never copy it). Set view=true to also receive an image inline so you can look at it. To show it in chat, write ![caption](<path>) on its own line.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "media_id": {
+            "type": "string",
+            "description": "media_id from flow_list_media or flow_generate_image/flow_generate_video"
+          },
+          "view": {
+            "type": "boolean",
+            "description": "Also return the image inline for viewing (images only, default false)"
+          }
+        },
+        "required": [
+          "media_id"
+        ]
+      }
+    },
+    {
+      "name": "flow_list_media",
+      "description": "List images and videos in a Flow project (mediaId, type, title, prompt, size, pending). Optional query filters by title/prompt (like Flow's search box); pending_only lists videos still generating. cached_path is set when the file is already saved locally; use flow_get_media to fetch one.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "description": "Project ID (default: the project open in the Flow tab)"
+          },
+          "query": {
+            "type": "string",
+            "description": "Optional case-insensitive text to search in titles and prompts"
+          },
+          "pending_only": {
+            "type": "boolean",
+            "description": "Only media still generating (default false)"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video"
+            ],
+            "description": "Only images or only videos"
+          },
+          "include_trashed": {
+            "type": "boolean",
+            "description": "Also list media in Flow's trash (default false)"
+          }
+        }
+      }
     }
   ],
   "entrypoint": "mcp_server/server.py",
@@ -932,5 +1667,5 @@
     "reels",
     "video thumbnail"
   ],
-  "tool_count": 24
+  "tool_count": 44
 }

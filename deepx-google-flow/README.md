@@ -1,4 +1,10 @@
-# DeepX Google Flow Studio (AntiGem plugin) — v1.1.0
+# DeepX Google Flow Studio (AntiGem plugin) — v1.2.0
+
+## What's new in v1.2.0 (Google Flow Nov 2026 update)
+- **Agent spark switch**: Agent Mode now flips Flow's new spark switch inside the prompt box (next to the generate button). The old Agent pill still works.
+- **Quick answers**: Agent replies now show above the prompt box. DeepX opens **Use side panel** automatically when an approval or question is waiting; new `deepx_flow_agent_open_chat` tool.
+- **Semantic asset search**: new `deepx_search_assets` returns exact matches (name/prompt) first, then Flow's similar results (color, subject, mood).
+- Knowledge updated for Flow's faster Agent model and improved Tool Builder.
 
 The DeepX Google Flow Chrome extension, rebuilt as an AntiGem MCP plugin. There is no side panel, popup, WebSocket bridge or setup script. Every feature is an MCP tool plus a skill, so any AntiGem user can install it and generate straight from chat.
 
@@ -28,7 +34,7 @@ worker.js              thin MCP listener
 deepx-core.js          DeepX layer: login check, mode question, standard runner, block watchdog, fallback, tools
 tools/build_classic_bundle.py  builds deepx-bundle.js for classic workers
 deepx-agent.js         Agent Mode engine (prepare, ≤24 part builder, paste+tap, idle wait, approvals, jobs)
-deepx-agent-page.js    MAIN-world Flow page helper (agent pill, settings, instructions, approvals, block detector)
+deepx-agent-page.js    MAIN-world Flow page helper (Agent spark switch / legacy pill, quick answers + side panel, settings, instructions, approvals, asset search, block detector)
 flow-client.js         AntiGem native Flow engine (tab, project, RPC, submit with request guard, collect)
 flow-workflows.js      Batch / storyboard / characters / references / chaining workflows
 page-helpers.js        Native Flow page helper (composer, settings, picker, capture guard)

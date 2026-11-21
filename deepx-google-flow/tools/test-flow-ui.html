@@ -1,0 +1,70 @@
+<!doctype html>
+<!-- Offline test for deepx-agent-page.js against a mock of the Nov 2026 Google Flow UI.
+     Run: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless=new --disable-gpu \
+          --allow-file-access-from-files --virtual-time-budget=20000 --dump-dom tools/test-flow-ui.html | grep RESULT -->
+<html><head><meta charset="utf-8"><style>button,div,input,img{min-width:10px;min-height:10px;display:inline-block}</style></head>
+<body>
+  <input type="search" placeholder="Search assets" id="search">
+  <div id="grid"></div>
+
+  <!-- compact agent reply above the prompt box -->
+  <div class="agent-quick-reply-strip" id="quick">
+    <span>I can generate 24 images now. Would you like me to proceed?</span>
+    <button id="readmore">Read more</button>
+    <button id="sidepanel">Use side panel</button>
+  </div>
+
+  <flow-prompt-box style="display:block">
+    <div class="ProseMirror" contenteditable="true" style="display:block;width:300px;height:40px"></div>
+    <div class="submit-controls">
+      <button role="switch" aria-checked="false" aria-label="Agent" id="spark"><mat-icon>spark</mat-icon></button>
+      <button class="generate-icon-button" aria-label="Start generation"><mat-icon>arrow_forward</mat-icon></button>
+    </div>
+  </flow-prompt-box>
+
+  <pre id="out"></pre>
+  <script>
+    // Mock Flow behaviour
+    const spark = document.getElementById('spark');
+    spark.addEventListener('click', () => spark.setAttribute('aria-checked', spark.getAttribute('aria-checked') === 'true' ? 'false' : 'true'));
+    document.getElementById('sidepanel').addEventListener('click', () => {
+      const chat = document.createElement('flow-agent-chat-message');
+      chat.style.display = 'block'; chat.textContent = 'Full chat opened';
+      document.body.appendChild(chat);
+    });
+    const search = document.getElementById('search');
+    search.addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return;
+      const g = document.getElementById('grid');
+      g.innerHTML = '<flow-grid-tile-container data-tile-id="exact1" aria-label="red car"><img src="data:," alt="red car"></flow-grid-tile-container>'
+        + '<h3>Similar results</h3>';
+      setTimeout(() => { g.insertAdjacentHTML('beforeend', '<flow-grid-tile-container data-tile-id="sim1" aria-label="sunset road"><video poster="data:,"></video></flow-grid-tile-container><flow-grid-tile-container data-tile-id="sim2" aria-label="crimson coupe"><img src="data:," alt="coupe"></flow-grid-tile-container>'); }, 600);
+    });
+  </script>
+  <script src="../deepx-agent-page.js"></script>
+  <script>
+    (async () => {
+      const A = window.__deepxAgent, r = {};
+      const ok = (k, v) => { r[k] = v ? 'PASS' : 'FAIL'; };
+      try {
+        const st = A.status();
+        ok('finds_spark_switch', st.found && st.control === 'spark_switch');
+        ok('initially_off', st.active === false);
+        ok('sees_compact_reply', /proceed/.test(st.compact_reply || ''));
+        const on = await A.setAgent(true);
+        ok('switch_on', on.success && on.active && spark.getAttribute('aria-checked') === 'true');
+        const again = await A.setAgent(true);
+        ok('idempotent_on', again.success && again.changed === false);
+        const off = await A.setAgent(false);
+        ok('switch_off', off.success && !off.active);
+        const chat = await A.openFullChat();
+        ok('opens_side_panel', chat.open === true);
+        const s = await A.searchAssets('red car at sunset', { waitMs: 4000 });
+        ok('search_exact', s.success && s.exact.length === 1 && s.exact[0].id === 'exact1');
+        ok('search_similar', s.similar.length === 2 && s.similar_section_found);
+        ok('submit_found', !!A.submitPoint && (await A.submitPoint()).found);
+      } catch (e) { r.error = String(e && e.stack || e); }
+      document.getElementById('out').textContent = 'RESULT ' + JSON.stringify(r);
+    })();
+  </script>
+</body></html>

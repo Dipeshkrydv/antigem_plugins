@@ -1,8 +1,8 @@
 {
   "name": "meta-suite-automation",
   "displayName": "Meta Suite Page Management",
-  "version": "2.3.0",
-  "description": "Master Autonomous Meta Suite Production Engine (v2.3.0): Enterprise Meta Business Suite Facebook Page management, auto-open Meta Business Suite on login, persistent bridge background thread, embedded multi-platform trend radar, dual-mode native & local queue scheduler, custom Reel covers & video thumbnails, DeepX Google Flow AI bridge, anti-ad organic shield, and 2M-20M viral recommendation algorithms.",
+  "version": "2.4.1",
+  "description": "Master Autonomous Meta Suite Production Engine (v2.4.1): Facebook Page management that really posts AS your Page (auto Page discovery + profile switch, default Page), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
   "logo": "assets/logo.png",
   "author": {
     "name": "Dipesh Kr Yadav",
@@ -27,5 +27,6 @@
   ],
   "homepage": "https://github.com/Dipeshkrydv/antigem_plugins",
   "repository": "https://github.com/Dipeshkrydv/antigem_plugins",
-  "license": "MIT"
+  "license": "MIT",
+  "toolCount": 44
 }
