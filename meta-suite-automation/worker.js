@@ -36,7 +36,7 @@ DEEPX.configureDeepX({ pluginId: "meta-suite-automation", version: "2.7.1" });
 const DEEPX_TOOLS = new Set(["deepx_generate", "deepx_job_status", "deepx_check_login", "deepx_status", "deepx_cancel_job", "deepx_get_options", "deepx_flow_agent_status", "deepx_flow_agent_toggle", "deepx_flow_agent_configure", "deepx_flow_agent_set_instructions", "deepx_flow_agent_approve_all", "deepx_flow_agent_batch_queue", "deepx_upscale_media", "deepx_download_media", "deepx_upload_asset", "flow_get_last_media", "flow_get_media", "flow_list_media"]);
 
 const PLUGIN_ID = "meta-suite-automation";
-const PLUGIN_VERSION = "2.9.1";
+const PLUGIN_VERSION = "2.9.2";
 const FB_HOME_URL = "https://www.facebook.com/";
 const FB_REELS_CREATE_URL = "https://www.facebook.com/reels/create";
 const FB_STORIES_CREATE_URL = "https://www.facebook.com/stories/create";
@@ -44,6 +44,13 @@ const DEDUPE_WINDOW_MS = 24 * 3600 * 1000; // 24 hours
 const MIN_POST_INTERVAL_MS = 8 * 1000;     // 8s anti-burst spacing
 
 const bsJobs = new Map();
+// v292_name_cleanup: fix Page names saved by older versions ("Profile picture for ...", "Create post").
+(async () => { try {
+  const st = await chrome.storage.local.get(["meta_pages", "meta_default_page"]);
+  const fix = p => p && ({ ...p, name: String(p.name || "").replace(/^profile picture for\s+/i, "").trim() });
+  const pages = (st.meta_pages || []).map(fix).filter(p => p && !/^create( post| page)?$/i.test(p.name));
+  await chrome.storage.local.set({ meta_pages: pages, meta_default_page: fix(st.meta_default_page) || pages[0] || null });
+} catch (_) {} })();
 
 // ---- Instant permission check: everything the user must decide, asked in ONE go before any upload ----
 const BS_TIMING_Q = { id: "timing", question: "When should this go live?", options: ["Publish now", "Exact date & time", "Start time + gap between posts"] };
@@ -4248,7 +4255,8 @@ async function metaStatus() {
     success: true, connected: conn.pages.length > 0 && !conn.token_error && live !== false, pages: maskPages(conn.pages), default_page_id: conn.default_page_id,
     long_lived: conn.long_lived, token_error: conn.token_error, backoff_until: conn.backoff_until > Date.now() ? new Date(conn.backoff_until).toLocaleString() : null,
     on_meta: jobs.filter(j => j.status === "scheduled_on_meta").length, waiting_for_meta_window: jobs.filter(j => j.status === "queued" && j.delivery === "meta").length,
-    setup: conn.pages.length ? undefined : META_SETUP_GUIDE
+    setup: conn.pages.length ? undefined : META_SETUP_GUIDE,
+    note: "OPTIONAL and not needed: posting and scheduling (up to 29 days) already run through Meta Business Suite. Do not bring this up unless the user asks for the Graph API."
   };
 }
 
@@ -4636,8 +4644,8 @@ async function discoverManagedPages(tabId, { refresh = false } = {}) {
           if (!/(^|\.)facebook\.com$/.test(u.hostname)) continue;
           const path = u.pathname.replace(/\/+$/, "") + (u.pathname.startsWith("/profile.php") ? `?id=${u.searchParams.get("id")}` : "");
           if (!path || path === "" || exclude.test(path + "/") || path.split("/").length > 2) continue;
-          const name = (a.innerText || a.getAttribute("aria-label") || "").split("\n")[0].trim();
-          if (!name || name.length < 2 || name.length > 90 || /^(see all|create|more|home|pages?|settings|manage)$/i.test(name)) continue;
+          const name = (a.innerText || a.getAttribute("aria-label") || "").split("\n")[0].replace(/^profile picture for\s+/i, "").trim();
+          if (!name || name.length < 2 || name.length > 90 || /^(see all|create|create post|create page|more|home|pages?|settings|manage|invite|boost|promote)$/i.test(name)) continue;
           const url = `https://www.facebook.com${path}`;
           if (!out.has(url)) out.set(url, { name, url, id: u.searchParams.get("id") || path.slice(1) });
         }
@@ -4654,6 +4662,7 @@ async function discoverManagedPages(tabId, { refresh = false } = {}) {
   return pages;
 }
 
+function cleanStoredPage(p) { return p ? { ...p, name: String(p.name || "").replace(/^profile picture for\s+/i, "").trim() } : p; }
 async function resolveTargetPage(tabId, targetId) {
   const raw = String(targetId || "").trim();
   if (raw && raw !== "me" && raw !== "default") {
@@ -4935,7 +4944,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (!login.logged_in) return login;
         const pages = await discoverManagedPages(login.active_tab_id, { refresh: !!args.refresh });
         const store = await getStorage(["meta_default_page", "meta_acting_page"]);
-        return { pages, default_page: store.meta_default_page || pages[0] || null, acting_as: store.meta_acting_page || null };
+        const clean = pages.map(cleanStoredPage).filter(p => !/^create( post| page)?$/i.test(p.name));
+        if (clean.length !== pages.length || clean.some((p, i) => p.name !== pages[i].name)) await setStorage({ meta_pages: clean });
+        const bsPage = (await getStorage(["meta_bs_page"])).meta_bs_page || null;
+        return { pages: clean, default_page: cleanStoredPage(store.meta_default_page) || clean[0] || null, business_suite_page: bsPage };
       }
       case "meta_set_default_page": {
         const login = await checkFacebookLogin({ openIfMissing: true, activateOnLoginNeeded: true });
@@ -4946,26 +4958,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return { success: true, default_page: page };
       }
       case "fb_status": {
-        const shouldOpen = args.open_browser !== false;
-        const login = await checkFacebookLogin({
-          openIfMissing: shouldOpen,
-          activateOnLoginNeeded: shouldOpen
-        });
-        const store = await getStorage(["fb_scheduled_jobs", "fb_posts_history", "fb_pending_task"]);
+        // v2.9.2: open META BUSINESS SUITE first and report the Page from Business Suite itself.
+        let bs = null;
+        if (args.open_browser !== false) { try { bs = await self.MetaBS.bsStatus(); } catch (e) { bs = { opened: false, error: e.message }; } }
+        const login = await checkFacebookLogin({ openIfMissing: false, activateOnLoginNeeded: false });
+        const store = await getStorage(["fb_scheduled_jobs", "fb_posts_history", "fb_pending_task", "meta_bs_page"]);
         const jobs = Array.isArray(store.fb_scheduled_jobs) ? store.fb_scheduled_jobs : [];
         const history = Array.isArray(store.fb_posts_history) ? store.fb_posts_history : [];
+        const loggedIn = bs && bs.logged_in != null ? bs.logged_in : !!login.logged_in;
         return {
-          id: PLUGIN_ID,
-          version: PLUGIN_VERSION,
-          status: login.logged_in ? "ready" : "awaiting_one_time_login",
-          ...login,
+          id: PLUGIN_ID, version: PLUGIN_VERSION,
+          status: loggedIn ? "ready" : "awaiting_one_time_login",
+          logged_in: loggedIn,
+          business_suite: bs ? { opened: !!bs.opened, page_name: bs.page_name || (store.meta_bs_page || {}).name || null, page_asset_id: bs.asset_id || (store.meta_bs_page || {}).asset_id || null, url: bs.url || null, error: bs.error } : null,
+          page: store.meta_bs_page || null,
           scheduled_jobs_queued: jobs.filter((j) => j.status === "queued").length,
           recent_posts_count: history.length,
           pending_task: store.fb_pending_task || null,
-          ...(await (async () => {
-            const p = await getStorage(["meta_pages", "meta_default_page", "meta_acting_page"]);
-            return { managed_pages: p.meta_pages || [], default_page: p.meta_default_page || null, acting_as_page: p.meta_acting_page || null, page_hint: (p.meta_pages || []).length ? null : "Pages are discovered automatically on the first page post (or call meta_list_pages)." };
-          })())
+          agent_instruction: loggedIn
+            ? "Meta Business Suite is open for the Page. Reply in ONE short line (Page name + ready) and ask what to post. Do not list IDs or tables, and do not mention the Graph API / fb_meta_connect (not needed)."
+            : "Tell the user once to sign in to Meta Business Suite in the open AntiGem tab, then stop."
         };
       }
 

@@ -1,15 +1,20 @@
 ---
 name: meta-autopilot
-description: "Meta Business Suite Page Autopilot (v2.9.1): use whenever the user wants to post, publish, schedule or batch-upload photos, posters, reels, videos or stories to their Facebook Page, or says manage page / page scheduler / meta suite. Uploads ONLY through Meta Business Suite via this plugin (never browser MCP, never facebook.com). First ask in one instant question round: timing (now / exact time / start + gap), reel thumbnail (Google Flow / own image / none) and caption approval; then run the whole project with fb_publish_batch and never stop until every post is done."
+description: "Meta Business Suite Page Autopilot (v2.9.2): use whenever the user wants to post, publish, schedule or batch-upload photos, posters, reels, videos or stories to their Facebook Page, or says manage page / page scheduler / meta suite. Uploads ONLY through Meta Business Suite via this plugin (never browser MCP, never facebook.com). First ask in one instant question round: timing (now / exact time / start + gap), reel thumbnail (Google Flow / own image / none) and caption approval; then run the whole project with fb_publish_batch and never stop until every post is done."
 ---
 
-# Meta Business Suite Page Autopilot (v2.9.1)
+# Meta Business Suite Page Autopilot (v2.9.2)
 
-## ⚡ v2.9.1 — META BUSINESS SUITE ENGINE (overrides anything below that disagrees)
+## ⚡ v2.9.2 — META BUSINESS SUITE ENGINE (overrides anything below that disagrees)
 
 Every Page upload now runs **inside Meta Business Suite** (`business.facebook.com`), driven by the plugin itself.
 It never uses the facebook.com composer, never switches profile, never needs native taps, and **locks the screen** while it works.
 
+
+
+**🚪 RULE 0: START IN META BUSINESS SUITE**
+The first call for any Page task is `fb_status`. It **opens Meta Business Suite** for the Page and reads the Page name and Business Suite page id from there. Reply in one short line ("Motivational Docqueen is ready in Business Suite. What should I post?"), with no ID tables.
+Never bring up the Graph API scheduler (`fb_meta_status` / `fb_meta_connect`) unless the user asks for it; Business Suite already handles posting and scheduling.
 
 **🕒 RULE 1: ASK THE TIMING BEFORE ANY UPLOAD (mandatory, one short question)**
 Before posting anything, ask the user in one message:

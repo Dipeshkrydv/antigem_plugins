@@ -1,9 +1,9 @@
 ---
 name: meta-suite-automation
-description: "Meta Suite Page Management (v2.9.1): post, schedule and batch-publish photos, carousels, Reels (9:16), long videos (16:9) and Stories to the Facebook Page THROUGH META BUSINESS SUITE (business.facebook.com), with custom Reel/video thumbnails, native Business Suite scheduling, and assets from the built-in DeepX Google Flow engine. Before any upload, ask in ONE instant question round: timing (now / exact time / start + gap), thumbnail for videos (Google Flow / user image / none), and caption approval. Batches never stop until every post is done."
+description: "Meta Suite Page Management (v2.9.2): post, schedule and batch-publish photos, carousels, Reels (9:16), long videos (16:9) and Stories to the Facebook Page THROUGH META BUSINESS SUITE (business.facebook.com), with custom Reel/video thumbnails, native Business Suite scheduling, and assets from the built-in DeepX Google Flow engine. Before any upload, ask in ONE instant question round: timing (now / exact time / start + gap), thumbnail for videos (Google Flow / user image / none), and caption approval. Batches never stop until every post is done."
 ---
 
-# Meta Suite Page Management (v2.9.1): Meta Business Suite engine
+# Meta Suite Page Management (v2.9.2): Meta Business Suite engine
 
 This plugin posts to the user's Facebook Page **only through Meta Business Suite** (`business.facebook.com`).
 The plugin drives Business Suite itself and **locks the screen** while it works ("AI is working").
@@ -12,6 +12,11 @@ It never uses the facebook.com composer, never switches profile, and needs no sc
 ---
 
 ## 0. Hard rules
+
+**🚪 RULE 0: START IN META BUSINESS SUITE**
+The first call for any Page task is `fb_status`. It **opens Meta Business Suite** for the Page and reads the Page name and Business Suite page id from there. Reply in one short line ("Motivational Docqueen is ready in Business Suite. What should I post?"), with no ID tables.
+Never bring up the Graph API scheduler (`fb_meta_status` / `fb_meta_connect`) unless the user asks for it; Business Suite already handles posting and scheduling.
+
 
 1. **Never use browser MCP tools (`browser_*`)** to post, schedule, or tap anything for the Page. Use this plugin's tools only.
 2. **Never upload to the Page through www.facebook.com.** All upload tools already go to Business Suite.

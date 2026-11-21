@@ -3,7 +3,7 @@
   "background": {
     "service_worker": "worker.js"
   },
-  "description": "Master Autonomous Meta Suite Production Engine (v2.9.1): Facebook Page management that posts through Meta Business Suite (business.facebook.com composer, native scheduling, Reels thumbnails, screen locked while working, asks timing / thumbnail / caption approval first, batch projects run to completion), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
+  "description": "Master Autonomous Meta Suite Production Engine (v2.9.2): Facebook Page management that posts through Meta Business Suite (business.facebook.com composer, native scheduling, Reels thumbnails, screen locked while working, asks timing / thumbnail / caption approval first, batch projects run to completion), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
   "entrypoint": "mcp_server/server.py",
   "host_permissions": [
     "*://*.business.facebook.com/*",
@@ -45,7 +45,7 @@
   "manifest_version": 3,
   "mcp_tools": [
     {
-      "description": "\n    Check Meta Suite and Facebook Automation status, verify bridge connectivity, and active login session.\n    MANDATORY LITERAL FIRST TOOL CALL on any Meta Suite or Facebook task (<100ms).\n    Returns ready status, logged_in state, active accounts, discovered pages, and queued jobs.\n    ",
+      "description": "FIRST CALL for any Page task. Opens META BUSINESS SUITE (business.facebook.com) for the Page and reports: logged in, Page name and Business Suite page id (read from Business Suite itself), queued jobs. Then answer in one short line and ask what to post.",
       "inputSchema": {
         "properties": {
           "open_browser": {
@@ -110,6 +110,14 @@
             "title": "Caption",
             "type": "string"
           },
+          "caption_approved": {
+            "description": "Set true ONLY after the user saw the exact final caption (title + text + hashtags) and approved it. Required whenever a caption is posted.",
+            "type": "boolean"
+          },
+          "dry_run": {
+            "description": "Fill the Business Suite composer completely but do not press Publish/Schedule.",
+            "type": "boolean"
+          },
           "first_comment": {
             "anyOf": [
               {
@@ -157,6 +165,22 @@
             "title": "Post Type",
             "type": "string"
           },
+          "publish_now": {
+            "description": "Set true only after the user chose 'publish now'. Either publish_now or schedule_time_iso is required (ask the user).",
+            "type": "boolean"
+          },
+          "save_draft": {
+            "description": "Reels/videos: save as a Business Suite draft instead of publishing (counts as the timing choice).",
+            "type": "boolean"
+          },
+          "schedule_time_iso": {
+            "description": "Optional. Schedule natively in Meta Business Suite (15 min to 29 days ahead), e.g. 2026-11-22T19:30:00+05:45. Omit to publish now.",
+            "type": "string"
+          },
+          "share_to_story": {
+            "description": "Also share to the Page's Facebook Story.",
+            "type": "boolean"
+          },
           "story_text": {
             "anyOf": [
               {
@@ -186,6 +210,15 @@
             "title": "Target Type",
             "type": "string"
           },
+          "thumbnail_choice": {
+            "description": "User's answer for videos/reels: 'flow' = generate with Google Flow (DeepX) first, 'manual' = user gives the image (pass thumbnail_path), 'none' = no custom thumbnail. Ask the user; required for videos without thumbnail_path.",
+            "enum": [
+              "flow",
+              "manual",
+              "none"
+            ],
+            "type": "string"
+          },
           "thumbnail_path": {
             "anyOf": [
               {
@@ -209,39 +242,6 @@
             ],
             "default": null,
             "title": "Title"
-          },
-          "schedule_time_iso": {
-            "type": "string",
-            "description": "Optional. Schedule natively in Meta Business Suite (15 min to 29 days ahead), e.g. 2026-11-22T19:30:00+05:45. Omit to publish now."
-          },
-          "share_to_story": {
-            "type": "boolean",
-            "description": "Also share to the Page's Facebook Story."
-          },
-          "dry_run": {
-            "type": "boolean",
-            "description": "Fill the Business Suite composer completely but do not press Publish/Schedule."
-          },
-          "publish_now": {
-            "type": "boolean",
-            "description": "Set true only after the user chose 'publish now'. Either publish_now or schedule_time_iso is required (ask the user)."
-          },
-          "thumbnail_choice": {
-            "type": "string",
-            "enum": [
-              "flow",
-              "manual",
-              "none"
-            ],
-            "description": "User's answer for videos/reels: 'flow' = generate with Google Flow (DeepX) first, 'manual' = user gives the image (pass thumbnail_path), 'none' = no custom thumbnail. Ask the user; required for videos without thumbnail_path."
-          },
-          "save_draft": {
-            "type": "boolean",
-            "description": "Reels/videos: save as a Business Suite draft instead of publishing (counts as the timing choice)."
-          },
-          "caption_approved": {
-            "type": "boolean",
-            "description": "Set true ONLY after the user saw the exact final caption (title + text + hashtags) and approved it. Required whenever a caption is posted."
           }
         },
         "title": "fb_publishArguments",
@@ -258,6 +258,14 @@
             "title": "Caption",
             "type": "string"
           },
+          "caption_approved": {
+            "description": "Set true ONLY after the user saw the exact final caption (title + text + hashtags) and approved it. Required whenever a caption is posted.",
+            "type": "boolean"
+          },
+          "dry_run": {
+            "description": "Fill the Business Suite composer completely but do not press Publish/Schedule.",
+            "type": "boolean"
+          },
           "hashtags": {
             "anyOf": [
               {
@@ -272,6 +280,29 @@
             ],
             "default": null,
             "title": "Hashtags"
+          },
+          "media_paths": {
+            "description": "Alternative to video_path.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "publish_now": {
+            "description": "Set true only after the user chose 'publish now'. Either publish_now or schedule_time_iso is required (ask the user).",
+            "type": "boolean"
+          },
+          "save_draft": {
+            "description": "Reels/videos: save as a Business Suite draft instead of publishing (counts as the timing choice).",
+            "type": "boolean"
+          },
+          "schedule_time_iso": {
+            "description": "Optional. Schedule natively in Meta Business Suite (15 min to 29 days ahead), e.g. 2026-11-22T19:30:00+05:45. Omit to publish now.",
+            "type": "string"
+          },
+          "share_to_story": {
+            "description": "Also share to the Page's Facebook Story.",
+            "type": "boolean"
           },
           "target_id": {
             "anyOf": [
@@ -288,6 +319,15 @@
           "target_type": {
             "default": "page",
             "title": "Target Type",
+            "type": "string"
+          },
+          "thumbnail_choice": {
+            "description": "User's answer for videos/reels: 'flow' = generate with Google Flow (DeepX) first, 'manual' = user gives the image (pass thumbnail_path), 'none' = no custom thumbnail. Ask the user; required for videos without thumbnail_path.",
+            "enum": [
+              "flow",
+              "manual",
+              "none"
+            ],
             "type": "string"
           },
           "thumbnail_path": {
@@ -318,46 +358,6 @@
             "default": "latest",
             "title": "Video Path",
             "type": "string"
-          },
-          "schedule_time_iso": {
-            "type": "string",
-            "description": "Optional. Schedule natively in Meta Business Suite (15 min to 29 days ahead), e.g. 2026-11-22T19:30:00+05:45. Omit to publish now."
-          },
-          "share_to_story": {
-            "type": "boolean",
-            "description": "Also share to the Page's Facebook Story."
-          },
-          "dry_run": {
-            "type": "boolean",
-            "description": "Fill the Business Suite composer completely but do not press Publish/Schedule."
-          },
-          "media_paths": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Alternative to video_path."
-          },
-          "publish_now": {
-            "type": "boolean",
-            "description": "Set true only after the user chose 'publish now'. Either publish_now or schedule_time_iso is required (ask the user)."
-          },
-          "thumbnail_choice": {
-            "type": "string",
-            "enum": [
-              "flow",
-              "manual",
-              "none"
-            ],
-            "description": "User's answer for videos/reels: 'flow' = generate with Google Flow (DeepX) first, 'manual' = user gives the image (pass thumbnail_path), 'none' = no custom thumbnail. Ask the user; required for videos without thumbnail_path."
-          },
-          "save_draft": {
-            "type": "boolean",
-            "description": "Reels/videos: save as a Business Suite draft instead of publishing (counts as the timing choice)."
-          },
-          "caption_approved": {
-            "type": "boolean",
-            "description": "Set true ONLY after the user saw the exact final caption (title + text + hashtags) and approved it. Required whenever a caption is posted."
           }
         },
         "title": "fb_publish_reelArguments",
@@ -374,6 +374,14 @@
             "title": "Caption",
             "type": "string"
           },
+          "caption_approved": {
+            "description": "Set true ONLY after the user saw the exact final caption (title + text + hashtags) and approved it. Required whenever a caption is posted.",
+            "type": "boolean"
+          },
+          "dry_run": {
+            "description": "Fill the Business Suite composer completely but do not press Publish/Schedule.",
+            "type": "boolean"
+          },
           "media_path": {
             "anyOf": [
               {
@@ -385,6 +393,24 @@
             ],
             "default": null,
             "title": "Media Path"
+          },
+          "media_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "publish_now": {
+            "description": "Set true only after the user chose 'publish now'. Either publish_now or schedule_time_iso is required (ask the user).",
+            "type": "boolean"
+          },
+          "schedule_time_iso": {
+            "description": "Optional. Schedule natively in Meta Business Suite (15 min to 29 days ahead), e.g. 2026-11-22T19:30:00+05:45. Omit to publish now.",
+            "type": "string"
+          },
+          "share_to_story": {
+            "description": "Also share to the Page's Facebook Story.",
+            "type": "boolean"
           },
           "story_text": {
             "anyOf": [
@@ -414,32 +440,6 @@
             "default": "page",
             "title": "Target Type",
             "type": "string"
-          },
-          "schedule_time_iso": {
-            "type": "string",
-            "description": "Optional. Schedule natively in Meta Business Suite (15 min to 29 days ahead), e.g. 2026-11-22T19:30:00+05:45. Omit to publish now."
-          },
-          "share_to_story": {
-            "type": "boolean",
-            "description": "Also share to the Page's Facebook Story."
-          },
-          "dry_run": {
-            "type": "boolean",
-            "description": "Fill the Business Suite composer completely but do not press Publish/Schedule."
-          },
-          "media_paths": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "publish_now": {
-            "type": "boolean",
-            "description": "Set true only after the user chose 'publish now'. Either publish_now or schedule_time_iso is required (ask the user)."
-          },
-          "caption_approved": {
-            "type": "boolean",
-            "description": "Set true ONLY after the user saw the exact final caption (title + text + hashtags) and approved it. Required whenever a caption is posted."
           }
         },
         "title": "fb_publish_storyArguments",
@@ -448,27 +448,48 @@
       "name": "fb_publish_story"
     },
     {
-      "name": "fb_publish_batch",
       "description": "Run a whole Page project (several posters/photos/reels/videos/stories) through META BUSINESS SUITE as ONE job that does not stop until every item is published or scheduled (3 tries per item, screen stays locked the whole time). REQUIRED timing chosen by the user beforehand: {mode:'now'} publish all now one after another; {mode:'exact', times:[ISO per item]}; {mode:'gap', start_time_iso, gap_minutes} (scheduled natively in Business Suite, 15 min to 29 days ahead). Without timing it returns needs_user_input. Poll fb_publish_status until done.",
       "inputSchema": {
-        "type": "object",
         "properties": {
           "items": {
-            "type": "array",
             "items": {
-              "type": "object",
               "properties": {
-                "post_type": {
-                  "type": "string",
-                  "description": "photo | carousel | text | reel | video | story"
+                "caption": {
+                  "type": "string"
                 },
-                "media_paths": {
-                  "type": "array",
+                "caption_approved": {
+                  "description": "Set true ONLY after the user saw the exact final caption (title + text + hashtags) and approved it. Required whenever a caption is posted.",
+                  "type": "boolean"
+                },
+                "dry_run": {
+                  "type": "boolean"
+                },
+                "hashtags": {
                   "items": {
                     "type": "string"
-                  }
+                  },
+                  "type": "array"
                 },
-                "video_path": {
+                "media_paths": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "post_type": {
+                  "description": "photo | carousel | text | reel | video | story",
+                  "type": "string"
+                },
+                "share_to_story": {
+                  "type": "boolean"
+                },
+                "thumbnail_choice": {
+                  "description": "User's answer for videos/reels: 'flow' = generate with Google Flow (DeepX) first, 'manual' = user gives the image (pass thumbnail_path), 'none' = no custom thumbnail. Ask the user; required for videos without thumbnail_path.",
+                  "enum": [
+                    "flow",
+                    "manual",
+                    "none"
+                  ],
                   "type": "string"
                 },
                 "thumbnail_path": {
@@ -477,92 +498,71 @@
                 "title": {
                   "type": "string"
                 },
-                "caption": {
+                "video_path": {
                   "type": "string"
-                },
-                "hashtags": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                },
-                "share_to_story": {
-                  "type": "boolean"
-                },
-                "thumbnail_choice": {
-                  "type": "string",
-                  "enum": [
-                    "flow",
-                    "manual",
-                    "none"
-                  ],
-                  "description": "User's answer for videos/reels: 'flow' = generate with Google Flow (DeepX) first, 'manual' = user gives the image (pass thumbnail_path), 'none' = no custom thumbnail. Ask the user; required for videos without thumbnail_path."
-                },
-                "dry_run": {
-                  "type": "boolean"
-                },
-                "caption_approved": {
-                  "type": "boolean",
-                  "description": "Set true ONLY after the user saw the exact final caption (title + text + hashtags) and approved it. Required whenever a caption is posted."
                 }
-              }
-            }
+              },
+              "type": "object"
+            },
+            "type": "array"
           },
           "timing": {
-            "type": "object",
             "properties": {
+              "gap_minutes": {
+                "type": "number"
+              },
               "mode": {
-                "type": "string",
                 "enum": [
                   "now",
                   "exact",
                   "gap"
-                ]
+                ],
+                "type": "string"
               },
-              "times": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
+              "spacing_seconds": {
+                "description": "mode 'now' only: pause between posts (default 3 s for up to 3 posts, 120 s when more).",
+                "type": "number"
               },
               "start_time_iso": {
                 "type": "string"
               },
-              "gap_minutes": {
-                "type": "number"
-              },
-              "spacing_seconds": {
-                "type": "number",
-                "description": "mode 'now' only: pause between posts (default 3 s for up to 3 posts, 120 s when more)."
+              "times": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
               }
             },
             "required": [
               "mode"
-            ]
+            ],
+            "type": "object"
           }
         },
         "required": [
           "items",
           "timing"
-        ]
-      }
+        ],
+        "type": "object"
+      },
+      "name": "fb_publish_batch"
     },
     {
-      "name": "fb_publish_status",
       "description": "Status of a Business Suite upload started by fb_publish / fb_publish_reel / fb_publish_story (they return job_id when the upload takes longer than ~40 s). wait_seconds (0-50) waits for completion.",
       "inputSchema": {
-        "type": "object",
         "properties": {
           "job_id": {
             "type": "string"
           },
           "wait_seconds": {
-            "type": "integer",
+            "maximum": 50,
             "minimum": 0,
-            "maximum": 50
+            "type": "integer"
           }
-        }
-      }
+        },
+        "type": "object"
+      },
+      "name": "fb_publish_status"
     },
     {
       "description": "\n    Resume and execute any pending Facebook task that was saved while waiting for the user's one-time login.\n    ",
@@ -869,7 +869,7 @@
       "name": "fb_safety_settings"
     },
     {
-      "description": "One-time connection to Meta's official scheduler (Graph API, the system behind Business Suite > Planner) so scheduled Page posts are published by Meta itself, with no browser automation. Best: credentials_file = path of a local JSON file {user_access_token, app_id, app_secret} (secret used once and never stored; the file is wiped after connecting; only Page tokens are kept). Or pass user_access_token (+ app_id/app_secret for a non-expiring token) or page_access_token. Returns setup steps if nothing is given. Never echo tokens.",
+      "description": "OPTIONAL, only if the user explicitly asks to connect the Graph API. Not needed for posting/scheduling (Business Suite does it). One-time connection to Meta's official scheduler (Graph API, the system behind Business Suite > Planner) so scheduled Page posts are published by Meta itself, with no browser automation. Best: credentials_file = path of a local JSON file {user_access_token, app_id, app_secret} (secret used once and never stored; the file is wiped after connecting; only Page tokens are kept). Or pass user_access_token (+ app_id/app_secret for a non-expiring token) or page_access_token. Returns setup steps if nothing is given. Never echo tokens.",
       "inputSchema": {
         "properties": {
           "app_id": {
@@ -902,7 +902,7 @@
       "name": "fb_meta_connect"
     },
     {
-      "description": "Show the Meta scheduler connection: connected Pages, default Page, token problems, how many posts are already on Meta and how many are waiting for Meta's 28-day window.",
+      "description": "OPTIONAL Graph API scheduler status. Not needed: posting and scheduling already run through Meta Business Suite. Only use if the user asks about the Graph API.",
       "inputSchema": {
         "properties": {},
         "type": "object"
@@ -2092,40 +2092,38 @@
       "name": "flow_list_media"
     },
     {
-      "name": "meta_bs_inspect",
       "description": "Diagnostic: list buttons, inputs, editors and dialogs on a Meta Business Suite screen (opens the Business Suite tab). Optional url (path like /latest/composer?asset_id=...), click_text (regex of a button to click first), filter (regex on labels), scope (CSS selector), wait_ms, max.",
       "inputSchema": {
-        "type": "object",
         "properties": {
-          "url": {
-            "type": "string"
+          "after_click_ms": {
+            "type": "integer"
           },
           "click_text": {
             "type": "string"
           },
-          "after_click_ms": {
-            "type": "integer"
-          },
           "filter": {
             "type": "string"
+          },
+          "max": {
+            "type": "integer"
           },
           "scope": {
             "type": "string"
           },
+          "url": {
+            "type": "string"
+          },
           "wait_ms": {
             "type": "integer"
-          },
-          "max": {
-            "type": "integer"
           }
-        }
-      }
+        },
+        "type": "object"
+      },
+      "name": "meta_bs_inspect"
     },
     {
-      "name": "meta_bs_eval",
       "description": "Diagnostic: evaluate a JavaScript expression in the Meta Business Suite tab (CDP, awaits promises, returns JSON). Optional url to open first.",
       "inputSchema": {
-        "type": "object",
         "properties": {
           "expression": {
             "type": "string"
@@ -2136,8 +2134,10 @@
         },
         "required": [
           "expression"
-        ]
-      }
+        ],
+        "type": "object"
+      },
+      "name": "meta_bs_eval"
     }
   ],
   "name": "Meta Suite Page Management",
@@ -2153,6 +2153,6 @@
   ],
   "skills": "skills",
   "tool_count": 49,
-  "version": "2.9.1",
+  "version": "2.9.2",
   "worker": "worker.js"
 }

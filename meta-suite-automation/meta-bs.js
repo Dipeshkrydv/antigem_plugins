@@ -846,3 +846,31 @@ async function bsRunBatch(items, timing, onProgress) {
 self.MetaBS.bsRunBatch = bsRunBatch;
 self.MetaBS.bsPlanTimes = bsPlanTimes;
 self.MetaBS.setForceChooser = (v) => { BS_FORCE_CHOOSER = !!v; };
+
+// ---------------------------------------------------------------------------
+// Status: open Meta Business Suite itself and report the Page from there.
+// ---------------------------------------------------------------------------
+function bsCleanPageName(n) {
+  return String(n || "").replace(/^profile picture for\s+/i, "").replace(/[\u200B-\u200D\uFEFF]/g, "").trim();
+}
+async function bsStatus() {
+  const st = await getStorage(["meta_bs_default_asset"]);
+  const url = st.meta_bs_default_asset ? `${BS_HOME_URL}?asset_id=${st.meta_bs_default_asset}` : BS_HOME_URL;
+  const tab = await bsEnsureTab(url, { navigate: false });
+  const live = await bsExec(tab.id, () => location.href).catch(() => "");
+  if (!/business\.facebook\.com\/latest\//.test(live) || /composer/.test(live)) await bsNavigate(tab.id, url);
+  const info = await bsWaitFor(tab.id, () => {
+    const u = location.href;
+    if (/login|checkpoint/i.test(u) || document.querySelector('input[name="email"],input[name="pass"]')) return { ok: true, logged_in: false, url: u };
+    const asset = (/[?&]asset_id=(\d+)/.exec(u) || [])[1];
+    const skip = /^(Meta Business Suite|Open in the Business Suite App|To-do list|Weekly plan|Manage your marketing content|Recent ads|Your reel|Create an ad.*|Estimated daily results|Current performance|Get started.*|Complete at least.*)$/i;
+    const name = [...document.querySelectorAll('h1,h2,h3,[role="heading"]')].filter(h => h.getBoundingClientRect().width > 2).map(h => (h.innerText || "").trim()).find(t => t && t.length < 80 && !skip.test(t) && !/^\d/.test(t));
+    return asset && name ? { ok: true, logged_in: true, asset_id: asset, page_name: name, url: u } : null;
+  }, [], 20000, 600);
+  if (info && info.logged_in) {
+    await setStorage({ meta_bs_default_asset: info.asset_id, meta_bs_page: { asset_id: info.asset_id, name: bsCleanPageName(info.page_name) } });
+  }
+  return { tab_id: tab.id, opened: true, ...(info || { logged_in: null, note: "Business Suite is still loading." }), page_name: info && bsCleanPageName(info.page_name) };
+}
+self.MetaBS.bsStatus = bsStatus;
+self.MetaBS.bsCleanPageName = bsCleanPageName;

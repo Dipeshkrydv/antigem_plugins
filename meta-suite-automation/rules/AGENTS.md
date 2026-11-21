@@ -1,10 +1,15 @@
 # Meta Business Suite Page Management Operational Rules
 
-## ⚡ v2.9.1 — META BUSINESS SUITE ENGINE (overrides anything below that disagrees)
+## ⚡ v2.9.2 — META BUSINESS SUITE ENGINE (overrides anything below that disagrees)
 
 Every Page upload now runs **inside Meta Business Suite** (`business.facebook.com`), driven by the plugin itself.
 It never uses the facebook.com composer, never switches profile, never needs native taps, and **locks the screen** while it works.
 
+
+
+**🚪 RULE 0: START IN META BUSINESS SUITE**
+The first call for any Page task is `fb_status`. It **opens Meta Business Suite** for the Page and reads the Page name and Business Suite page id from there. Reply in one short line ("Motivational Docqueen is ready in Business Suite. What should I post?"), with no ID tables.
+Never bring up the Graph API scheduler (`fb_meta_status` / `fb_meta_connect`) unless the user asks for it; Business Suite already handles posting and scheduling.
 
 **🕒 RULE 1: ASK THE TIMING BEFORE ANY UPLOAD (mandatory, one short question)**
 Before posting anything, ask the user in one message:

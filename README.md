@@ -3,7 +3,7 @@
 [![AntiGem Compatible](https://img.shields.io/badge/AntiGem-Plugins_Ready-brightgreen.svg)](https://github.com/Dipeshkrydv/2d-video-editing-skill)
 [![2D Engine](https://img.shields.io/badge/2D_Video_Studio-v3.5.3_(6_Styles_%26_Voice_Sync)-blue.svg)](./2d-video-editing-studio)
 [![Facebook Engine](https://img.shields.io/badge/Facebook_Automation-v1.8.3-blue.svg)](./facebook-automation)
-[![Meta Suite](https://img.shields.io/badge/Meta_Suite_Page_Management-v2.9.1-purple.svg)](./meta-suite-automation)
+[![Meta Suite](https://img.shields.io/badge/Meta_Suite_Page_Management-v2.9.2-purple.svg)](./meta-suite-automation)
 [![DeepX Flow](https://img.shields.io/badge/DeepX_Google_Flow_Studio-v1.2.3_(Spark_Agent_%26_Semantic_Search)-orange.svg)](./deepx-google-flow)
 [![Platform](https://img.shields.io/badge/Platform-Android_(Termux)_%7C_Linux_%7C_macOS_%7C_Windows-purple.svg)]()
 
