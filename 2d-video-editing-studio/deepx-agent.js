@@ -6,6 +6,28 @@
 export const AGENT_MAX_PER_PART = 24;
 export const AGENT_PAGE_VERSION = 5;
 
+/**
+ * Universal Orderly Media Filename Formatter
+ * Generates strict zero-padded chronological filenames (e.g. 01_scene_01.mp4, 02_scene_02.mp4, 001_... for >=100)
+ * to guarantee 100% alphabetical and chronological ordering in video editing tools (Premiere, CapCut, DaVinci, 2D Studio).
+ */
+export function formatOrderlyFilename(promptText, index = 0, total = 0, isImage = false, customExt = null) {
+  const ext = customExt || (isImage ? 'png' : 'mp4');
+  const padDigits = total >= 100 ? 3 : 2;
+  const numPrefix = String((index ?? 0) + 1).padStart(padDigits, '0');
+  const text = String(promptText || '').trim();
+  const tagMatch = text.match(/#([a-zA-Z0-9_\-\.]+)/);
+  let tag = tagMatch ? tagMatch[1] : '';
+  tag = tag.replace(/^[0-9]+[_\-\.]*/, '');
+  if (!tag) {
+    const sceneMatch = text.match(/\b(?:scene|shot|sequence|take|image|photo|frame|दृश्य|सीन)[_\-\s]*(\d+)\b/iu);
+    if (sceneMatch) tag = `scene_${String(sceneMatch[1]).padStart(padDigits, '0')}`;
+    else tag = `scene_${numPrefix}`;
+  }
+  const cleanTag = tag.replace(/[^a-zA-Z0-9_\-]/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '') || 'scene';
+  return `${numPrefix}_${cleanTag}.${ext}`;
+}
+
 export const DEFAULT_MASTER_AGENT_INSTRUCTIONS =
 `DEEPX MASTER AUTOPILOT & VISUAL CONSISTENCY MANDATE:
 
@@ -326,9 +348,38 @@ export function createDeepXAgent({ chrome, client, jobs, awaitJobs }) {
           job.unassigned_media_ids = unassigned;
           job.matched_items = job.items.filter(it => it.media_ids.length).length;
         }
-        if (opts.download && fresh.length) {
+        if (opts.download !== false && fresh.length) {
           const byId = new Map();
-          for (const id of fresh.slice(0, 500)) { try { const f = await client.file(tabId, id); byId.set(id, f); job.files.push(f); } catch (e) { job.download_errors = (job.download_errors || 0) + 1; } }
+          const totalItems = (job.items || []).length || fresh.length;
+          // Download matched items with strict orderly zero-padded numbering
+          for (let idx = 0; idx < (job.items || []).length; idx++) {
+            const it = job.items[idx];
+            for (let mIdx = 0; mIdx < (it.media_ids || []).length; mIdx++) {
+              const mid = it.media_ids[mIdx];
+              const suffix = it.media_ids.length > 1 ? `_${mIdx + 1}` : '';
+              const orderlyName = formatOrderlyFilename(it.prompt + suffix, idx, totalItems, mediaType === 'image');
+              try {
+                const f = await client.file(tabId, mid, null, orderlyName);
+                byId.set(mid, f);
+                job.files.push(f);
+              } catch (e) {
+                job.download_errors = (job.download_errors || 0) + 1;
+              }
+            }
+          }
+          // Also download any unassigned fresh media in sequence
+          for (let uIdx = 0; uIdx < (job.unassigned_media_ids || []).length; uIdx++) {
+            const mid = job.unassigned_media_ids[uIdx];
+            if (!byId.has(mid)) {
+              const seqIdx = (job.items || []).length + uIdx;
+              const orderlyName = formatOrderlyFilename(`extra_media`, seqIdx, totalItems + job.unassigned_media_ids.length, mediaType === 'image');
+              try {
+                const f = await client.file(tabId, mid, null, orderlyName);
+                byId.set(mid, f);
+                job.files.push(f);
+              } catch (_) {}
+            }
+          }
           for (const it of job.items || []) it.files = it.media_ids.map(id => byId.get(id)).filter(Boolean);
         }
         job.status = 'done';

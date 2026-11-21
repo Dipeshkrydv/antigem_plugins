@@ -226,7 +226,7 @@ function agentOptions(args, media, extra = {}) {
     imageModel: args.image_model || (media === 'image' ? args.model : null), videoModel: args.video_model || (media === 'video' ? args.model : null),
     duration: args.duration, maxPerPart: args.max_per_part || args.max_per_batch || AGENT_MAX_PER_PART,
     customInstructions: args.custom_instructions, autopilot: args.autopilot !== false, projectId: args.project_id,
-    download: !!args.download, styleLock: args.style_lock || args.genre_or_style || '', partTimeoutSec: args.part_timeout_sec, ...extra
+    download: args.download !== false, styleLock: args.style_lock || args.genre_or_style || '', partTimeoutSec: args.part_timeout_sec, ...extra
   };
 }
 
@@ -314,7 +314,17 @@ function runStandard(args, items, media) {
         if (parent.abort.signal.aborted) return;
         const c = enqueue(r); children.push(c); parent.child_job_ids.push(c.job_id); parent.scenes[i].job_id = c.job_id;
         c.completion.then(async () => {
-          if (c.status === 'done') { parent.completed++; parent.media_ids.push(...(c.media_ids || [])); parent.files.push(...(c.files || [])); parent.scenes[i].media_ids = c.media_ids || []; parent.scenes[i].files = c.files || []; }
+          if (c.status === 'done') {
+            parent.completed++;
+            parent.media_ids.push(...(c.media_ids || []));
+            const orderlyFiles = (c.files || []).map(f => {
+              const orderlyName = agent.formatOrderlyFilename ? agent.formatOrderlyFilename(items[i], i, items.length, media === 'image') : f.filename;
+              return { ...f, orderlyName, sceneIndex: i };
+            });
+            parent.files.push(...orderlyFiles);
+            parent.scenes[i].media_ids = c.media_ids || [];
+            parent.scenes[i].files = orderlyFiles;
+          }
           else if (c.status === 'failed') { parent.scenes[i].error = c.error; if (await looksBlocked(c.error, tabId, mark)) onBlock(c.error); }
         }).catch(() => {});
       });

@@ -26,3 +26,8 @@ Based on Google DeepMind & Gemini multimodal storytelling samples from `philschm
 
 3. **Seamless Chaining**:
    - Matches the ending visual state of Scene $N$ to the opening visual state of Scene $N+1$ using in-memory HTML5 Canvas continuity.
+
+4. **Universal Orderly Scene Tagging & Auto-Download Protocol (Agent Mode & Standard Mode)**:
+   - **Orderly Scene Tagging**: Every formulated scene prompt MUST include a strict zero-padded tag (e.g. `#01_scene_01`, `#02_scene_02`, ..., or `#001_scene_001` for ≥100 scenes) at the beginning of the prompt.
+   - **Orderly Auto-Download Law**: In BOTH Google Flow Agent Mode (`flow_agent_dispatch`, `flow_agent_batch_queue`) and Standard Mode (`deepx_generate`, `flow_batch_generate`), all rendered clips auto-download with strict chronological filenames (`01_scene_01.mp4`, `02_scene_02.mp4`).
+   - **Zero Video Editor Order Mismatch**: Alphabetical sorting in any video editor (Premiere, CapCut, DaVinci Resolve, 2D Video Editing Studio) guarantees 100% exact chronological narrative order with zero manual file renaming or dragging.

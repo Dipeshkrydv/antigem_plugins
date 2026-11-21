@@ -22,3 +22,7 @@ Based on the consistent appearance memory and object matting principles from `pq
 
 4. **DeepX Integration**:
    - Double-lock the protagonist reference card (`@protagonist_name`) to guarantee facial and costume consistency while isolating against solid chroma backgrounds for post-production VFX in Premiere, CapCut, or DaVinci Resolve.
+
+5. **Universal Orderly Multi-Shot Tagging & Auto-Download Protocol (Agent Mode & Standard Mode)**:
+   - **Orderly Plate Indexing**: Multi-action matting generations must include zero-padded tags: `#01_greenscreen_front`, `#02_greenscreen_side`, `#03_greenscreen_action`.
+   - **Orderly Auto-Download Mandate**: Enforce `auto_download: true` in BOTH Agent Mode and Standard Mode. Plates automatically save as `01_greenscreen_front.mp4`, `02_greenscreen_side.mp4` for effortless, ordered importing into NLEs and VFX compositing timelines.

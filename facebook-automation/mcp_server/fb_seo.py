@@ -234,7 +234,8 @@ class FacebookSEO:
             for t in hashtags:
                 clean = str(t or "").strip()
                 if clean:
-                    tag = clean if clean.startswith("#") else f"#{re.sub(r'[^\w\u0900-\u097F]', '', clean)}"
+                    cleaned_tag = re.sub(r'[^\w\u0900-\u097F]', '', clean)
+                    tag = clean if clean.startswith("#") else f"#{cleaned_tag}"
                     if len(tag) > 1:
                         provided_tags.append(tag)
 

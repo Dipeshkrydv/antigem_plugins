@@ -326,7 +326,7 @@ export class FlowClient {
       this.history.push(...job.files);this.history=this.history.slice(-200);job.status='done';job.stage='done';
     } finally { await this.end(tabId); }
   }
-  async file(tabId,id,url) { const media=await this.media(tabId,id),type=media.type==='video'?'video':'image';const filename=`~/flow-media/flow_${id}.${type==='video'?'mp4':'jpg'}`;const saved=await this.chrome.antigem.download({url:url || media.url,path:filename,reuse:true});return {media_id:id,type,path:saved.path,title:media.title || ''}; }
+  async file(tabId,id,url,targetFilename) { const media=await this.media(tabId,id),type=media.type==='video'?'video':'image';const ext=type==='video'?'mp4':'jpg';const baseName=targetFilename || `flow_${id}.${ext}`;const filename=baseName.startsWith('~/') || baseName.startsWith('/') ? baseName : `~/flow-media/${baseName}`;const saved=await this.chrome.antigem.download({url:url || media.url,path:filename,reuse:true});return {media_id:id,type,path:saved.path,title:media.title || '',filename:baseName}; }
   async tileAction(tabId,title,steps) { await this.js(tabId,`s.gridSearch(${quoted(title)})`);await this.wait(async()=> (await this.js(tabId,`s.tileCount(${quoted(title)})`)).count===1,6000);await this.wait(async()=> (await this.js(tabId,`s.tileMenu(${quoted(title)})`)).ok,4000);for(const step of steps)await this.wait(async()=>{const r=await this.js(tabId,`s.menuClick(${quoted(step)})`);if(r.disabled)throw new Error('Flow action is disabled: '+step);return r.ok;},4000); }
   async submitEdit(job) {
     const req=job.request,tabId=await this.tab();job.tabId=tabId;await this.begin(tabId);

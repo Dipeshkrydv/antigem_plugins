@@ -27,3 +27,7 @@ Based on the prompt engineering methodologies from `mughaldev0/8-bit-retro-intro
 
 4. **Integration with DeepX Protagonist Locking**:
    - Bind `@protagonist_name` as a pixelated hero sprite (e.g. `@tesla_roadster in 16-bit pixel art style speeding down neon cyber-highway with pixel tire smoke`).
+
+5. **Universal Orderly Scene Tagging & Auto-Download Protocol (Agent Mode & Standard Mode)**:
+   - **Orderly Scene Indexing**: Multi-scene retro arcade sequences must include zero-padded tags: `#01_arcade_intro`, `#02_stage_select`, `#03_boss_fight`, `#04_victory_screen`.
+   - **Orderly Auto-Download Mandate**: Enforce `auto_download: true` in BOTH Agent Mode and Standard Mode. Clips automatically save as `01_arcade_intro.mp4`, `02_stage_select.mp4` for flawless chronological sorting in video editing timelines.

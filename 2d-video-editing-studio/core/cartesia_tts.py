@@ -196,5 +196,5 @@ if __name__ == "__main__":
     
     print(f"Generating voiceover via Cartesia ({args.voice}, emotion={args.emotion}, lang={args.lang})...")
     res = generate_voiceover(text, voice=args.voice, language=args.lang, emotion=args.emotion, output_path=args.out, model=args.model)
-    print(f"✓ Saved: {res["output_path"]}")
-    print(f"✓ Audio Duration: {res["duration_seconds"]}s (Generated in {res["generation_time_seconds"]}s | Emotion: {args.emotion})")
+    print(f"✓ Saved: {res['output_path']}")
+    print(f"✓ Audio Duration: {res['duration_seconds']}s (Generated in {res['generation_time_seconds']}s | Emotion: {args.emotion})")

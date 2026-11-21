@@ -89,8 +89,10 @@ This skill governs the high-speed, zero-latency execution pipeline between Antig
    - `deepx_auto_chain_scene`: Autonomous video analysis, terminal frame grab, reference binding, and next scene submission.
    - `deepx_generate_character`: Native Google Flow Character Studio generator.
    - `flow_agent_dispatch` / `deepx_flow_agent_dispatch`: 1-Click Multi-Scene Storyboard Dispatch directly to Google Flow's native Agent Mode (<1s) for autonomous scene clustering, continuity, and orchestration on 100% autopilot.
-   - `flow_agent_status` / `deepx_flow_agent_status`: Inspect whether the Google Flow Agent spark switch (or legacy pill) is detected and active, plus the latest quick answer above the prompt box.
-   - `flow_agent_toggle` / `deepx_flow_agent_toggle`: 1-Click Toggle the Google Flow Agent spark switch (prompt box, next to generate) on or off (select vs disconnect Agent Mode).
+   - `flow_agent_status` / `deepx_flow_agent_status`: Inspect whether the Google Flow Agent spark switch (inside the prompt box, next to generate; legacy: Agent pill) is detected and active, plus the latest quick answer shown above the prompt box.
+   - `flow_agent_toggle` / `deepx_flow_agent_toggle`: 1-Click Toggle Google Flow Agent spark switch on or off (select vs disconnect Agent Mode).
+   - `flow_agent_open_chat` / `deepx_flow_agent_open_chat`: Open the full Agent chat (clicks "Use side panel" / "Read more" on the quick answer above the prompt box).
+   - `flow_search_assets` / `deepx_search_assets`: Search project assets by name, prompt, or a description of what they look like. Returns `exact` matches first, then Flow's `similar` results (color, subject, mood).
    - `flow_agent_configure` / `deepx_flow_agent_configure`: Sets confirmation policy ('Confirm before generating: Never' for zero-interruption autonomous generation), default video model (Omni Flash 1.2, Veo 3.1 Quality, etc.), default image model (🍌 Nano Banana 2.1, etc.), and canvas aspect ratio directly inside Google Flow Agent settings.
    - `flow_agent_set_instructions` / `deepx_flow_agent_set_instructions`: Injects persistent directorial rules, style guidelines, and character directives directly into Flow Agent ('article_spark' panel) so the agent maintains visual consistency across all autonomous scenes.
    - `flow_agent_approve_all` / `deepx_flow_agent_approve_all`: Instantly approves any pending credit confirmation card in Google Flow Agent ('Always approve in project' or 'Approve') for zero-interruption execution.
@@ -128,3 +130,17 @@ This skill governs the high-speed, zero-latency execution pipeline between Antig
    - **Pre-Loaded for Everyone**: Google Flow Agent Mode automatically pre-loads and enforces the Master Autopilot & Consistency Directive on session start without requiring manual configuration.
    - **Autopilot Mandate**: Google Flow Agent operates in 100% Autopilot Mode: no clarifying questions, no multiple-choice radio option stops, and no credit approval pauses.
    - **Anti-Drift Collection Formula**: Bulk batches (e.g. numbers 1 to 1000, multi-scene storyboards) are locked into a single cohesive artistic collection with identical tactile canvas (`#F8F6EF`), matching architectural typography, uniform lighting angles, and zero style drift.
+
+14. **Universal Orderly Auto-Download Mandate (Agent Mode & Standard Mode)**:
+   - **Strict Zero-Padded Chronological Naming**:
+     - 1 to 99 assets: `01_scene_01.mp4`, `02_scene_02.mp4`, ..., `10_scene_10.mp4`
+     - 100+ assets: `001_scene_001.mp4`, `002_scene_002.mp4`, ..., `100_scene_100.mp4`
+     - Alphabetical sorting in Finder, Explorer, Premiere, CapCut, DaVinci Resolve, or 2D Video Editing Studio is GUARANTEED to match narrative sequence 1:1 with ZERO order mismatch!
+   - **Agent Mode Auto-Download**:
+     - `flow_agent_dispatch` and `flow_agent_batch_queue` enforce `auto_download: true` by default.
+     - Automatically monitors the canvas, waits for Flow Agent completion, and harvests and auto-downloads all completed video and image tiles in strict sequential order into `deepx_renders/<project_name>`.
+   - **Standard Mode Auto-Download**:
+     - `deepx_rapid_storyboard_autopilot` and `deepx_rapid_batch_dispatch` enforce `auto_download: true` by default.
+     - Automatically downloads each clip with its zero-padded numeric prefix as soon as rendered.
+   - **Zero Manual Download Burden**:
+     - The user MUST NEVER be asked to manually find, click, or download tiles from Google Flow. All media auto-downloads orderly and hands-free.

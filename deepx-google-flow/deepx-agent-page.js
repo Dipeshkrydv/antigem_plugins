@@ -784,13 +784,31 @@
     return { cleared: true };
   }
 
+  function getCompletedTiles(mediaType) {
+    var tiles = document.querySelectorAll("flow-grid-tile-container, flow-video-tile, flow-image-tile, cdk-virtual-scroll-viewport [role='gridcell'], [class*='tile-container']");
+    var list = [];
+    for (var i = 0; i < tiles.length; i++) {
+      var info = tileInfo(tiles[i]);
+      var text = (tiles[i].innerText || "").trim();
+      var isGenerating = /generating|rendering|queued|starting|preparing|in queue/i.test(text) ||
+        !!tiles[i].querySelector("mat-progress-bar, mat-spinner, .progress-bar, .spinner, .generating");
+      var isFailed = /failed|error|unable to generate|policy|violat/i.test(text);
+      if (!isGenerating && !isFailed) {
+        if (!mediaType || info.type === mediaType) {
+          list.push(info);
+        }
+      }
+    }
+    return list;
+  }
+
   window.__deepxAgent = {
     v: VERSION,
     status: status, setAgent: setAgent, configure: configure, syncInstructions: syncInstructions,
     approve: approve, fillPrompt: fillPrompt, submitPoint: submitPoint, clickSubmit: clickSubmit,
     pressEnter: pressEnter, busy: busy, blockMark: blockMark, blockScan: blockScan, isBlockText: isBlockText,
     openFullChat: openFullChat, compactReply: function () { var c = compactReply(); return c ? norm(c.innerText).slice(0, 2000) : null; },
-    searchAssets: searchAssets, clearSearch: clearSearch,
+    searchAssets: searchAssets, clearSearch: clearSearch, getCompletedTiles: getCompletedTiles,
     openSettings: function () { return openSettings().then(function (p) { return { open: !!p }; }); },
     newSession: newSession, listSessions: listSessions, openSession: openSession,
     agentToggle: agentPill, agentActive: agentActive

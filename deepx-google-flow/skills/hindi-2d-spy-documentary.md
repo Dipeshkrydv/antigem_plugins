@@ -6,8 +6,6 @@ description: >-
 
 # 2D Hindi Spy & Intelligence Documentary Production Engine (ISI vs RAW)
 
-> **DeepX Google Flow Studio plugin:** write prompts with this skill, then generate with `deepx_generate`. Ask the user *Agent Mode or Standard mode (without Agent)?* first. Agent Mode auto-splits >24 prompts into parts of ≤24; Standard mode auto-switches to Agent Mode on Google 'unusual activity' blocks.
-
 A specialized production pipeline for high-performing Hindi 2D-animation intelligence and historical documentaries on Google Flow (Veo 3.1 & Imagen 3 / 🍌 Nano Banana 2.1).
 
 ---
@@ -220,9 +218,14 @@ Create a new scene whenever there is a change in:
 - Narrative focus or subject
 
 #### 5. Output Format for Each Scene
-Deliver each scene cleanly formatted with labels outside code blocks and prompts inside:
+Deliver each scene cleanly formatted with labels outside code blocks and prompts inside.
+
+> [!IMPORTANT]
+> **Mandatory Orderly Scene Tagging & Auto-Download Mandate**:
+> Every image and video prompt MUST begin with a strict zero-padded orderly tag (e.g. `#01_scene_01`, `#02_scene_02`, or `#001_scene_001` for ≥100 scenes). This ensures the automated download engine saves files as `01_scene_01.mp4`, `02_scene_02.mp4`, guaranteeing 100% chronological sorting in video editing timelines (Premiere, CapCut, DaVinci Resolve, 2D Video Editing Studio) with ZERO order mismatch!
 
 ##### Scene [N]: [Slug / Descriptive Title]
+- **Orderly Asset Tag**: `#[ZeroPaddedIndex]_scene_[ZeroPaddedIndex]` (e.g. `#01_scene_01`)
 - **Story Line (20–30 words strictly)**: `[Exact 20-30 word narrative segment in Hindi/Hinglish]`
 - **Visual Description**: `[Detailed camera movement, character positioning, action, and environment]`
 - **Assets Attached**: `[@character_handle, :recent_images, reference keyframe]`
@@ -230,13 +233,38 @@ Deliver each scene cleanly formatted with labels outside code blocks and prompts
 
 **Image Prompt (Imagen 3 / 🍌 Nano Banana 2.1)**:
 ```text
-vibrant 2D animated cartoon, Disney-Pixar movie-still character design, Japanese anime cel-shading, bold clean linework, saturated cinematic color grading, semi-realistic cartoon proportions — NOT photorealistic, NOT gritty ink-wash comic-book style, NOT desaturated, NOT 3D. [Character description & action with South Asian features], [cinematic lighting, crisp background details], 16:9 aspect ratio.
+#01_scene_01 vibrant 2D animated cartoon, Disney-Pixar movie-still character design, Japanese anime cel-shading, bold clean linework, saturated cinematic color grading, semi-realistic cartoon proportions — NOT photorealistic, NOT gritty ink-wash comic-book style, NOT desaturated, NOT 3D. [Character description & action with South Asian features], [cinematic lighting, crisp background details], 16:9 aspect ratio.
 ```
 
 **Video Prompt (Veo 3.1 Omni / Quality)**:
 ```text
-vibrant 2D animated cartoon style, Disney-Pixar character animation, anime cel-shading, fluid 24fps 2D character movement. [Camera movement: e.g. slow cinematic push-in on @character_handle looking over tactical map], subtle dust particles in soft ceiling lamplight, high emotional tension, 10s duration.
+#01_scene_01 vibrant 2D animated cartoon style, Disney-Pixar character animation, anime cel-shading, fluid 24fps 2D character movement. [Camera movement: e.g. slow cinematic push-in on @character_handle looking over tactical map], subtle dust particles in soft ceiling lamplight, high emotional tension, 10s duration.
 ```
+
+---
+
+## PART 3: UNIVERSAL ORDERLY AUTO-DOWNLOAD ENGINE (AGENT MODE & STANDARD MODE)
+
+To prevent video editor order mismatch and eliminate slow manual downloading, asset generation and downloading MUST follow this universal orderly auto-download protocol:
+
+1. **Strict Zero-Padded Chronological Naming**:
+   - All downloaded scene assets MUST be automatically saved with strict zero-padded index prefixes:
+     - 1 to 99 scenes: `01_scene_01.mp4`, `02_scene_02.mp4`, ..., `10_scene_10.mp4`
+     - 100+ scenes: `001_scene_001.mp4`, `002_scene_002.mp4`, ..., `100_scene_100.mp4`
+   - Alphabetical sorting in Finder, Explorer, or editing software will ALWAYS match the narrative script sequence 1:1.
+
+2. **Google Flow Agent Mode Execution**:
+   - When dispatching via `flow_agent_dispatch` or `flow_agent_batch_queue`:
+     - Pass `auto_download: true` and `download_folder: "deepx_renders/<project_name>"`.
+     - The engine monitors the canvas, auto-approves credit dialogs, waits for Flow Agent completion, and automatically harvests and downloads all completed scene tiles in strict chronological order.
+
+3. **Standard Mode Execution (Autopilot / Batch)**:
+   - When dispatching via `deepx_rapid_storyboard_autopilot` or `deepx_rapid_batch_dispatch`:
+     - Pass `auto_download: true`.
+     - The engine automatically downloads each completed clip with its zero-padded numeric prefix into the project folder.
+
+4. **Zero Manual Download Burden**:
+   - The user must NEVER be asked to manually find, click, or download tiles from Google Flow. The pipeline handles rendering, verification, and orderly auto-download end-to-end.
 
 ---
 
@@ -247,5 +275,6 @@ When this skill is invoked:
    - Ingest Full Hindi Script.
    - Build Disney-Pixar + Anime 2D Character Sheet upfront with ethnicity safeguards and uniform details.
    - Pre-count sentences and announce total scene count.
-   - Sequentially deliver Scene Breakdown in batches of 5 with strict 20–30 word Story Lines and running progress tracker.
-   - Attach reference cards (`@character_handle`) and dispatch renders to Google Flow via DeepX Flow Bridge.
+   - Sequentially deliver Scene Breakdown in batches of 5 with strict 20–30 word Story Lines, `#01_scene_01` tags, and running progress tracker.
+   - Attach reference cards (`@character_handle`) and dispatch renders to Google Flow via DeepX Flow Bridge in **Agent Mode** or **Standard Mode** with `auto_download: true` enabled.
+   - Ensure all generated media files auto-download with strict zero-padded orderly filenames for seamless drag-and-drop into the video editing timeline.
