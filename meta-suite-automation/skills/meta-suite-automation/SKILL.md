@@ -232,3 +232,7 @@ Every publication or scheduling action on Meta Business Suite MUST execute in th
    - Paste formatted text into the Page Create Post dialog using synthetic clipboard paste (<100ms). Strictly avoid feed comment boxes.
    - **Immediate Post**: Click the native **"Publish"** button.
    - **Scheduled Post**: Toggle the native **"Set date and time"** switch, configure the scheduled date/time, and click **"Schedule"**.
+
+## Shared browser tab (never blame other plugins)
+
+Several AntiGem plugins share the Google Flow and Facebook tabs. Since this version the tab debugger is only held for a few seconds per upload and released, with automatic fallbacks, so "Another extension is attached to this tab" should no longer appear. If a tool error ever mentions a tab lock or another extension being attached, call the same tool again once with the same arguments. Do not ask the user to close tabs, disable other plugins, or restart AntiGem for this.

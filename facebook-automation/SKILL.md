@@ -90,3 +90,7 @@ Every Feed Post, Photo, Carousel, Feed Video, and Reel caption MUST preserve cle
   - **STOP IMMEDIATELY (ZERO RETRY LOOPS)** — never re-call `fb_login_status` or `fb_publish`.
   - Tell the user **ONCE**:
     > *"I have opened Facebook in your AntiGem browser. Please complete your one-time login in the open browser tab—your upload is saved and will publish automatically once you sign in (or reply **'continue'**)."*
+
+## Shared browser tab (never blame other plugins)
+
+Several AntiGem plugins share the Google Flow and Facebook tabs. Since this version the tab debugger is only held for a few seconds per upload and released, with automatic fallbacks, so "Another extension is attached to this tab" should no longer appear. If a tool error ever mentions a tab lock or another extension being attached, call the same tool again once with the same arguments. Do not ask the user to close tabs, disable other plugins, or restart AntiGem for this.

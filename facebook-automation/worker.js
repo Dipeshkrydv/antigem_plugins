@@ -31,7 +31,7 @@ DEEPX.configureDeepX({ pluginId: "facebook-automation", version: "1.8.1" });
 const DEEPX_TOOLS = new Set(["deepx_generate", "deepx_job_status", "deepx_check_login", "deepx_status", "deepx_cancel_job", "deepx_get_options", "deepx_flow_agent_status", "deepx_flow_agent_toggle", "deepx_flow_agent_configure", "deepx_flow_agent_set_instructions", "deepx_flow_agent_approve_all", "deepx_flow_agent_batch_queue", "deepx_upscale_media", "deepx_download_media", "deepx_upload_asset", "flow_get_last_media", "flow_get_media", "flow_list_media"]);
 
 const PLUGIN_ID = "facebook-automation";
-const PLUGIN_VERSION = "1.8.1";
+const PLUGIN_VERSION = "1.8.2";
 const FB_HOME_URL = "https://www.facebook.com/";
 const FB_REELS_CREATE_URL = "https://www.facebook.com/reels/create";
 const FB_STORIES_CREATE_URL = "https://www.facebook.com/stories/create";
@@ -738,26 +738,45 @@ async function blurKeyboardAndSettle(tabId) {
   } catch (_) {}
 }
 
+// The tab debugger is exclusive per extension in AntiGem/Chrome. Holding it forever blocked every other
+// plugin on the same tab ("Another extension is attached to this tab"), so it is leased per operation and released.
+const debuggerLeases = new Map();
 async function ensureDebuggerAttached(tabId) {
   if (!chrome.debugger || typeof chrome.debugger.attach !== "function") return false;
-  if (attachedDebuggerTabs.has(tabId)) return true;
-  try {
-    await chrome.debugger.attach({ tabId }, "1.3");
-    attachedDebuggerTabs.add(tabId);
-    return true;
-  } catch (err) {
-    const msg = String((err && err.message) || err || "");
-    if (/already attached/i.test(msg)) {
+  if (attachedDebuggerTabs.has(tabId)) { debuggerLeases.set(tabId, (debuggerLeases.get(tabId) || 0) + 1); return true; }
+  const deadline = Date.now() + 10000;
+  let selfReset = false;
+  for (;;) {
+    try {
+      await chrome.debugger.attach({ tabId }, "1.3");
       attachedDebuggerTabs.add(tabId);
+      debuggerLeases.set(tabId, (debuggerLeases.get(tabId) || 0) + 1);
       return true;
+    } catch (err) {
+      const msg = String((err && err.message) || err || "");
+      if (/already attached/i.test(msg) && !/another/i.test(msg) && !selfReset) {
+        selfReset = true;
+        try { await chrome.debugger.detach({ tabId }); } catch (_) {}
+        continue;
+      }
+      // Another plugin is mid-operation on this tab: wait briefly, then fall back to the non-debugger paths.
+      if (!/another/i.test(msg) || Date.now() >= deadline) return false;
+      await sleep(400);
     }
-    return false;
   }
+}
+
+async function releaseDebugger(tabId) {
+  const left = Math.max(0, (debuggerLeases.get(tabId) || 0) - 1);
+  if (left) { debuggerLeases.set(tabId, left); return; }
+  debuggerLeases.delete(tabId);
+  if (!attachedDebuggerTabs.delete(tabId)) return;
+  try { await chrome.debugger.detach({ tabId }); } catch (_) {}
 }
 
 if (chrome.debugger && chrome.debugger.onDetach) {
   chrome.debugger.onDetach.addListener((source) => {
-    if (source && source.tabId) attachedDebuggerTabs.delete(source.tabId);
+    if (source && source.tabId) { attachedDebuggerTabs.delete(source.tabId); debuggerLeases.delete(source.tabId); }
   });
 }
 
@@ -1103,7 +1122,9 @@ async function populateComposerCaption(tabId, captionText, titleText = "", optio
       if (v.ok) {
         return { ok: true, method: "cdp_lines", formatting_preserved: !expectsMultiline || /\n/.test(st.text || "") };
       }
-    } catch (_) {}
+    } catch (_) {} finally { await releaseDebugger(tabId); }
+  } else if (dbgReady) {
+    await releaseDebugger(tabId);
   }
 
   return {
@@ -1408,6 +1429,7 @@ async function uploadThumbnailImage(tabId, thumbnailPath, options = {}) {
         await chrome.debugger.sendCommand({ tabId }, "Page.setInterceptFileChooserDialog", { enabled: false });
       } catch (_) {}
     }
+    if (dbgReady) await releaseDebugger(tabId);
     try {
       await chrome.scripting.executeScript({
         world: "MAIN",
@@ -1956,6 +1978,7 @@ async function attachMediaToFacebookComposer(tabId, rawPaths, options = {}) {
         await chrome.debugger.sendCommand({ tabId }, "Page.setInterceptFileChooserDialog", { enabled: false });
       } catch (_) {}
     }
+    if (dbgReady) await releaseDebugger(tabId);
     try {
       await chrome.scripting.executeScript({
         world: "MAIN",

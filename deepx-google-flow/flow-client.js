@@ -6,7 +6,11 @@ const IMAGE_ASPECTS = { '1:1':1, '9:16':2, '16:9':3, '3:4':4, '4:3':5 };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const quoted = JSON.stringify;
 export class FlowClient {
-  constructor(chrome) { this.chrome = chrome; this.uploads = new Map(); this.attached = new Set(); this.pending = 0; this.history = []; this.serial = Promise.resolve(); this.active = new Map(); this.readyTab = null; this.libraryCache = new Map(); }
+  constructor(chrome) { this.chrome = chrome; this.uploads = new Map(); this.attached = new Set(); this.pending = 0; this.history = []; this.serial = Promise.resolve(); this.active = new Map(); this.readyTab = null; this.libraryCache = new Map(); this.debugHeld = new Set();
+    // The Chrome debugger is shared by every plugin and extension on a tab, so it is only held for a single upload and then released.
+    try { chrome.debugger?.onDetach?.addListener(source => { if (source?.tabId) this.debugHeld.delete(source.tabId); }); } catch (_) {}
+    try { chrome.tabs?.onRemoved?.addListener(tabId => { this.debugHeld.delete(tabId); if (this.readyTab?.id === tabId) this.readyTab = null; }); } catch (_) {}
+  }
   exclusive(fn) { const next = this.serial.then(fn, fn); this.serial = next.catch(() => {}); return next; }
   async wait(probe, timeout = 10000, interval = 50, signal) { const end = Date.now() + timeout; do { signal?.throwIfAborted(); const value = await probe(); if (value) return value; await sleep(interval); } while (Date.now() < end); throw new Error('Flow timed out waiting for the page'); }
   async evaluate(tabId, fn, args = []) { try { const results=await this.chrome.scripting.executeScript({target:{tabId},world:'MAIN',func:fn,args});return results[0]?.result; } catch(error){this.readyTab=null;throw error;} }
@@ -19,10 +23,15 @@ export class FlowClient {
   }
   async tab() {
     if(this.readyTab && Date.now()-this.readyTab.at<30000)return this.readyTab.id;
-    let tab = (await this.chrome.tabs.query({})).find(t => { try { const u = new URL(t.url); return u.hostname === 'flow.google.com' || (u.hostname.includes('labs.google') && u.pathname.includes('/flow')); } catch { return false; } });
+    const flowTabs = (await this.chrome.tabs.query({})).filter(t => this.isFlowUrl(t.url));
+    // Release any debugger this plugin still holds from an older version, so other plugins are never blocked by it.
+    if (!this.releasedStale) { this.releasedStale = true; for (const t of flowTabs) if (!this.debugHeld.has(t.id)) await this.chrome.debugger?.detach?.({ tabId:t.id })?.catch?.(() => {}); }
+    // Prefer a Flow tab that no other plugin/extension currently holds with the debugger.
+    let tab = flowTabs[0];
+    if (flowTabs.length > 1) { const busy = await this.foreignDebuggerTabs(); tab = flowTabs.find(t => !busy.has(t.id)) || tab; }
     if (!tab) tab = await this.chrome.tabs.create({ url:'https://flow.google.com/', active:true });
     await this.wait(async () => { try { return (await this.js(tab.id, 's.ui()')).ready; } catch { return false; } }, 30000);
-    if (!this.attached.has(tab.id)) { await this.chrome.debugger.attach({ tabId:tab.id }, '1.3'); this.attached.add(tab.id); }
+    // No permanent debugger attach here: holding it blocked every other plugin ("Another extension is attached to this tab").
     // If sitting on landing page without active project, auto-open/create so prompt box is immediately available
     try {
       const ui = await this.js(tab.id, 's.ui()');
@@ -32,6 +41,36 @@ export class FlowClient {
       }
     } catch (_) {}
     this.readyTab={id:tab.id,at:Date.now()};return tab.id;
+  }
+  isFlowUrl(url) { try { const u = new URL(url); return u.hostname === 'flow.google.com' || (u.hostname.includes('labs.google') && u.pathname.includes('/flow')); } catch { return false; } }
+  async foreignDebuggerTabs() {
+    try { const targets = await this.chrome.debugger?.getTargets?.(); return new Set((targets || []).filter(t => t.attached && t.tabId != null && !this.debugHeld.has(t.tabId)).map(t => t.tabId)); } catch { return new Set(); }
+  }
+  // Attach for a short job only. Returns true when this plugin owns the tab debugger, false if it stayed busy until `timeout`.
+  async attachDebugger(tabId, timeout = 30000) {
+    if (!this.chrome.debugger?.attach) return false;
+    if (this.debugHeld.has(tabId)) return true;
+    const end = Date.now() + timeout; let selfReset = false;
+    for (;;) {
+      try { await this.chrome.debugger.attach({ tabId }, '1.3'); this.debugHeld.add(tabId); return true; }
+      catch (error) {
+        const message = String(error?.message || error || '');
+        if (/no tab|no target|cannot access|not found/i.test(message)) return false;
+        // A stale attach left by an older copy of this plugin: drop it and try again.
+        if (!selfReset && /already attached/i.test(message) && !/another/i.test(message)) { selfReset = true; await this.chrome.debugger.detach({ tabId }).catch(() => {}); continue; }
+        if (Date.now() >= end) return false;
+        await sleep(400); // another plugin is mid-upload; updated plugins release within seconds
+      }
+    }
+  }
+  async detachDebugger(tabId) { if (!this.debugHeld.delete(tabId)) return; await this.chrome.debugger.detach({ tabId }).catch(() => {}); }
+  async helperTab(projectId) {
+    const current = await this.chrome.tabs.get(this.readyTab?.id).catch(() => null);
+    const base = current?.url && current.url.includes('labs.google/fx/tools/flow') ? 'https://labs.google/fx/tools/flow' : 'https://flow.google.com';
+    const tab = await this.chrome.tabs.create({ url: base + (projectId ? `/project/${projectId}` : '/'), active: true });
+    try { await this.wait(async () => { try { const ui = await this.js(tab.id, 's.ui()'); return ui.ready && (!projectId || ui.projectId === projectId); } catch { return false; } }, 45000, 200); }
+    catch (error) { await this.chrome.tabs.remove(tab.id).catch(() => {}); throw error; }
+    return tab.id;
   }
   async rpc(tabId, id, args, post = null, timeout = 30000) {
     const key = crypto.randomUUID();
@@ -124,15 +163,30 @@ export class FlowClient {
     if (/^[a-zA-Z0-9_-]{20,}$/.test(value) && !value.includes('/')) return value;
     const file = await this.chrome.antigem.stat({ path:value }); const key = `${this.currentProjectId||''}|${file.path}|${file.size}|${file.modified}`;
     if (this.uploads.has(key)) return this.uploads.get(key);
+    let id;
+    try { id = await this.uploadFile(tabId, file); }
+    catch (error) {
+      if (error?.code !== 'DEBUGGER_BUSY') throw error;
+      // Another plugin/extension still holds this tab's debugger: upload through a private Flow tab of the same project, then close it.
+      const helper = await this.helperTab(this.currentProjectId);
+      try { id = await this.uploadFile(helper, file); } finally { await this.detachDebugger(helper); await this.chrome.tabs.remove(helper).catch(() => {}); await this.chrome.tabs.update(tabId, { active: true }).catch(() => {}); }
+    }
+    this.uploads.set(key,id);this.libraryCache.clear();return id;
+  }
+  async uploadFile(tabId, file) {
     const mark = await this.js(tabId, 's.capMark().n');
     // Match flow_mcp's upload path: composer Upload -> DataTransfer, with CDP fallback.
     const name=file.path.split('/').at(-1), extension=name.split('.').at(-1).toLowerCase();
     const mime={png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',mp4:'video/mp4',mov:'video/quicktime'}[extension]||'application/octet-stream';
-    const base64=file.size<=8*1024*1024?await this.chrome.antigem.readFile({path:file.path,encoding:'base64'}):null;
     let chooser;const onChooser=(source,event,params)=>{if(source.tabId===tabId&&event==='Page.fileChooserOpened')chooser=params;};
-    this.chrome.debugger.onEvent.addListener(onChooser);
+    // Short-lived debugger lease (released in finally). If another plugin holds it, the DataTransfer path below needs no debugger.
+    let dbg=await this.attachDebugger(tabId,8000);
+    const enableChooser=async()=>{await this.chrome.debugger.sendCommand({tabId},'Page.setInterceptFileChooserDialog',{enabled:true}).catch(()=>{});};
+    const needDebugger=async()=>{if(dbg)return;dbg=await this.attachDebugger(tabId,30000);if(!dbg){const error=new Error('Google Flow tab debugger is held by another extension');error.code='DEBUGGER_BUSY';throw error;}await enableChooser();};
+    const base64=(file.size<=8*1024*1024||(!dbg&&file.size<=96*1024*1024))?await this.chrome.antigem.readFile({path:file.path,encoding:'base64'}):null;
+    this.chrome.debugger?.onEvent?.addListener(onChooser);
     try {
-      await this.chrome.debugger.sendCommand({tabId},'Page.setInterceptFileChooserDialog',{enabled:true});
+      if(dbg)await enableChooser();
       const prepared=await this.evaluate(tabId,async({name,mime,base64})=>{
         const pause=()=>new Promise(r=>setTimeout(r,20));
         const visible=el=>el&&el.getBoundingClientRect().width>0&&el.getBoundingClientRect().height>0;
@@ -166,7 +220,16 @@ export class FlowClient {
         try{const bytes=Uint8Array.from(atob(base64),c=>c.charCodeAt(0));transfer=new DataTransfer();transfer.items.add(new File([bytes],name,{type:mime}));input.files=transfer.files;}catch(error){return {injected:false,reason:error.message};}
         input.dispatchEvent(new Event('change',{bubbles:true}));return {injected:true};
       },[{name,mime,base64}]);
-      if(!prepared.injected&&prepared.tap){
+      let native=false;
+      if(!prepared.injected){
+        try{await needDebugger();}
+        catch(error){
+          // Debugger still held elsewhere: AntiGem's native uploader taps the button and answers the chooser without any debugger.
+          if(error?.code!=='DEBUGGER_BUSY'||!prepared.tap||!this.chrome.antigem?.uploadFiles)throw error;
+          await this.chrome.antigem.uploadFiles({tabId,files:[file.path],point:prepared.tap,method:'auto'});native=true;
+        }
+      }
+      if(native){/* uploaded natively */}else if(!prepared.injected&&prepared.tap){
         if(!chooser?.backendNodeId)await this.chrome.antigem.automation({tabId,tap:prepared.tap});
         await this.wait(()=>chooser?.backendNodeId,6000,20);
         await this.chrome.debugger.sendCommand({tabId},'DOM.setFileInputFiles',{files:[file.path],backendNodeId:chooser.backendNodeId});
@@ -176,10 +239,10 @@ export class FlowClient {
         await this.chrome.debugger.sendCommand({tabId},'DOM.setFileInputFiles',{files:[file.path],objectId:object.result.objectId});
       }
       const id=await this.wait(async()=>{const r=await this.js(tabId,`s.uploadsAfter(${mark})`);if(r.errors?.length)throw new Error(r.errors.join('; '));return r.ids?.[0];},180000,100);
-      await this.media(tabId,id);this.uploads.set(key,id);this.libraryCache.clear();return id;
+      await this.media(tabId,id);return id;
     } finally {
-      this.chrome.debugger.onEvent.removeListener(onChooser);
-      await this.chrome.debugger.sendCommand({tabId},'Page.setInterceptFileChooserDialog',{enabled:false}).catch(()=>{});
+      this.chrome.debugger?.onEvent?.removeListener(onChooser);
+      if(dbg){await this.chrome.debugger.sendCommand({tabId},'Page.setInterceptFileChooserDialog',{enabled:false}).catch(()=>{});await this.detachDebugger(tabId);}
       await this.js(tabId,'(delete window.__agFlowUploadInput,s.escape(),s.closeAddMenu())').catch(()=>{});
     }
   }

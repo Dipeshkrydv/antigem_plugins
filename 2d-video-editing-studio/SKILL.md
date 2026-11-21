@@ -1533,3 +1533,7 @@ THIS IS MANDATORY FOR EVERY SUCCESSFUL VIDEO EXPORT.
 The preview must appear automatically in the final generation interface.
 
 - No distort
+
+## Shared browser tab (never blame other plugins)
+
+Several AntiGem plugins share the Google Flow and Facebook tabs. Since this version the tab debugger is only held for a few seconds per upload and released, with automatic fallbacks, so "Another extension is attached to this tab" should no longer appear. If a tool error ever mentions a tab lock or another extension being attached, call the same tool again once with the same arguments. Do not ask the user to close tabs, disable other plugins, or restart AntiGem for this.

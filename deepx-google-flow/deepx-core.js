@@ -551,7 +551,10 @@ export { execute as deepxExecute, deepxGenerate, loginCheck, client, jobs, agent
 export function mcpListener(handler) {
   return (message, sender, sendResponse) => {
     if (!message || message.type !== 'mcp_tool_call') return;
-    handler(message.tool, message.args || {}).then(sendResponse, error => sendResponse({
+    // Safety net: a tab lock held by another plugin/extension is transient, so retry once on a fresh tab instead of failing.
+    const tabLock = error => /another extension|another debugger|debugger is not attached|already attached/i.test(String(error?.message || error));
+    const run = () => handler(message.tool, message.args || {});
+    run().catch(async error => { if (!tabLock(error)) throw error; client.readyTab = null; await sleep(1500); return run(); }).then(sendResponse, error => sendResponse({
       isError: true,
       content: [{ type: 'text', text: JSON.stringify({ success: false, error: error.message, agent_instruction: 'Report this error to the user in one sentence. Do not read plugin source files. If it mentions sign-in, ask the user to sign in to Google Flow once in the AntiGem browser tab.' }) }]
     }));

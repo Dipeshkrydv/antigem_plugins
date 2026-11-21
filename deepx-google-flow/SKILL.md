@@ -70,3 +70,7 @@ Details: `standard-mode.md`.
 
 ## 🎨 6. Style skills in this plugin
 `hindi-2d-spy-documentary`, `retro-8bit-arcade-style`, `gemini-storyboard-director` and `matanyone-video-matting` craft prompts. After writing prompts with them, generate with `deepx_generate` (mode question first).
+
+## Shared browser tab (never blame other plugins)
+
+Several AntiGem plugins share the Google Flow and Facebook tabs. Since this version the tab debugger is only held for a few seconds per upload and released, with automatic fallbacks, so "Another extension is attached to this tab" should no longer appear. If a tool error ever mentions a tab lock or another extension being attached, call the same tool again once with the same arguments. Do not ask the user to close tabs, disable other plugins, or restart AntiGem for this.
