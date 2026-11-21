@@ -770,6 +770,7 @@ async function bsPublish(kind, args = {}) {
     if (done && done.error) throw after(`Business Suite reported: ${done.error}`);
     if (!done) throw after("Pressed the final button but Business Suite did not confirm. It may still have posted: check Business Suite > Content/Planner before retrying.");
     return {
+      __proof: !args.no_proof,
       success: true, via: "meta_business_suite", kind, status: args.save_draft ? "draft" : when ? "scheduled" : "published",
       scheduled_for: when ? new Date(when).toLocaleString() : undefined, schedule_fields: sched || undefined,
       thumbnail: thumb || undefined, caption, steps, asset_id: assetId, confirmation: done.toast || "composer closed", ms: Date.now() - t0
@@ -777,10 +778,20 @@ async function bsPublish(kind, args = {}) {
   });
 }
 
+async function bsPublishWithProof(kind, args) {
+  const r = await bsPublish(kind, args);
+  if (r && r.__proof && r.success && !r.dry_run) {
+    delete r.__proof;
+    r.proof = await bsProof(r.status, r.caption, { assetId: r.asset_id }).catch(e => ({ ok: false, error: e.message }));
+    if (r.proof && r.proof.screenshot) r.show_user = `![Proof](${r.proof.screenshot})`;
+  } else if (r) delete r.__proof;
+  return r;
+}
+
 async function bsPublishTool(toolName, args) {
   const kind = toolName === "fb_publish_reel" ? "reel" : toolName === "fb_publish_story" ? "story" : (/^(reel|video)$/i.test(args.post_type || "") ? "reel" : /^story$/i.test(args.post_type || "") ? "story" : "post");
   const media = args.media_paths || (args.video_path ? [args.video_path] : args.media_path ? [args.media_path] : []);
-  return await bsPublish(kind, { ...args, media_paths: media });
+  return await bsPublishWithProof(kind, { ...args, media_paths: media });
 }
 
 self.MetaBS.bsPublish = bsPublish;
@@ -828,7 +839,7 @@ async function bsRunBatch(items, timing, onProgress) {
       let r = null, lastErr = null;
       let submitted = false;
       for (let attempt = 1; attempt <= 3 && !(r && r.success) && !submitted; attempt++) {
-        try { r = await bsPublish(kind, args); } catch (e) { lastErr = e.message; r = null; submitted = !!e.submitted; if (!submitted) await BS_W(2000 * attempt); }
+        try { r = await bsPublish(kind, { ...args, no_proof: true }); if (r) delete r.__proof; } catch (e) { lastErr = e.message; r = null; submitted = !!e.submitted; if (!submitted) await BS_W(2000 * attempt); }
       }
       const row = r && r.success
         ? { index: i + 1, ok: true, kind: r.kind, status: r.status, scheduled_for: r.scheduled_for, thumbnail: r.thumbnail && r.thumbnail.status, ms: r.ms }
@@ -841,6 +852,16 @@ async function bsRunBatch(items, timing, onProgress) {
   } finally {
     bsBatchDepth--; clearInterval(hb); await bsLock(tab.id, false);
   }
+  // Proof once the whole project is done: one screenshot per outcome type.
+  const proofs = [];
+  for (const status of ["published", "scheduled", "draft"]) {
+    const last = [...results].reverse().find(r => r.ok && r.status === status);
+    if (!last) continue;
+    const it = items[last.index - 1];
+    const cap = bsBuildCaption(it);
+    proofs.push({ status, ...(await bsProof(status, cap, {}).catch(e => ({ ok: false, error: e.message }))) });
+  }
+  results.proofs = proofs;
   return results;
 }
 self.MetaBS.bsRunBatch = bsRunBatch;
@@ -874,3 +895,79 @@ async function bsStatus() {
 }
 self.MetaBS.bsStatus = bsStatus;
 self.MetaBS.bsCleanPageName = bsCleanPageName;
+
+// ===========================================================================
+// Proof after completion. Facebook is used ONLY here: confirm the published post
+// on the Page and capture a screenshot. Scheduled posts: Business Suite list.
+// ===========================================================================
+async function bsCapture(tabId, name) {
+  const ok = await ensureDebuggerAttached(tabId);
+  if (!ok) return null;
+  try {
+    const shot = await chrome.debugger.sendCommand({ tabId }, "Page.captureScreenshot", { format: "jpeg", quality: 72 });
+    if (!shot || !shot.data) return null;
+    const path = `~/meta-proof/${name}.jpg`;
+    const r = await chrome.antigem.writeFile({ path, data: shot.data, encoding: "base64" });
+    return (r && r.path) || path;
+  } catch (_) { return null; } finally { await releaseDebugger(tabId); }
+}
+
+async function bsPageUrl() {
+  const st = await getStorage(["meta_default_page", "meta_pages"]);
+  const p = st.meta_default_page || (st.meta_pages || [])[0];
+  return p && p.url ? p.url : null;
+}
+
+/** status: "published" | "scheduled" | "draft". caption: final caption text (for matching). */
+async function bsProof(status, caption, { assetId } = {}) {
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  const first = String(caption || "").split("\n").map(s => s.trim()).find(Boolean) || "";
+  const needle = first.replace(/[​-‍﻿]/g, "").slice(0, 40);
+  if (status === "published") {
+    const url = await bsPageUrl();
+    if (!url) return { ok: false, note: "Page URL unknown (call meta_list_pages once)." };
+    // Separate Facebook tab, so the Business Suite tab is never touched.
+    let tab = null;
+    const tabs = await chrome.tabs.query({}).catch(() => []);
+    tab = tabs.find(t => /^https:\/\/(www|m)\.facebook\.com\//.test(t.url || "") && !isBusinessSuiteUrl(t.url));
+    tab = tab ? await chrome.tabs.update(tab.id, { url, active: true }) : await chrome.tabs.create({ url, active: true });
+    await bsLock(tab.id, true);
+    try {
+      await waitForTabComplete(tab.id, 25000).catch(() => {});
+      let found = null;
+      for (let i = 0; i < 8 && !found; i++) {
+        await BS_W(i ? 3000 : 2500);
+        found = await bsExec(tab.id, (n) => {
+          const arts = [...document.querySelectorAll('[role="article"], [data-pagelet*="FeedUnit"], div[aria-posinset]')];
+          const hit = n ? arts.find(a => (a.innerText || "").includes(n)) : arts[0];
+          if (!hit) { window.scrollBy(0, 600); return null; }
+          hit.scrollIntoView({ block: "start" }); window.scrollBy(0, -80);
+          return { matched: !!n, snippet: n || "newest post" };
+        }, [needle]).catch(() => null);
+        if (!found && i === 3) await chrome.tabs.reload(tab.id).catch(() => {});
+      }
+      await BS_W(1200);
+      const shot = await bsCapture(tab.id, `published_${stamp}`);
+      return { ok: !!found, confirmed_on_facebook: !!found, where: url, snippet: found && found.snippet, screenshot: shot, note: found ? undefined : "Post not visible on the Page feed yet (Reels can take a few minutes to process)." };
+    } finally { await bsLock(tab.id, false); }
+  }
+  // scheduled / draft: Business Suite lists are the source of truth.
+  const tab = await bsEnsureTab(BS_HOME_URL, { navigate: false });
+  const listUrl = `${BS_ORIGIN}/latest/posts/${status === "draft" ? "draft_posts" : "scheduled_posts"}${assetId ? `?asset_id=${assetId}` : ""}`;
+  await bsLock(tab.id, true);
+  try {
+    await bsNavigate(tab.id, listUrl);
+    const found = await bsWaitFor(tab.id, (n) => {
+      const rows = [...document.querySelectorAll('[role="row"]')].slice(1);
+      const hit = n ? rows.find(r => (r.innerText || "").includes(n) || [...r.querySelectorAll("[aria-label]")].some(e => (e.getAttribute("aria-label") || "").includes(n))) : rows[0];
+      if (!hit) return null;
+      hit.scrollIntoView({ block: "center" });
+      return { ok: true, snippet: (hit.innerText || "").replace(/\s+/g, " ").slice(0, 160) };
+    }, [needle], 15000, 800);
+    await BS_W(800);
+    const shot = await bsCapture(tab.id, `${status}_${stamp}`);
+    return { ok: !!found, confirmed_in_business_suite: !!found, where: listUrl, snippet: found && found.snippet, screenshot: shot };
+  } finally { await bsLock(tab.id, false); }
+}
+self.MetaBS.bsProof = bsProof;
+self.MetaBS.bsPublishWithProof = bsPublishWithProof;

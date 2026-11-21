@@ -3,7 +3,7 @@
   "background": {
     "service_worker": "worker.js"
   },
-  "description": "Master Autonomous Meta Suite Production Engine (v2.9.2): Facebook Page management that posts through Meta Business Suite (business.facebook.com composer, native scheduling, Reels thumbnails, screen locked while working, asks timing / thumbnail / caption approval first, batch projects run to completion), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
+  "description": "Master Autonomous Meta Suite Production Engine (v2.9.3): Facebook Page management that posts through Meta Business Suite (business.facebook.com composer, native scheduling, Reels thumbnails, screen locked while working, asks timing / thumbnail / caption approval first, batch projects run to completion, proof screenshot after every post), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
   "entrypoint": "mcp_server/server.py",
   "host_permissions": [
     "*://*.business.facebook.com/*",
@@ -102,7 +102,7 @@
       "name": "fb_open_browser"
     },
     {
-      "description": "Publish to the Facebook Page through META BUSINESS SUITE (business.facebook.com composer, never the facebook.com composer, no profile switch, screen locked while it works). post_type text/photo/carousel (1-10 images in media_paths). Any video is published through the Business Suite Reels composer (Meta now publishes every video as a reel; 16:9 long-form keeps its ratio) with thumbnail_path as the custom thumbnail. Add schedule_time_iso to schedule natively in Business Suite (Planner). Generate images/thumbnails first with deepx_meta_generate_design / deepx_meta_generate_thumbnail.",
+      "description": "Publish to the Facebook Page through META BUSINESS SUITE (business.facebook.com composer, never the facebook.com composer, no profile switch, screen locked while it works). post_type text/photo/carousel (1-10 images in media_paths). Any video is published through the Business Suite Reels composer (Meta now publishes every video as a reel; 16:9 long-form keeps its ratio) with thumbnail_path as the custom thumbnail. Add schedule_time_iso to schedule natively in Business Suite (Planner). Generate images/thumbnails first with deepx_meta_generate_design / deepx_meta_generate_thumbnail. After completion it returns a proof screenshot (published: the post on the Facebook Page; scheduled/draft: the Business Suite list); show its show_user image to the user.",
       "inputSchema": {
         "properties": {
           "caption": {
@@ -250,7 +250,7 @@
       "name": "fb_publish"
     },
     {
-      "description": "Publish a Reel (9:16) or long-form video (16:9) through the META BUSINESS SUITE Reels composer: upload video, caption/description, custom thumbnail (thumbnail_path, e.g. from deepx_meta_generate_thumbnail), Share now or native Schedule (schedule_time_iso). Screen locked while it works.",
+      "description": "Publish a Reel (9:16) or long-form video (16:9) through the META BUSINESS SUITE Reels composer: upload video, caption/description, custom thumbnail (thumbnail_path, e.g. from deepx_meta_generate_thumbnail), Share now or native Schedule (schedule_time_iso). Screen locked while it works. After completion it returns a proof screenshot (published: the post on the Facebook Page; scheduled/draft: the Business Suite list); show its show_user image to the user.",
       "inputSchema": {
         "properties": {
           "caption": {
@@ -366,7 +366,7 @@
       "name": "fb_publish_reel"
     },
     {
-      "description": "Publish a photo/video Story to the Page through META BUSINESS SUITE (Create story). Optional schedule_time_iso. Screen locked while it works.",
+      "description": "Publish a photo/video Story to the Page through META BUSINESS SUITE (Create story). Optional schedule_time_iso. Screen locked while it works. After completion it returns a proof screenshot (published: the post on the Facebook Page; scheduled/draft: the Business Suite list); show its show_user image to the user.",
       "inputSchema": {
         "properties": {
           "caption": {
@@ -448,7 +448,7 @@
       "name": "fb_publish_story"
     },
     {
-      "description": "Run a whole Page project (several posters/photos/reels/videos/stories) through META BUSINESS SUITE as ONE job that does not stop until every item is published or scheduled (3 tries per item, screen stays locked the whole time). REQUIRED timing chosen by the user beforehand: {mode:'now'} publish all now one after another; {mode:'exact', times:[ISO per item]}; {mode:'gap', start_time_iso, gap_minutes} (scheduled natively in Business Suite, 15 min to 29 days ahead). Without timing it returns needs_user_input. Poll fb_publish_status until done.",
+      "description": "Run a whole Page project (several posters/photos/reels/videos/stories) through META BUSINESS SUITE as ONE job that does not stop until every item is published or scheduled (3 tries per item, screen stays locked the whole time). REQUIRED timing chosen by the user beforehand: {mode:'now'} publish all now one after another; {mode:'exact', times:[ISO per item]}; {mode:'gap', start_time_iso, gap_minutes} (scheduled natively in Business Suite, 15 min to 29 days ahead). Without timing it returns needs_user_input. Poll fb_publish_status until done. After completion it returns a proof screenshot (published: the post on the Facebook Page; scheduled/draft: the Business Suite list); show its show_user image to the user.",
       "inputSchema": {
         "properties": {
           "items": {
@@ -2138,6 +2138,26 @@
         "type": "object"
       },
       "name": "meta_bs_eval"
+    },
+    {
+      "name": "meta_proof_test",
+      "description": "Diagnostic: capture the proof screenshot without posting. status 'published' opens the Page on Facebook and screenshots the newest post (or the one whose text contains caption); 'scheduled'/'draft' screenshots the Business Suite list.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "published",
+              "scheduled",
+              "draft"
+            ]
+          },
+          "caption": {
+            "type": "string"
+          }
+        }
+      }
     }
   ],
   "name": "Meta Suite Page Management",
@@ -2153,6 +2173,6 @@
   ],
   "skills": "skills",
   "tool_count": 49,
-  "version": "2.9.2",
+  "version": "2.9.3",
   "worker": "worker.js"
 }

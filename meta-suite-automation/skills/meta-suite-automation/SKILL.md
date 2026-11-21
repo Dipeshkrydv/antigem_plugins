@@ -1,9 +1,9 @@
 ---
 name: meta-suite-automation
-description: "Meta Suite Page Management (v2.9.2): post, schedule and batch-publish photos, carousels, Reels (9:16), long videos (16:9) and Stories to the Facebook Page THROUGH META BUSINESS SUITE (business.facebook.com), with custom Reel/video thumbnails, native Business Suite scheduling, and assets from the built-in DeepX Google Flow engine. Before any upload, ask in ONE instant question round: timing (now / exact time / start + gap), thumbnail for videos (Google Flow / user image / none), and caption approval. Batches never stop until every post is done."
+description: "Meta Suite Page Management (v2.9.3): post, schedule and batch-publish photos, carousels, Reels (9:16), long videos (16:9) and Stories to the Facebook Page THROUGH META BUSINESS SUITE (business.facebook.com), with custom Reel/video thumbnails, native Business Suite scheduling, and assets from the built-in DeepX Google Flow engine. Before any upload, ask in ONE instant question round: timing (now / exact time / start + gap), thumbnail for videos (Google Flow / user image / none), and caption approval. Batches never stop until every post is done."
 ---
 
-# Meta Suite Page Management (v2.9.2): Meta Business Suite engine
+# Meta Suite Page Management (v2.9.3): Meta Business Suite engine
 
 This plugin posts to the user's Facebook Page **only through Meta Business Suite** (`business.facebook.com`).
 The plugin drives Business Suite itself and **locks the screen** while it works ("AI is working").
@@ -16,6 +16,14 @@ It never uses the facebook.com composer, never switches profile, and needs no sc
 **🚪 RULE 0: START IN META BUSINESS SUITE**
 The first call for any Page task is `fb_status`. It **opens Meta Business Suite** for the Page and reads the Page name and Business Suite page id from there. Reply in one short line ("Motivational Docqueen is ready in Business Suite. What should I post?"), with no ID tables.
 Never bring up the Graph API scheduler (`fb_meta_status` / `fb_meta_connect`) unless the user asks for it; Business Suite already handles posting and scheduling.
+
+**📸 RULE 5: PROOF SCREENSHOT AFTER COMPLETION (Facebook is used only here)**
+Uploads run 100% in Meta Business Suite. Facebook is opened **only at the end**, to confirm the result:
+- **Published:** the plugin opens the Page on Facebook, finds the new post by its caption, and screenshots it.
+- **Scheduled / draft:** the plugin screenshots the Business Suite Scheduled / Drafts list with the post.
+
+The result includes `proof` (`confirmed_on_facebook` / `confirmed_in_business_suite`, `screenshot` path) and `show_user`. **Always put the `show_user` image line(s) in your final reply**, so the user sees the proof in chat. A batch gives one proof per outcome type when the whole project is done.
+
 
 
 1. **Never use browser MCP tools (`browser_*`)** to post, schedule, or tap anything for the Page. Use this plugin's tools only.

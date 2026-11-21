@@ -36,7 +36,7 @@ DEEPX.configureDeepX({ pluginId: "meta-suite-automation", version: "2.7.1" });
 const DEEPX_TOOLS = new Set(["deepx_generate", "deepx_job_status", "deepx_check_login", "deepx_status", "deepx_cancel_job", "deepx_get_options", "deepx_flow_agent_status", "deepx_flow_agent_toggle", "deepx_flow_agent_configure", "deepx_flow_agent_set_instructions", "deepx_flow_agent_approve_all", "deepx_flow_agent_batch_queue", "deepx_upscale_media", "deepx_download_media", "deepx_upload_asset", "flow_get_last_media", "flow_get_media", "flow_list_media"]);
 
 const PLUGIN_ID = "meta-suite-automation";
-const PLUGIN_VERSION = "2.9.2";
+const PLUGIN_VERSION = "2.9.3";
 const FB_HOME_URL = "https://www.facebook.com/";
 const FB_REELS_CREATE_URL = "https://www.facebook.com/reels/create";
 const FB_STORIES_CREATE_URL = "https://www.facebook.com/stories/create";
@@ -3610,7 +3610,7 @@ async function scheduleOne(args) {
     bsJobs.set(bsId, { job_id: bsId, tool: "fb_schedule", status: "running", started_at: startedAt });
     const p = (async () => {
       try {
-        const r = await self.MetaBS.bsPublish(job.post_type === "story" ? "story" : (job.post_type === "reel" || job.post_type === "video") ? "reel" : "post", { ...args, title: job.title, caption: job.caption, hashtags: job.hashtags, media_paths: job.media_paths, thumbnail_path: job.thumbnail_path, schedule_ms: asked });
+        const r = await self.MetaBS.bsPublishWithProof(job.post_type === "story" ? "story" : (job.post_type === "reel" || job.post_type === "video") ? "reel" : "post", { ...args, title: job.title, caption: job.caption, hashtags: job.hashtags, media_paths: job.media_paths, thumbnail_path: job.thumbnail_path, schedule_ms: asked });
         if (r && r.dry_run) { bsJobs.set(bsId, { job_id: bsId, tool: "fb_schedule", status: "done", started_at: startedAt, finished_at: Date.now(), result: r }); return r; }
         job.delivery = "business_suite"; job.status = "scheduled_on_meta"; job.run_at_timestamp = Math.floor(asked / 1000); job.result = r;
         const st2 = await getStorage(["fb_scheduled_jobs"]); const list = Array.isArray(st2.fb_scheduled_jobs) ? st2.fb_scheduled_jobs : [];
@@ -4913,18 +4913,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
         }).then(results => {
           const failed = results.filter(r => !r.ok).length;
-          bsJobs.set(jobId, { job_id: jobId, tool: "fb_publish_batch", status: failed ? "done_with_errors" : "done", started_at: startedAt, finished_at: Date.now(), total, done: results.length, failed, results });
+          const proofs = results.proofs || [];
+          bsJobs.set(jobId, { job_id: jobId, tool: "fb_publish_batch", status: failed ? "done_with_errors" : "done", started_at: startedAt, finished_at: Date.now(), total, done: results.length, failed, results: [...results], proofs, show_user: proofs.filter(p => p.screenshot).map(p => `![${p.status} proof](${p.screenshot})`).join("\n") });
         }).catch(e => bsJobs.set(jobId, { job_id: jobId, tool: "fb_publish_batch", status: "failed", error: e.message, started_at: startedAt, finished_at: Date.now(), total, results: (bsJobs.get(jobId) || {}).results || [] }));
         await Promise.race([p, sleep(40000)]);
         const j = bsJobs.get(jobId);
         return { success: true, ...j, agent_instruction: j.status === "running" ? `PROJECT IN PROGRESS (${j.done}/${total}). Keep calling fb_publish_status {job_id: "${jobId}", wait_seconds: 50} until finished is true. NEVER end your turn or stop before that.` : "Project finished. Report each post's result to the user." };
       }
+      case "meta_proof_test": return await self.MetaBS.bsProof(args.status || "published", args.caption || "", {});
       case "fb_publish_status": {
         const id = args.job_id; const wait = Math.min(50, Math.max(0, +args.wait_seconds || 0)) * 1000; const end = Date.now() + wait;
         if (!id) return { jobs: [...bsJobs.values()].slice(-10) };
         while (Date.now() < end && bsJobs.get(id) && bsJobs.get(id).status === "running") await sleep(1000);
         const j = bsJobs.get(id); if (!j) return { success: false, error: "Unknown job_id (the plugin may have been reloaded). Check Business Suite > Content/Planner." };
-        return j.status === "running" ? { ...j, finished: false, elapsed_s: Math.round((Date.now() - j.started_at) / 1000), agent_instruction: "Still working. Call fb_publish_status again with wait_seconds 50. Do NOT stop or end your turn until finished is true." } : { ...(j.result || {}), ...j, post_status: j.result && j.result.status, finished: true, agent_instruction: "Finished. Report the result to the user." };
+        return j.status === "running" ? { ...j, finished: false, elapsed_s: Math.round((Date.now() - j.started_at) / 1000), agent_instruction: "Still working. Call fb_publish_status again with wait_seconds 50. Do NOT stop or end your turn until finished is true." } : { ...(j.result || {}), ...j, post_status: j.result && j.result.status, finished: true, agent_instruction: "Finished. Report the result to the user and SHOW the proof screenshot(s): put show_user (markdown image lines) in your reply." };
       }
       case "meta_bs_eval": return await self.MetaBS.bsEvalTool(args);
       case "meta_bs_inspect": return await self.MetaBS.bsInspect(args);

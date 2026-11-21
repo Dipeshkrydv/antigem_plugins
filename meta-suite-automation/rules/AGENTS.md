@@ -1,6 +1,6 @@
 # Meta Business Suite Page Management Operational Rules
 
-## ⚡ v2.9.2 — META BUSINESS SUITE ENGINE (overrides anything below that disagrees)
+## ⚡ v2.9.3 — META BUSINESS SUITE ENGINE (overrides anything below that disagrees)
 
 Every Page upload now runs **inside Meta Business Suite** (`business.facebook.com`), driven by the plugin itself.
 It never uses the facebook.com composer, never switches profile, never needs native taps, and **locks the screen** while it works.
@@ -10,6 +10,14 @@ It never uses the facebook.com composer, never switches profile, never needs nat
 **🚪 RULE 0: START IN META BUSINESS SUITE**
 The first call for any Page task is `fb_status`. It **opens Meta Business Suite** for the Page and reads the Page name and Business Suite page id from there. Reply in one short line ("Motivational Docqueen is ready in Business Suite. What should I post?"), with no ID tables.
 Never bring up the Graph API scheduler (`fb_meta_status` / `fb_meta_connect`) unless the user asks for it; Business Suite already handles posting and scheduling.
+
+**📸 RULE 5: PROOF SCREENSHOT AFTER COMPLETION (Facebook is used only here)**
+Uploads run 100% in Meta Business Suite. Facebook is opened **only at the end**, to confirm the result:
+- **Published:** the plugin opens the Page on Facebook, finds the new post by its caption, and screenshots it.
+- **Scheduled / draft:** the plugin screenshots the Business Suite Scheduled / Drafts list with the post.
+
+The result includes `proof` (`confirmed_on_facebook` / `confirmed_in_business_suite`, `screenshot` path) and `show_user`. **Always put the `show_user` image line(s) in your final reply**, so the user sees the proof in chat. A batch gives one proof per outcome type when the whole project is done.
+
 
 **🕒 RULE 1: ASK THE TIMING BEFORE ANY UPLOAD (mandatory, one short question)**
 Before posting anything, ask the user in one message:
