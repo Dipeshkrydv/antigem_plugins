@@ -3,7 +3,7 @@
   "background": {
     "service_worker": "worker.js"
   },
-  "description": "Master Autonomous Meta Suite Production Engine (v2.8.0): Facebook Page management that posts through Meta Business Suite (business.facebook.com composer, native scheduling, Reels thumbnails, screen locked while working), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
+  "description": "Master Autonomous Meta Suite Production Engine (v2.9.0): Facebook Page management that posts through Meta Business Suite (business.facebook.com composer, native scheduling, Reels thumbnails, screen locked while working, asks timing / thumbnail / caption approval first, batch projects run to completion), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
   "entrypoint": "mcp_server/server.py",
   "host_permissions": [
     "*://*.business.facebook.com/*",
@@ -2153,6 +2153,6 @@
   ],
   "skills": "skills",
   "tool_count": 49,
-  "version": "2.8.0",
+  "version": "2.9.0",
   "worker": "worker.js"
 }

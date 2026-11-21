@@ -1,6 +1,6 @@
 # Meta Business Suite Page Management Operational Rules
 
-## ⚡ v2.8.0 — META BUSINESS SUITE ENGINE (overrides anything below that disagrees)
+## ⚡ v2.9.0 — META BUSINESS SUITE ENGINE (overrides anything below that disagrees)
 
 Every Page upload now runs **inside Meta Business Suite** (`business.facebook.com`), driven by the plugin itself.
 It never uses the facebook.com composer, never switches profile, never needs native taps, and **locks the screen** while it works.

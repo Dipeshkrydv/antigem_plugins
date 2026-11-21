@@ -1,7 +1,7 @@
 {
   "name": "antigem-plugins",
   "displayName": "Antigem Official Plugins",
-  "description": "Official Antigem plugins repository: 2D Video Editing Studio (v3.5.3), Facebook Automation & SEO Studio (v1.8.3), Meta Suite Page Management (v2.8.0), and DeepX Google Flow Studio (v1.2.3).",
+  "description": "Official Antigem plugins repository: 2D Video Editing Studio (v3.5.3), Facebook Automation & SEO Studio (v1.8.3), Meta Suite Page Management (v2.9.0), and DeepX Google Flow Studio (v1.2.3).",
   "owner": {
     "name": "Dipesh Kr Yadav",
     "url": "https://github.com/Dipeshkrydv"
@@ -59,8 +59,8 @@
       "name": "meta-suite-automation",
       "source": "./meta-suite-automation",
       "displayName": "Meta Suite Page Management",
-      "description": "Master Autonomous Meta Suite Production Engine (v2.8.0): Meta Native Scheduler (posts created in Meta's own scheduler / Business Suite Planner via the official API, published by Meta even with the device off; publish post #1 now, schedule the rest) + Bulk Safe Scheduler (fb_schedule_bulk: 1-500 posts, a week or month of content, auto-paced by the Page Safety Governor: up to 30 Page posts/day evenly spaced with a 4-week warm-up (personal profiles max 3/day), daily caps, gaps, posting hours and auto-pause on any Meta warning), Facebook Page management that really posts AS your Page (auto Page discovery + profile switch, default Page), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
-      "version": "2.8.0",
+      "description": "Master Autonomous Meta Suite Production Engine (v2.9.0): Facebook Page management that posts through Meta Business Suite (business.facebook.com composer, native scheduling, Reels thumbnails, screen locked while working, asks timing / thumbnail / caption approval first, batch projects run to completion), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
+      "version": "2.9.0",
       "logo": "assets/logo.png",
       "icon": "icon.png",
       "author": {
