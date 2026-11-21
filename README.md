@@ -3,7 +3,7 @@
 [![AntiGem Compatible](https://img.shields.io/badge/AntiGem-Plugins_Ready-brightgreen.svg)](https://github.com/Dipeshkrydv/2d-video-editing-skill)
 [![2D Engine](https://img.shields.io/badge/2D_Video_Studio-v3.5.2_(6_Styles_%26_Voice_Sync)-blue.svg)](./2d-video-editing-studio)
 [![Facebook Engine](https://img.shields.io/badge/Facebook_Automation-v1.8.2-blue.svg)](./facebook-automation)
-[![Meta Suite](https://img.shields.io/badge/Meta_Suite_Page_Management-v2.4.2-purple.svg)](./meta-suite-automation)
+[![Meta Suite](https://img.shields.io/badge/Meta_Suite_Page_Management-v2.5.0-purple.svg)](./meta-suite-automation)
 [![DeepX Flow](https://img.shields.io/badge/DeepX_Google_Flow_Studio-v1.2.1_(Spark_Agent_%26_Semantic_Search)-orange.svg)](./deepx-google-flow)
 [![Platform](https://img.shields.io/badge/Platform-Android_(Termux)_%7C_Linux_%7C_macOS_%7C_Windows-purple.svg)]()
 
@@ -13,7 +13,14 @@
 
 ## 🚀 What's New in This Universal Update
 
-### 0. Shared Flow tab fix: no more "Another extension is attached to this tab" (Flow Studio v1.2.1 · 2D Studio v3.5.2 · Facebook v1.8.2 · Meta Suite v2.4.2)
+### 0. Meta Suite v2.5.0: Bulk Safe Scheduler + Page Safety Governor
+- **`fb_schedule_bulk`** schedules 1-500 posts in one call (a week or a month of content) and spreads them out automatically: 100 posts at the default 3/day = about 34 days.
+- **Page Safety Governor** (always on): default 3 posts/day (hard max 8), 2 reels/day, 3 stories/day, 2 h between posts (never under 45 min), posting only 08:00-22:00, random ±10 min timing, duplicate captions and missing files rejected up front. Change it with `fb_safety_settings` (it can only be made stricter than the hard limits).
+- **No catch-up bursts:** if AntiGem was closed, overdue posts move to the next safe slots instead of posting back-to-back. At most one post per scheduler tick.
+- **Auto-pause on any Meta warning** (temporarily blocked, "we limit how often", checkpoint, community standards, restricted): the queue *and* manual posting stop until the user resumes with `fb_manage_queue {action:"resume"}`. 3 failures in a row pause for 6 h. Interrupted posts are never re-posted blindly.
+- Fixed: `fb_schedule` with `schedule_time_iso` (the documented argument) saved an invalid time and never published.
+
+### 0. Shared Flow tab fix: no more "Another extension is attached to this tab" (Flow Studio v1.2.1 · 2D Studio v3.5.2 · Facebook v1.8.2 · Meta Suite v2.5.0)
 - The DeepX engine used to attach the browser debugger to the Google Flow tab and **never release it**, so whichever plugin reached Flow second failed. The debugger is now only held for the few seconds a file upload needs it and is always released afterwards.
 - If another plugin or extension still holds the tab, uploads fall back to AntiGem's native `uploadFiles` (no debugger) and then to a private Flow tab of the same project. Generation itself never needs the debugger.
 - Each plugin also releases debugger locks left by its older versions, and a tab-lock error is retried once automatically before anything is reported.
@@ -77,7 +84,7 @@
 |:---:|---|---|:---:|---|
 | **1** | **2D Video Editing Studio** | [`2d-video-editing-studio/`](./2d-video-editing-studio) | `3.5.2` | **Anti-Offline Server Shield**, Direct In-Memory Streaming, High-Speed Render Presets (`--fast`, `--turbo`, `--1080p`), Vox Documentary, Stickman Storytelling, Die-Cut Pop-Art Stickers, Crime Noir, 8-Bit Arcade, 25 fonts, and Google Flow rapid parallel dispatch. |
 | **2** | **Facebook Automation & SEO Studio** | [`facebook-automation/`](./facebook-automation) | `1.8.2` | Dedicated Feed Posts (Photo/Carousel/Video), Anti-Comment Firewall, Reels (`/reels/create` + mobile fallback + event dispatch), Stories, Real Thumbnail/Cover Uploader, and Multiline Formatted Captions. |
-| **3** | **Meta Suite Page Management** | [`meta-suite-automation/`](./meta-suite-automation) | `2.4.2` | Enterprise Meta Business Suite Facebook Page management, 6-Step Sequential Order Execution Rule, dual-mode native & local queue scheduler, custom Reel covers & video thumbnails, DeepX Google Flow AI bridge, and anti-ad organic shield. |
+| **3** | **Meta Suite Page Management** | [`meta-suite-automation/`](./meta-suite-automation) | `2.5.0` | Enterprise Meta Business Suite Facebook Page management, 6-Step Sequential Order Execution Rule, dual-mode native & local queue scheduler, custom Reel covers & video thumbnails, DeepX Google Flow AI bridge, and anti-ad organic shield. |
 | **4** | **DeepX Google Flow Studio** | [`deepx-google-flow/`](./deepx-google-flow) | `1.2.0` | The full DeepX Google Flow extension as an MCP plugin (no side panel): **Google Flow Nov 2026 ready** (Agent spark switch, quick answers + auto side panel, semantic asset search `deepx_search_assets`), **asks Agent Mode vs Standard mode before every generation**, Agent Mode **auto-splits >24 prompts into ≤24-item parts pasted back-to-back** with 100% autopilot approvals, Standard mode **auto-switches to Agent Mode on Google "unusual activity / extension" blocks**, Nano Banana 2.1/Pro, Omni Flash 1.2, Veo 3.1, storyboard analyzer, characters, references, scene chaining, upscale, 89 tools. |
 
 ---
@@ -94,5 +101,5 @@
 4. Browse the repository plugins and click **Install** or **Update** on any or all plugins:
    - ✅ **2D Video Editing Studio (v3.4.0)**
    - ✅ **Facebook Automation & SEO Studio (v1.7.0)**
-   - ✅ **Meta Suite Page Management (v2.4.2)**
+   - ✅ **Meta Suite Page Management (v2.5.0)**
 5. All skills, models, tools, and background workers will be registered instantly!

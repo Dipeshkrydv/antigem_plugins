@@ -1,9 +1,9 @@
 ---
 name: meta-suite-automation
-description: "Master Autonomous Meta Suite Production Engine (v2.4.1). Enterprise Meta Business Suite Facebook Page management and scheduling engine. Enforces 1-click publishing & scheduling of Page Reels (9:16), Long Videos (16:9), Photos, Stories, and Announcements with custom video thumbnails/covers, in-memory DataTransfer injection, <100ms synthetic clipboard paste, anti-ad organic shield, anti-comment box firewall, and 100% script-fidelity DeepX Google Flow AI media generation."
+description: "Master Autonomous Meta Suite Production Engine (v2.5.0). Enterprise Meta Business Suite Facebook Page management and scheduling engine. Enforces 1-click publishing & scheduling of Page Reels (9:16), Long Videos (16:9), Photos, Stories, and Announcements with custom video thumbnails/covers, in-memory DataTransfer injection, <100ms synthetic clipboard paste, anti-ad organic shield, anti-comment box firewall, and 100% script-fidelity DeepX Google Flow AI media generation."
 ---
 
-# Master Meta Suite Page Management Engine (v2.4.1)
+# Master Meta Suite Page Management Engine (v2.5.0)
 
 The definitive autonomous production, publishing, and scheduling engine dedicated 100% to **Facebook Page Management via Meta Business Suite**. Zero delays. Zero questions. Zero friction.
 
@@ -165,7 +165,29 @@ When the user asks to "find trends", "what's trending", "search topics", "viral 
 - **Time Zone Engine**:
   - Automatically calculates local machine time and converts to UTC Unix epoch timestamp (`run_at_timestamp`).
   - Persisted in the plugin's storage (`fb_scheduled_jobs`); list / cancel / reschedule with `fb_manage_queue`.
-  - The built-in 1-minute scheduler publishes due posts automatically while AntiGem is running (missed slots run at the next start).
+  - The built-in 1-minute scheduler publishes due posts automatically while AntiGem is running. Missed slots are MOVED to the next safe slot, never posted in a burst.
+
+### 5A. Bulk scheduling: a week or a month of content in one call
+- For more than 3 posts use **`fb_schedule_bulk {posts:[...], start_date_iso, posts_per_day?, preferred_times?}`** (1-500 posts). Never loop `fb_schedule` 100 times.
+- Every post in `posts` must have its own caption (duplicates are rejected) and real media files (checked up front).
+- Plan honestly with the user: at the default **3 posts/day**, 100 posts = about **34 days**. If the user asks for 100 posts in one week, explain that 14+ posts a day on one Page is a spam pattern that gets Pages restricted, and offer 1 month at 3/day (or up to the hard max of 8/day if they insist).
+- After the call, report: scheduled count, date range, posts per day, rejected items and why. Do not call it again for the same posts.
+
+### 5B. Page Safety Governor (always on, cannot be switched off)
+| Rule | Default | Hard limit |
+| --- | --- | --- |
+| Feed posts + reels per day | 3 | 8 |
+| Reels per day | 2 | 4 |
+| Stories per day | 3 | 10 |
+| Gap between posts | 120 min | ≥ 45 min |
+| Gap between stories | 60 min | ≥ 20 min |
+| Posting hours (device time) | 08:00-22:00 | ≥ 4 h window |
+| Random timing offset | ±10 min | ±20 min |
+- Change limits with `fb_safety_settings {action:"set", ...}`: values are clamped, so they can only be made stricter than the hard limits.
+- Manual `fb_publish` also counts: after 8 posts in a day, or within 10 min of the last post, it refuses and the post should be scheduled instead.
+- **Auto-pause on any Meta warning** ("temporarily blocked", "we limit how often", checkpoint/security check, "community standards", "restricted"): the whole queue and manual posting stop. Tell the user to solve any check themselves in the AntiGem browser, wait 24-48 h, look at Page Quality / Account Status in Meta Business Suite, then `fb_manage_queue {action:"resume"}`. Never resume, retry, or work around a warning on your own.
+- 3 failures in a row pause the queue for 6 hours. An interrupted post becomes `needs_review` and is never re-posted blindly (double posts look like spam).
+- Content rules still matter more than timing: original content only (no reposted copyrighted videos/music), no engagement bait ("like if…", "share to win"), no misleading clickbait links, max 3-6 relevant hashtags.
 
 ---
 

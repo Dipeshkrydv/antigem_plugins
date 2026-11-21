@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "id": "meta-suite-automation",
   "name": "Meta Suite Page Management",
-  "version": "2.4.2",
-  "description": "Master Autonomous Meta Suite Production Engine (v2.4.1): Facebook Page management that really posts AS your Page (auto Page discovery + profile switch, default Page), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
+  "version": "2.5.0",
+  "description": "Master Autonomous Meta Suite Production Engine (v2.5.0): Facebook Page management that really posts AS your Page (auto Page discovery + profile switch, default Page), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
   "author": "Dipesh Kr Yadav",
   "icon": "icon.png",
   "icons": {
@@ -357,7 +357,7 @@
     },
     {
       "name": "fb_schedule",
-      "description": "\n    Schedule a Facebook Page post, reel, or story for future publication in Meta Business Suite.\n    Enqueues the job into the SQLite APScheduler queue (or native Meta Business Suite scheduler).\n    Accepts either `schedule_time_iso` (e.g. '2026-11-19T10:00:00Z') or `run_at_timestamp` (epoch float).\n    Always enforces a viral Title (`title`), formatted multiline Description, and 3-6 `#Hashtags` (`hashtags`) for posts/videos/reels, or clean `story_text` for Stories.\n    ",
+      "description": "Schedule ONE Facebook Page post, reel or story. It is queued in the plugin and published from this device by AntiGem at that time (AntiGem must be open). Pass schedule_time_iso (e.g. 2026-11-22T09:00:00+05:30); with no time it takes the next safe slot. The Page Safety Governor moves any time that breaks a rule (daily post limit, minimum gap, night hours, duplicate text) and says so in adjusted_for_safety. For more than 3 posts use fb_schedule_bulk.",
       "inputSchema": {
         "properties": {
           "run_at_timestamp": {
@@ -481,6 +481,13 @@
             "default": true,
             "title": "Use Native Meta Scheduler",
             "type": "boolean"
+          },
+          "preferred_times": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Optional local HH:MM times to prefer, e.g. ['09:00','19:30']"
           }
         },
         "title": "fb_scheduleArguments",
@@ -488,17 +495,151 @@
       }
     },
     {
+      "name": "fb_schedule_bulk",
+      "description": "Schedule many Facebook Page posts at once (1-500, e.g. a week or a month of content) in ONE call. The Page Safety Governor spreads them out automatically: at most max_posts_per_day per day (default 3, hard max 8), at least min_gap_minutes apart (default 120), only in posting hours (default 08:00-22:00), with random +/- minutes so timing is never robotic. Duplicate captions and missing media files are rejected up front. 100 posts at the default 3/day take about 34 days; do not try to squeeze a month of posts into one week, that is a spam pattern. Returns the date range and per-day plan.",
+      "inputSchema": {
+        "type": "object",
+        "required": [
+          "posts"
+        ],
+        "properties": {
+          "posts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "caption": {
+                  "type": "string",
+                  "description": "Full post text. Every post must be different: duplicates are rejected."
+                },
+                "hashtags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "3-6 hashtags"
+                },
+                "media_paths": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "thumbnail_path": {
+                  "type": "string"
+                },
+                "post_type": {
+                  "type": "string",
+                  "enum": [
+                    "text",
+                    "photo",
+                    "carousel",
+                    "video",
+                    "reel",
+                    "story"
+                  ]
+                },
+                "schedule_time_iso": {
+                  "type": "string",
+                  "description": "Optional exact time; moved to the next safe slot if it breaks a safety rule."
+                },
+                "target_type": {
+                  "type": "string"
+                },
+                "target_id": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The posts, in publishing order."
+          },
+          "start_date_iso": {
+            "type": "string",
+            "description": "First day, e.g. 2026-11-22 (default: now)."
+          },
+          "posts_per_day": {
+            "type": "integer",
+            "description": "Feed posts + reels per day (capped by safety settings, default 3)."
+          },
+          "preferred_times": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Local HH:MM times, e.g. ['09:00','13:00','19:30']. Default: spread over posting hours."
+          }
+        }
+      }
+    },
+    {
+      "name": "fb_safety_settings",
+      "description": "View or change the Page Safety Governor limits used by fb_schedule, fb_schedule_bulk and the queue. action='get' | 'set' | 'reset'. Values can be made stricter but are clamped at hard limits (8 posts/day, 4 reels/day, 10 stories/day, 45 min gap).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "get",
+              "set",
+              "reset"
+            ],
+            "default": "get"
+          },
+          "max_posts_per_day": {
+            "type": "integer"
+          },
+          "max_reels_per_day": {
+            "type": "integer"
+          },
+          "max_stories_per_day": {
+            "type": "integer"
+          },
+          "min_gap_minutes": {
+            "type": "integer"
+          },
+          "story_gap_minutes": {
+            "type": "integer"
+          },
+          "jitter_minutes": {
+            "type": "integer"
+          },
+          "active_start": {
+            "type": "string",
+            "description": "HH:MM"
+          },
+          "active_end": {
+            "type": "string",
+            "description": "HH:MM"
+          },
+          "catchup_grace_minutes": {
+            "type": "integer"
+          },
+          "max_horizon_days": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
       "name": "fb_manage_queue",
-      "description": "Inspect and control the scheduled post queue (stored in the plugin; due jobs publish automatically while AntiGem runs): action='list' | 'cancel' (job_id) | 'reschedule' (job_id + new_schedule_time_iso) | 'run_now' (job_id).",
+      "description": "Inspect and control the scheduled post queue: action='list'|'status' (counts, next/last post, pause state), 'cancel' (job_id), 'cancel_all', 'reschedule' (job_id + new_schedule_time_iso, moved to a safe slot if needed), 'run_now' (job_id, still respects the minimum gap), 'pause', 'resume' (only after the user checked the Page when the queue auto-paused on a Meta warning).",
       "inputSchema": {
         "properties": {
           "action": {
             "type": "string",
             "enum": [
               "list",
+              "status",
               "cancel",
+              "cancel_all",
               "reschedule",
-              "run_now"
+              "run_now",
+              "pause",
+              "resume"
             ],
             "default": "list",
             "title": "Action"
@@ -1667,5 +1808,5 @@
     "reels",
     "video thumbnail"
   ],
-  "tool_count": 44
+  "tool_count": 46
 }

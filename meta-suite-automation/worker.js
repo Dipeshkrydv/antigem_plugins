@@ -1,5 +1,5 @@
 /**
- * AntiGem WebView MCP Service Worker for Meta Suite Page Management (v2.4.1)
+ * AntiGem WebView MCP Service Worker for Meta Suite Page Management (v2.5.0)
  * Built on the Facebook Automation precision engine + Meta Suite layer (managed Page routing,
  * queue manager, viral SEO, algorithm audit, trend radar, DeepX Google Flow media).
  *
@@ -31,11 +31,11 @@
 // deepx-bundle.js is generated from deepx-google-flow (tools/build_classic_bundle.py).
 importScripts("deepx-bundle.js");
 const DEEPX = self.DeepXFlow;
-DEEPX.configureDeepX({ pluginId: "meta-suite-automation", version: "2.4.1" });
+DEEPX.configureDeepX({ pluginId: "meta-suite-automation", version: "2.5.0" });
 const DEEPX_TOOLS = new Set(["deepx_generate", "deepx_job_status", "deepx_check_login", "deepx_status", "deepx_cancel_job", "deepx_get_options", "deepx_flow_agent_status", "deepx_flow_agent_toggle", "deepx_flow_agent_configure", "deepx_flow_agent_set_instructions", "deepx_flow_agent_approve_all", "deepx_flow_agent_batch_queue", "deepx_upscale_media", "deepx_download_media", "deepx_upload_asset", "flow_get_last_media", "flow_get_media", "flow_list_media"]);
 
 const PLUGIN_ID = "meta-suite-automation";
-const PLUGIN_VERSION = "2.4.2";
+const PLUGIN_VERSION = "2.5.0";
 const FB_HOME_URL = "https://www.facebook.com/";
 const FB_REELS_CREATE_URL = "https://www.facebook.com/reels/create";
 const FB_STORIES_CREATE_URL = "https://www.facebook.com/stories/create";
@@ -3175,6 +3175,12 @@ async function dispatchProtectedBrowserTask(toolName, args) {
     }
   }
 
+  const publishKind = (toolName === "fb_publish_story" || postType === "story") ? "story" : (toolName === "fb_publish_reel" || postType === "reel") ? "reel" : "feed";
+  if (toolName.startsWith("fb_publish")) {
+    const guard = await manualPublishGuard(publishKind, Boolean(args.from_scheduler));
+    if (guard) return guard;
+  }
+
   inFlightLock = { tool: toolName, startedAt: Date.now() };
   const recordId = args.id || `fb_${Date.now()}`;
 
@@ -3204,6 +3210,7 @@ async function dispatchProtectedBrowserTask(toolName, args) {
       if (result && result.success) {
         await setStorage({ fb_last_publish_at: Date.now(), fb_pending_task: null });
         if (toolName.startsWith("fb_publish")) {
+          await recordPublishLog(publishKind);
           const finalCap = result.caption || args.caption || "";
           const finalMedia = result.media_attached || mediaList;
           await recordDedupe(finalCap, finalMedia, result.fb_post_id || recordId);
@@ -3283,52 +3290,343 @@ if (chrome.tabs && chrome.tabs.onUpdated) {
 }
 
 // ============================================================================
-// 8. Background Alarm Scheduler for Due Scheduled Posts
+// 8. Page Safety Governor + Background Scheduler (bulk 100+ posts, ban-safe pacing)
 // ============================================================================
+// Meta does not publish posting quotas; restrictions come from spam *patterns*: bursts, many posts per day,
+// identical/duplicate content, robotic exact timing, and continuing after a warning. The governor prevents
+// each of these. Users can make it stricter, but never looser than SAFETY_HARD.
+const SAFETY_DEFAULTS = {
+  max_posts_per_day: 3,       // feed posts + reels combined, per day
+  max_reels_per_day: 2,
+  max_stories_per_day: 3,
+  min_gap_minutes: 120,       // between two feed posts/reels
+  story_gap_minutes: 60,      // between two stories
+  jitter_minutes: 10,         // random +/- offset so times are never robotic
+  active_start: "08:00",      // never post at night (local device time)
+  active_end: "22:00",
+  catchup_grace_minutes: 90,  // a job later than this (AntiGem was offline) is moved, never burst-posted
+  max_horizon_days: 90
+};
+const SAFETY_HARD = { max_posts_per_day: 8, max_reels_per_day: 4, max_stories_per_day: 10, min_gap_minutes: 45, story_gap_minutes: 20, jitter_minutes: 20, max_horizon_days: 180 };
+const RESTRICTION_RE = /temporarily blocked|we limit how often|limit how often you can|you can'?t (post|use this feature) right now|action blocked|account (has been |is )?(restricted|suspended|disabled|locked)|page (has been |is )?(restricted|unpublished)|you'?re restricted|checkpoint|confirm (it'?s you|your identity)|security check|suspicious activity|unusual activity|community standards|goes against our|marked as spam|looks like spam|try again later/i;
+const BULK_MAX = 500;
+let schedulerBusy = false;
 
-async function processDueScheduledJobs() {
-  if (inFlightLock) return;
-  const store = await getStorage(["fb_scheduled_jobs"]);
-  const jobs = Array.isArray(store.fb_scheduled_jobs) ? store.fb_scheduled_jobs : [];
-  if (jobs.length === 0) return;
+function hhmmToMin(v, fallback) { const m = /^(\d{1,2}):(\d{2})$/.exec(String(v || "").trim()); if (!m) return fallback; const n = (+m[1]) * 60 + (+m[2]); return n >= 0 && n <= 1440 ? n : fallback; }
+function minToHHMM(n) { return `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`; }
+function localDayKey(ms) { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
+function minuteOfDay(ms) { const d = new Date(ms); return d.getHours() * 60 + d.getMinutes(); }
+function jobKind(postType) { const t = String(postType || "").toLowerCase(); return t === "story" ? "story" : t === "reel" ? "reel" : "feed"; }
+function newJobId(prefix) { return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`; }
 
-  const nowSec = Date.now() / 1000;
-  let updated = false;
+async function getSafety() {
+  const st = await getStorage(["fb_safety_settings"]);
+  return clampSafety({ ...SAFETY_DEFAULTS, ...(st.fb_safety_settings || {}) });
+}
+function clampSafety(s) {
+  const out = { ...SAFETY_DEFAULTS, ...s };
+  const num = (k, lo, hi) => { const v = Number(out[k]); out[k] = Number.isFinite(v) ? Math.min(hi, Math.max(lo, Math.round(v))) : SAFETY_DEFAULTS[k]; };
+  num("max_posts_per_day", 1, SAFETY_HARD.max_posts_per_day);
+  num("max_reels_per_day", 0, SAFETY_HARD.max_reels_per_day);
+  num("max_stories_per_day", 0, SAFETY_HARD.max_stories_per_day);
+  num("min_gap_minutes", SAFETY_HARD.min_gap_minutes, 24 * 60);
+  num("story_gap_minutes", SAFETY_HARD.story_gap_minutes, 24 * 60);
+  num("jitter_minutes", 0, SAFETY_HARD.jitter_minutes);
+  num("catchup_grace_minutes", 15, 6 * 60);
+  num("max_horizon_days", 1, SAFETY_HARD.max_horizon_days);
+  const a = hhmmToMin(out.active_start, 480), b = hhmmToMin(out.active_end, 1320);
+  if (b - a < 4 * 60) { out.active_start = SAFETY_DEFAULTS.active_start; out.active_end = SAFETY_DEFAULTS.active_end; }
+  else { out.active_start = minToHHMM(a); out.active_end = minToHHMM(b); }
+  return out;
+}
 
-  for (const job of jobs) {
-    if (job.status === "queued" && job.run_at_timestamp <= nowSec) {
-      const login = await checkFacebookLogin({ openIfMissing: true, activateOnLoginNeeded: true });
-      if (!login.logged_in) {
-        job.last_note = "Waiting for one-time Facebook login in AntiGem browser.";
-        updated = true;
-        break;
-      }
+async function getPublishLog() {
+  const st = await getStorage(["fb_publish_log"]);
+  const cutoff = Date.now() - 14 * 86400000;
+  return (Array.isArray(st.fb_publish_log) ? st.fb_publish_log : []).filter(e => e && e.at >= cutoff);
+}
+async function recordPublishLog(kind) {
+  const log = await getPublishLog();
+  log.push({ at: Date.now(), kind });
+  await setStorage({ fb_publish_log: log.slice(-500) });
+}
 
-      job.status = "running";
-      updated = true;
-      await setStorage({ fb_scheduled_jobs: jobs });
+// Every post that is already published or still planned occupies a slot.
+function buildOccupancy(jobs, log, excludeJobId) {
+  const occ = log.map(e => ({ at: e.at, kind: e.kind || "feed" }));
+  for (const j of jobs) if (j && j.job_id !== excludeJobId && ["queued", "running"].includes(j.status) && Number.isFinite(j.run_at_timestamp)) occ.push({ at: j.run_at_timestamp * 1000, kind: jobKind(j.post_type) });
+  return occ;
+}
 
-      const res = await dispatchProtectedBrowserTask("fb_publish", {
-        id: job.post_id,
-        title: job.title,
-        caption: job.caption,
-        hashtags: job.hashtags,
-        thumbnail_path: job.thumbnail_path || null,
-        media_paths: job.media_paths || [],
-        post_type: job.post_type || "text",
-        target_type: job.target_type || "page",
-        target_id: job.target_id || null
-      });
+function slotProblem(ms, kind, occ, s) {
+  const mod = minuteOfDay(ms), a = hhmmToMin(s.active_start, 480), b = hhmmToMin(s.active_end, 1320);
+  if (mod < a || mod >= b) return `outside posting hours ${s.active_start}-${s.active_end}`;
+  if (ms > Date.now() + s.max_horizon_days * 86400000) return `more than ${s.max_horizon_days} days ahead`;
+  const day = localDayKey(ms), isStory = kind === "story";
+  const sameDay = occ.filter(o => localDayKey(o.at) === day);
+  if (isStory) {
+    if (sameDay.filter(o => o.kind === "story").length >= s.max_stories_per_day) return `daily story limit (${s.max_stories_per_day}) reached`;
+    if (occ.some(o => o.kind === "story" && Math.abs(o.at - ms) < s.story_gap_minutes * 60000)) return `less than ${s.story_gap_minutes} min after another story`;
+    return null;
+  }
+  if (sameDay.filter(o => o.kind !== "story").length >= s.max_posts_per_day) return `daily post limit (${s.max_posts_per_day}) reached`;
+  if (kind === "reel" && sameDay.filter(o => o.kind === "reel").length >= s.max_reels_per_day) return `daily reel limit (${s.max_reels_per_day}) reached`;
+  if (occ.some(o => o.kind !== "story" && Math.abs(o.at - ms) < s.min_gap_minutes * 60000)) return `less than ${s.min_gap_minutes} min from another post`;
+  return null;
+}
 
-      job.status = res && res.success ? "completed" : "failed";
-      job.completed_at = Date.now();
-      job.result = res;
-      updated = true;
+function defaultTimes(perDay, s) {
+  const a = hhmmToMin(s.active_start, 480) + 60, b = hhmmToMin(s.active_end, 1320) - 60;
+  if (perDay <= 1) return [minToHHMM(Math.round(a + (b - a) * 0.55))];
+  return Array.from({ length: perDay }, (_, i) => minToHHMM(Math.round(a + (b - a) * i / (perDay - 1))));
+}
+
+// Next slot >= fromMs that respects every rule. Preferred times first (with jitter), then a 15-minute scan of the day.
+function nextSafeSlot(fromMs, kind, occ, s, preferredTimes) {
+  const times = (preferredTimes && preferredTimes.length ? preferredTimes : defaultTimes(s.max_posts_per_day, s)).map(t => hhmmToMin(t, null)).filter(n => n != null).sort((x, y) => x - y);
+  const start = new Date(fromMs); start.setHours(0, 0, 0, 0);
+  for (let d = 0; d <= s.max_horizon_days + 1; d++) {
+    const day = new Date(start); day.setDate(start.getDate() + d);
+    const base = day.getTime();
+    const candidates = times.map(m => base + m * 60000 + Math.round((Math.random() * 2 - 1) * s.jitter_minutes) * 60000);
+    for (let m = hhmmToMin(s.active_start, 480); m < hhmmToMin(s.active_end, 1320); m += 15) candidates.push(base + m * 60000 + Math.round(Math.random() * Math.min(s.jitter_minutes, 7)) * 60000);
+    for (const c of candidates) {
+      const ms = Math.floor(c / 60000) * 60000;
+      if (ms < fromMs) continue;
+      if (!slotProblem(ms, kind, occ, s)) return ms;
     }
   }
+  return null;
+}
 
-  if (updated) {
-    await setStorage({ fb_scheduled_jobs: jobs });
+function parseWhen(args) {
+  const v = args.schedule_time_iso ?? args.run_at_iso ?? args.run_at_timestamp ?? args.time;
+  if (v == null || v === "") return null;
+  if (typeof v === "number") return v > 1e12 ? v : v * 1000;
+  const t = Date.parse(String(v));
+  return Number.isFinite(t) ? t : NaN;
+}
+
+async function captionHash(caption) { const c = normalizeCaption(caption || ""); return c.length > 20 ? sha256Hex(c) : null; }
+
+async function prepareJob(args, s) {
+  const enriched = ensureTitleAndHashtags(args);
+  const mediaPaths = Array.isArray(args.media_paths) ? args.media_paths.filter(Boolean) : [];
+  const postType = String(args.post_type || (mediaPaths.length ? "photo" : "text")).toLowerCase();
+  if ((postType === "reel" || postType === "video") && !mediaPaths.length) throw new Error(`${postType} needs a video in media_paths`);
+  if (["photo", "carousel"].includes(postType) && !mediaPaths.length) throw new Error(`${postType} needs media_paths`);
+  if (!mediaPaths.length && !String(enriched.caption || "").trim()) throw new Error("caption or media_paths is required");
+  // Check files now, so a post never fails (and retries) on the day it is due.
+  for (const mp of mediaPaths) await resolveLocalFile(mp, postType === "reel" || postType === "video");
+  if (args.thumbnail_path) await resolveLocalFile(args.thumbnail_path);
+  if ((enriched.hashtags || []).length > 6) enriched.hashtags = enriched.hashtags.slice(0, 6);
+  return {
+    job_id: newJobId("job"), post_id: newJobId("sched"),
+    title: enriched.title, caption: enriched.caption, hashtags: enriched.hashtags,
+    thumbnail_path: args.thumbnail_path || null, media_paths: mediaPaths, post_type: postType,
+    target_type: args.target_type || "page", target_id: args.target_id || null,
+    status: "queued", attempts: 0, created_at: Date.now(),
+    caption_hash: await captionHash(enriched.caption)
+  };
+}
+
+async function knownCaptionHashes(jobs) {
+  const st = await getStorage(["fb_dedupe_ledger"]);
+  const set = new Set((Array.isArray(st.fb_dedupe_ledger) ? st.fb_dedupe_ledger : []).filter(e => e.type === "caption").map(e => e.hash));
+  for (const j of jobs) if (j.caption_hash && ["queued", "running", "completed"].includes(j.status)) set.add(j.caption_hash);
+  return set;
+}
+
+function pruneJobs(jobs) {
+  const cutoff = Date.now() - 30 * 86400000;
+  return jobs.filter(j => ["queued", "running", "needs_review"].includes(j.status) || (j.completed_at || j.created_at || 0) >= cutoff);
+}
+
+async function scheduleOne(args) {
+  const s = await getSafety();
+  const st = await getStorage(["fb_scheduled_jobs"]);
+  const jobs = Array.isArray(st.fb_scheduled_jobs) ? st.fb_scheduled_jobs : [];
+  let job;
+  try { job = await prepareJob(args, s); } catch (e) { return { success: false, error: e.message }; }
+  if (job.caption_hash && (await knownCaptionHashes(jobs)).has(job.caption_hash)) return { success: false, duplicate_detected: true, error: "This caption is already queued or was published recently. Meta treats repeated posts as spam; change the text." };
+  const asked = parseWhen(args);
+  if (Number.isNaN(asked)) return { success: false, error: "schedule_time_iso must be an ISO date/time, e.g. 2026-11-22T09:00:00+05:30" };
+  const occ = buildOccupancy(jobs, await getPublishLog());
+  const from = Math.max(asked || 0, Date.now() + 10 * 60000);
+  const problem = asked ? slotProblem(from, jobKind(job.post_type), occ, s) : "no time given";
+  const at = problem ? nextSafeSlot(from, jobKind(job.post_type), occ, s, args.preferred_times) : from;
+  if (!at) return { success: false, error: `No safe slot in the next ${s.max_horizon_days} days. The queue is full under the safety limits.` };
+  job.run_at_timestamp = Math.floor(at / 1000);
+  jobs.push(job);
+  await setStorage({ fb_scheduled_jobs: pruneJobs(jobs) });
+  const adjusted = Boolean(asked) && problem && Math.abs(at - asked) > 60000;
+  return {
+    success: true, status: "scheduled", job_id: job.job_id, post_id: job.post_id, title: job.title, hashtags: job.hashtags,
+    run_at_timestamp: job.run_at_timestamp, run_at_iso: new Date(at).toISOString(), run_at_local: new Date(at).toLocaleString(),
+    adjusted_for_safety: adjusted, adjustment_reason: adjusted ? problem : undefined,
+    message: `Facebook ${job.post_type} scheduled for ${new Date(at).toLocaleString()}${adjusted ? ` (moved for account safety: ${problem})` : ""}. AntiGem must be open at that time.`
+  };
+}
+
+async function scheduleBulk(args) {
+  const s = await getSafety();
+  const posts = Array.isArray(args.posts) ? args.posts : [];
+  if (!posts.length) return { success: false, error: "posts is required: an array of {title, caption, hashtags, media_paths, post_type}" };
+  if (posts.length > BULK_MAX) return { success: false, error: `At most ${BULK_MAX} posts per call.` };
+  const perDay = Math.min(Number(args.posts_per_day) || s.max_posts_per_day, s.max_posts_per_day);
+  const plan = { ...s, max_posts_per_day: perDay };
+  const times = Array.isArray(args.preferred_times) && args.preferred_times.length ? args.preferred_times : defaultTimes(perDay, s);
+  const startAsked = parseWhen({ schedule_time_iso: args.start_date_iso || args.start_iso });
+  if (Number.isNaN(startAsked)) return { success: false, error: "start_date_iso must be an ISO date, e.g. 2026-11-22 or 2026-11-22T09:00:00+05:30" };
+  const startMs = Math.max(startAsked || 0, Date.now() + 10 * 60000);
+  const st = await getStorage(["fb_scheduled_jobs"]);
+  const jobs = Array.isArray(st.fb_scheduled_jobs) ? st.fb_scheduled_jobs : [];
+  const seen = await knownCaptionHashes(jobs);
+  const occ = buildOccupancy(jobs, await getPublishLog());
+  const added = [], rejected = [];
+  let cursor = startMs;
+  for (let i = 0; i < posts.length; i++) {
+    const p = posts[i] || {};
+    let job;
+    try { job = await prepareJob(p, s); } catch (e) { rejected.push({ index: i, title: p.title || null, reason: e.message }); continue; }
+    if (job.caption_hash && seen.has(job.caption_hash)) { rejected.push({ index: i, title: job.title, reason: "duplicate caption (already in this batch, the queue, or published in the last 24h)" }); continue; }
+    const kind = jobKind(job.post_type), asked = parseWhen(p);
+    let at = null;
+    if (asked && !Number.isNaN(asked) && asked >= Date.now() + 10 * 60000 && !slotProblem(asked, kind, occ, plan)) at = asked;
+    if (!at) at = nextSafeSlot(asked && !Number.isNaN(asked) ? Math.max(asked, startMs) : (kind === "story" ? startMs : cursor), kind, occ, plan, times);
+    if (!at) { rejected.push({ index: i, title: job.title, reason: `no safe slot within ${s.max_horizon_days} days` }); continue; }
+    job.run_at_timestamp = Math.floor(at / 1000);
+    if (job.caption_hash) seen.add(job.caption_hash);
+    occ.push({ at, kind });
+    if (kind !== "story" && !asked) cursor = at;
+    jobs.push(job); added.push(job);
+  }
+  await setStorage({ fb_scheduled_jobs: pruneJobs(jobs) });
+  const perDayCount = {};
+  for (const j of added) { const k = localDayKey(j.run_at_timestamp * 1000); perDayCount[k] = (perDayCount[k] || 0) + 1; }
+  const sorted = added.map(j => j.run_at_timestamp).sort((a, b) => a - b);
+  const days = Object.keys(perDayCount).length;
+  return {
+    success: added.length > 0,
+    scheduled: added.length, rejected_count: rejected.length, rejected: rejected.slice(0, 50),
+    first_post_local: sorted.length ? new Date(sorted[0] * 1000).toLocaleString() : null,
+    last_post_local: sorted.length ? new Date(sorted.at(-1) * 1000).toLocaleString() : null,
+    days_covered: days, posts_per_day_used: perDay, preferred_times: times,
+    per_day: perDayCount,
+    preview: added.slice(0, 10).map(j => ({ job_id: j.job_id, title: j.title, post_type: j.post_type, run_at_local: new Date(j.run_at_timestamp * 1000).toLocaleString() })),
+    safety: plan,
+    note: "Posts publish one at a time from this device, so AntiGem must stay open. If it was closed, overdue posts are moved to the next safe slot instead of being posted in a burst. Any Meta warning pauses the whole queue.",
+    agent_instruction: "Tell the user in 2-3 short sentences: how many posts were scheduled, the date range and posts per day, and how many were rejected and why. Do not call fb_schedule_bulk again for the same posts."
+  };
+}
+
+async function detectRestriction(res) {
+  const text = (() => { try { return JSON.stringify(res || {}); } catch (_) { return String(res); } })();
+  if (res && (res.checkpoint_required || res.restricted)) return "Facebook asked for a security check";
+  const m = RESTRICTION_RE.exec(text);
+  if (m) return `Facebook said: "${m[0]}"`;
+  try {
+    const tabs = await chrome.tabs.query({});
+    const tab = tabs.find(t => isFacebookUrl(t.url));
+    if (tab) {
+      const [r] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, world: "MAIN", func: () => (document.body && document.body.innerText || "").slice(0, 20000) + " " + location.pathname });
+      const m2 = RESTRICTION_RE.exec(String(r && r.result || ""));
+      if (m2) return `Facebook shows: "${m2[0]}"`;
+    }
+  } catch (_) {}
+  return null;
+}
+
+async function updateJobs(mutator) {
+  const st = await getStorage(["fb_scheduled_jobs"]);
+  const jobs = Array.isArray(st.fb_scheduled_jobs) ? st.fb_scheduled_jobs : [];
+  const out = await mutator(jobs);
+  await setStorage({ fb_scheduled_jobs: pruneJobs(jobs) });
+  return out;
+}
+
+async function pauseQueue(reason, untilMs = null, kind = "manual") {
+  await setStorage({ fb_queue_paused: { reason, at: Date.now(), until: untilMs, kind } });
+}
+
+async function processDueScheduledJobs() {
+  if (inFlightLock || schedulerBusy) return;
+  schedulerBusy = true;
+  try {
+    const st = await getStorage(["fb_scheduled_jobs", "fb_queue_paused", "fb_sched_failures"]);
+    const paused = st.fb_queue_paused;
+    if (paused) {
+      if (paused.until && paused.until <= Date.now()) await setStorage({ fb_queue_paused: null });
+      else return;
+    }
+    const s = await getSafety();
+    const now = Date.now();
+    const log = await getPublishLog();
+    // 1) Housekeeping: stale "running" jobs (worker died mid-post) are never re-posted blindly: a double post is a spam signal.
+    // 2) Overdue jobs (AntiGem was closed) are re-slotted instead of being fired back-to-back.
+    const pick = await updateJobs(async jobs => {
+      for (const j of jobs) if (j.status === "running" && (j.started_at || 0) < now - 30 * 60000) { j.status = "needs_review"; j.last_note = "Posting was interrupted. Check the Page; if it is not there, use fb_manage_queue reschedule."; }
+      const due = jobs.filter(j => j.status === "queued" && Number.isFinite(j.run_at_timestamp) && j.run_at_timestamp * 1000 <= now).sort((a, b) => a.run_at_timestamp - b.run_at_timestamp);
+      let chosen = null;
+      for (const j of due) {
+        const kind = jobKind(j.post_type);
+        const occ = buildOccupancy(jobs, log, j.job_id);
+        const late = now - j.run_at_timestamp * 1000 > s.catchup_grace_minutes * 60000;
+        // Gap / daily cap check against what was really published (so manual posts count too).
+        const pubOcc = log.map(e => ({ at: e.at, kind: e.kind || "feed" }));
+        const blocked = late ? "missed while AntiGem was closed" : (chosen ? "one post per minute tick" : slotProblem(now, kind, pubOcc, { ...s, max_horizon_days: SAFETY_HARD.max_horizon_days }));
+        if (!blocked && !chosen) { chosen = j; continue; }
+        if (blocked === "one post per minute tick") continue;
+        const at = nextSafeSlot(now + 5 * 60000, kind, occ, s);
+        if (at) { j.run_at_timestamp = Math.floor(at / 1000); j.last_note = `Moved to ${new Date(at).toLocaleString()} (${blocked}).`; j.moved = (j.moved || 0) + 1; }
+        else { j.status = "needs_review"; j.last_note = `No safe slot left (${blocked}).`; }
+      }
+      if (chosen) { chosen.status = "running"; chosen.started_at = now; chosen.attempts = (chosen.attempts || 0) + 1; }
+      return chosen ? { ...chosen } : null;
+    });
+    if (!pick) return;
+
+    const login = await checkFacebookLogin({ openIfMissing: true, activateOnLoginNeeded: true });
+    if (!login.logged_in || login.checkpoint_required) {
+      const reason = login.checkpoint_required ? "Facebook asked for a security check" : null;
+      await updateJobs(async jobs => { const j = jobs.find(x => x.job_id === pick.job_id); if (j) { j.status = "queued"; j.attempts = Math.max(0, (j.attempts || 1) - 1); j.last_note = reason || "Waiting for Facebook login in the AntiGem browser."; } });
+      if (reason) await pauseQueue(`${reason}. Solve it yourself in the AntiGem browser, then resume the queue.`, null, "restriction");
+      return;
+    }
+
+    let res;
+    try {
+      res = await dispatchProtectedBrowserTask("fb_publish", {
+        id: pick.post_id, title: pick.title, caption: pick.caption, hashtags: pick.hashtags,
+        thumbnail_path: pick.thumbnail_path || null, media_paths: pick.media_paths || [],
+        post_type: pick.post_type || "text", target_type: pick.target_type || "page", target_id: pick.target_id || null,
+        from_scheduler: true
+      });
+    } catch (e) { res = { success: false, error: e.message }; }
+
+    if (res && (res.in_flight_busy || res.safety_block)) {
+      await updateJobs(async jobs => { const j = jobs.find(x => x.job_id === pick.job_id); if (j) { j.status = "queued"; j.attempts = Math.max(0, (j.attempts || 1) - 1); j.run_at_timestamp = Math.floor((Date.now() + 10 * 60000) / 1000); j.last_note = res.error; } });
+      return;
+    }
+    if (res && res.success) {
+      await updateJobs(async jobs => { const j = jobs.find(x => x.job_id === pick.job_id); if (j) { j.status = "completed"; j.completed_at = Date.now(); j.result = { fb_post_id: res.fb_post_id, post_url: res.post_url }; } });
+      await setStorage({ fb_sched_failures: 0 });
+      return;
+    }
+    const restriction = await detectRestriction(res);
+    const failures = (st.fb_sched_failures || 0) + 1;
+    await updateJobs(async jobs => {
+      const j = jobs.find(x => x.job_id === pick.job_id); if (!j) return;
+      j.result = { error: res && res.error };
+      if (restriction) { j.status = "queued"; j.last_note = `Paused: ${restriction}`; j.run_at_timestamp = Math.floor((Date.now() + 24 * 3600000) / 1000); return; }
+      if (j.attempts < 2) { const at = nextSafeSlot(Date.now() + 45 * 60000, jobKind(j.post_type), buildOccupancy(jobs, log, j.job_id), s); if (at) { j.status = "queued"; j.run_at_timestamp = Math.floor(at / 1000); j.last_note = `Retry at ${new Date(at).toLocaleString()} after: ${res && res.error}`; return; } }
+      j.status = "failed"; j.completed_at = Date.now();
+    });
+    await setStorage({ fb_sched_failures: restriction ? 0 : failures });
+    if (restriction) await pauseQueue(`${restriction}. The queue stopped so the Page is not pushed further. Wait at least 24-48 hours, check Page Quality / Account Status in Meta Business Suite, then resume.`, null, "restriction");
+    else if (failures >= 3) await pauseQueue("3 posts failed in a row, so the queue paused for 6 hours.", Date.now() + 6 * 3600000, "failures");
+  } finally {
+    schedulerBusy = false;
   }
 }
 
@@ -3340,6 +3638,77 @@ if (chrome.alarms) {
       processDueScheduledJobs();
     }
   });
+}
+
+// Manual posts (fb_publish now) also count toward the Page's day, with hard ceilings nobody can raise.
+async function manualPublishGuard(kind, fromScheduler) {
+  if (fromScheduler) return null;
+  const st = await getStorage(["fb_queue_paused"]);
+  if (st.fb_queue_paused && st.fb_queue_paused.kind === "restriction") {
+    return { success: false, stop_loop: true, safety_block: true, error: `Posting is paused for account safety: ${st.fb_queue_paused.reason}`, agent_instruction: "Tell the user this in one sentence. Do not retry. Only the user can resume with fb_manage_queue action=resume after checking their Page." };
+  }
+  const log = await getPublishLog(), today = localDayKey(Date.now());
+  const todays = log.filter(e => localDayKey(e.at) === today);
+  const hardGapMin = 10;
+  if (kind === "story") {
+    if (todays.filter(e => e.kind === "story").length >= SAFETY_HARD.max_stories_per_day) return { success: false, stop_loop: true, safety_block: true, error: `Safety limit: ${SAFETY_HARD.max_stories_per_day} stories already posted today. Schedule it for tomorrow with fb_schedule.` };
+    return null;
+  }
+  if (todays.filter(e => e.kind !== "story").length >= SAFETY_HARD.max_posts_per_day) return { success: false, stop_loop: true, safety_block: true, error: `Safety limit: ${SAFETY_HARD.max_posts_per_day} posts already published today. More can look like spam to Meta, so schedule it with fb_schedule.` };
+  const last = log.filter(e => e.kind !== "story").map(e => e.at).sort((a, b) => b - a)[0];
+  if (last && Date.now() - last < hardGapMin * 60000) return { success: false, stop_loop: true, safety_block: true, error: `Safety pause: the last post went out ${Math.round((Date.now() - last) / 60000)} min ago. Posting again within ${hardGapMin} min looks like a burst to Meta; schedule it instead.` };
+  return null;
+}
+
+async function safetySettingsTool(args = {}) {
+  const action = String(args.action || "get").toLowerCase();
+  if (action === "reset") await setStorage({ fb_safety_settings: null });
+  else if (action === "set") {
+    const cur = (await getStorage(["fb_safety_settings"])).fb_safety_settings || {};
+    const next = { ...cur };
+    for (const k of Object.keys(SAFETY_DEFAULTS)) if (args[k] != null) next[k] = args[k];
+    await setStorage({ fb_safety_settings: clampSafety(next) });
+  }
+  const s = await getSafety();
+  return { success: true, settings: s, hard_limits: SAFETY_HARD, note: "Values beyond the hard limits are clamped: they cannot be loosened further, only made stricter." };
+}
+
+function scheduleList(jobs, limit = 20, statuses = ["queued", "awaiting_login", "running", "needs_review"]) {
+  return jobs
+    .filter(j => statuses.includes(j.status))
+    .sort((a, b) => (a.run_at_timestamp || 0) - (b.run_at_timestamp || 0))
+    .slice(0, limit)
+    .map(j => ({ job_id: j.job_id, post_type: j.post_type, title: j.title, run_at_local: new Date((j.run_at_timestamp || 0) * 1000).toLocaleString(), run_at_iso: new Date((j.run_at_timestamp || 0) * 1000).toISOString(), status: j.status, note: j.last_note || undefined, target_type: j.target_type, target_id: j.target_id }));
+}
+
+async function manageQueue(args = {}) {
+  const action = String(args.action || "list").toLowerCase();
+  const s = await getSafety();
+  const st = await getStorage(["fb_scheduled_jobs", "fb_queue_paused"]);
+  const jobs = Array.isArray(st.fb_scheduled_jobs) ? st.fb_scheduled_jobs : [];
+  const summary = () => {
+    const by = {}; for (const j of jobs) by[j.status] = (by[j.status] || 0) + 1;
+    const q = jobs.filter(j => j.status === "queued").map(j => j.run_at_timestamp).sort((a, b) => a - b);
+    return { counts: by, next_post_local: q.length ? new Date(q[0] * 1000).toLocaleString() : null, last_post_local: q.length ? new Date(q.at(-1) * 1000).toLocaleString() : null, paused: st.fb_queue_paused || null };
+  };
+  if (action === "list" || action === "status") return { success: true, ...summary(), upcoming: scheduleList(jobs, args.limit || 20), safety: s };
+  if (action === "pause") { await pauseQueue(args.reason || "Paused by the user.", null, "manual"); return { success: true, paused: true }; }
+  if (action === "resume") { await setStorage({ fb_queue_paused: null, fb_sched_failures: 0 }); return { success: true, paused: false, message: "Queue resumed. Overdue posts are spread out to the next safe slots, not posted at once." }; }
+  if (action === "cancel_all") { let n = 0; for (const j of jobs) if (j.status === "queued") { j.status = "cancelled"; n++; } await setStorage({ fb_scheduled_jobs: pruneJobs(jobs) }); return { success: true, cancelled: n }; }
+  const job = jobs.find(j => String(j.job_id) === String(args.job_id) || String(j.post_id) === String(args.job_id));
+  if (!job) return { success: false, error: `Scheduled job not found: ${args.job_id}`, upcoming: scheduleList(jobs, 10) };
+  if (action === "cancel") job.status = "cancelled";
+  else if (action === "reschedule" || action === "run_now") {
+    const asked = action === "run_now" ? Date.now() + 60000 : parseWhen({ schedule_time_iso: args.new_schedule_time_iso });
+    if (!asked || Number.isNaN(asked)) return { success: false, error: "new_schedule_time_iso must be an ISO date/time, e.g. 2026-11-22T09:00:00+05:30" };
+    const occ = buildOccupancy(jobs, await getPublishLog(), job.job_id), kind = jobKind(job.post_type);
+    const problem = slotProblem(Math.max(asked, Date.now() + 60000), kind, occ, s);
+    const at = problem ? nextSafeSlot(Math.max(asked, Date.now() + 60000), kind, occ, s) : Math.max(asked, Date.now() + 60000);
+    if (!at) return { success: false, error: "No safe slot available under the safety limits." };
+    job.run_at_timestamp = Math.floor(at / 1000); job.status = "queued"; job.attempts = 0; job.last_note = problem ? `Moved for safety: ${problem}` : undefined;
+  } else return { success: false, error: "action must be list, status, cancel, cancel_all, reschedule, run_now, pause or resume" };
+  await setStorage({ fb_scheduled_jobs: pruneJobs(jobs) });
+  return { success: true, action, job: scheduleList([job], 1, [job.status])[0], upcoming: scheduleList(jobs, 10) };
 }
 
 // ============================================================================
@@ -3790,34 +4159,6 @@ async function ensureActingAsPage(tabId, targetId) {
   return { page, switched };
 }
 
-function scheduleList(jobs, limit = 20) {
-  return jobs
-    .filter(j => ["queued", "awaiting_login", "running"].includes(j.status))
-    .sort((a, b) => (a.run_at_timestamp || 0) - (b.run_at_timestamp || 0))
-    .slice(0, limit)
-    .map(j => ({ job_id: j.job_id, post_type: j.post_type, title: j.title, run_at_iso: new Date((j.run_at_timestamp || 0) * 1000).toISOString(), status: j.status, target_type: j.target_type, target_id: j.target_id }));
-}
-
-async function manageQueue(args = {}) {
-  const action = String(args.action || "list").toLowerCase();
-  const store = await getStorage(["fb_scheduled_jobs"]);
-  const jobs = Array.isArray(store.fb_scheduled_jobs) ? store.fb_scheduled_jobs : [];
-  const find = () => jobs.find(j => String(j.job_id) === String(args.job_id) || String(j.post_id) === String(args.job_id));
-  if (action === "list") return { success: true, upcoming: scheduleList(jobs, args.limit || 20), total_queued: jobs.filter(j => j.status === "queued").length };
-  const job = find();
-  if (!job) return { success: false, error: `Scheduled job not found: ${args.job_id}`, upcoming: scheduleList(jobs, 10) };
-  if (action === "cancel") job.status = "cancelled";
-  else if (action === "reschedule") {
-    const t = Date.parse(args.new_schedule_time_iso || "");
-    if (!Number.isFinite(t)) return { success: false, error: "new_schedule_time_iso must be an ISO date/time, e.g. 2026-11-22T09:00:00+05:30" };
-    if (t < Date.now() + 60000) return { success: false, error: "New time must be at least 1 minute in the future." };
-    job.run_at_timestamp = Math.floor(t / 1000); job.status = "queued";
-  } else if (action === "run_now") { job.run_at_timestamp = Math.floor(Date.now() / 1000) - 1; job.status = "queued"; }
-  else return { success: false, error: "action must be list, cancel, reschedule or run_now" };
-  await setStorage({ fb_scheduled_jobs: jobs });
-  if (action === "run_now") processDueScheduledJobs().catch(() => {});
-  return { success: true, action, job: scheduleList([job], 1)[0] || { job_id: job.job_id, status: job.status }, upcoming: scheduleList(jobs, 10) };
-}
 
 const META_HOOKS = [
   t => `Nobody tells you this about ${t}.`,
@@ -4090,73 +4431,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return await dispatchProtectedBrowserTask(task.tool, { ...task.args, id: task.id });
       }
 
-      case "fb_schedule": {
-        const enriched = ensureTitleAndHashtags(args);
-        const mediaPaths = args.media_paths || [];
-        const dup = await checkDuplicate(enriched.caption, mediaPaths);
-        if (dup.isDuplicate) {
-          return { success: false, duplicate_detected: true, stop_loop: true, error: dup.reason };
-        }
-
-        const runAt =
-          typeof args.run_at_timestamp === "number"
-            ? args.run_at_timestamp
-            : Math.floor(new Date(args.run_at_timestamp).getTime() / 1000);
-
-        const jobId = `job_${Date.now()}`;
-        const postId = `sched_${Date.now()}`;
-        const store = await getStorage(["fb_scheduled_jobs"]);
-        const jobs = Array.isArray(store.fb_scheduled_jobs) ? store.fb_scheduled_jobs : [];
-
-        const newJob = {
-          job_id: jobId,
-          post_id: postId,
-          title: enriched.title,
-          caption: enriched.caption,
-          hashtags: enriched.hashtags,
-          thumbnail_path: args.thumbnail_path || null,
-          media_paths: mediaPaths,
-          post_type: args.post_type || (mediaPaths.length > 0 ? "photo" : "text"),
-          target_type: args.target_type || "page",
-          target_id: args.target_id || null,
-          run_at_timestamp: runAt,
-          status: "queued",
-          created_at: Date.now()
-        };
-        jobs.push(newJob);
-        await setStorage({ fb_scheduled_jobs: jobs });
-
-        await recordPostHistory({
-          id: postId,
-          post_type: newJob.post_type,
-          target_type: newJob.target_type,
-          title: newJob.title,
-          caption: newJob.caption,
-          hashtags: newJob.hashtags,
-          thumbnail_path: newJob.thumbnail_path,
-          media_paths: mediaPaths,
-          status: "scheduled",
-          run_at_timestamp: runAt
-        });
-
-        const delayMin = Math.max(0.5, (runAt * 1000 - Date.now()) / 60000);
-        if (chrome.alarms) {
-          chrome.alarms.create(`fb_job_${jobId}`, { delayInMinutes: delayMin });
-        }
-
-        return {
-          success: true,
-          status: "scheduled",
-          post_id: postId,
-          job_id: jobId,
-          title: newJob.title,
-          hashtags: newJob.hashtags,
-          thumbnail_path: newJob.thumbnail_path,
-          run_at_timestamp: runAt,
-          run_at_iso: new Date(runAt * 1000).toISOString(),
-          message: `Facebook ${newJob.post_type} scheduled for ${new Date(runAt * 1000).toLocaleString()} with title "${newJob.title}" and ${newJob.hashtags.length} hashtags.`
-        };
-      }
+      case "fb_schedule": return await scheduleOne(args);
+      case "fb_schedule_bulk": return await scheduleBulk(args);
+      case "fb_safety_settings": return await safetySettingsTool(args);
 
       case "fb_list_posts": {
         const limit = args.limit || 15;

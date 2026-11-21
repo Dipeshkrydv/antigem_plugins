@@ -1,7 +1,7 @@
 {
   "name": "antigem-plugins",
   "displayName": "Antigem Official Plugins",
-  "description": "Official Antigem plugins repository: 2D Video Editing Studio (v3.5.2), Facebook Automation & SEO Studio (v1.8.2), Meta Suite Page Management (v2.4.2), and DeepX Google Flow Studio (v1.2.1).",
+  "description": "Official Antigem plugins repository: 2D Video Editing Studio (v3.5.2), Facebook Automation & SEO Studio (v1.8.2), Meta Suite Page Management (v2.5.0), and DeepX Google Flow Studio (v1.2.1).",
   "owner": {
     "name": "Dipesh Kr Yadav",
     "url": "https://github.com/Dipeshkrydv"
@@ -59,8 +59,8 @@
       "name": "meta-suite-automation",
       "source": "./meta-suite-automation",
       "displayName": "Meta Suite Page Management",
-      "description": "Master Autonomous Meta Suite Production Engine (v2.4.2): Facebook Page management that really posts AS your Page (auto Page discovery + profile switch, default Page), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
-      "version": "2.4.2",
+      "description": "Master Autonomous Meta Suite Production Engine (v2.5.0): Bulk Safe Scheduler (fb_schedule_bulk: 1-500 posts, a week or month of content, auto-paced by the Page Safety Governor with daily caps, gaps, posting hours and auto-pause on any Meta warning), Facebook Page management that really posts AS your Page (auto Page discovery + profile switch, default Page), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
+      "version": "2.5.0",
       "logo": "assets/logo.png",
       "icon": "icon.png",
       "author": {
