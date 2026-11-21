@@ -3201,7 +3201,7 @@ async function dispatchProtectedBrowserTask(toolName, args) {
         return result;
       } catch (err) {
         await recordPostHistory({ id: recordId, post_type: postType, caption: args.caption || "", media_paths: mediaList, status: "failed", error_message: err.message, via: "meta_business_suite" });
-        const result = { success: false, stop_loop: true, error: err.message, via: "meta_business_suite", agent_instruction: "Report this to the user in one sentence. Do not retry automatically." };
+        const result = { success: false, stop_loop: true, error: err.message, via: "meta_business_suite", may_have_posted: !!err.submitted || undefined, agent_instruction: err.submitted ? "The final button WAS pressed: tell the user to check Business Suite > Content/Planner. NEVER retry (it could double-post)." : "Report this to the user in one sentence. Do not retry automatically." };
         bsJobs.set(jobId, { job_id: jobId, tool: toolName, status: "failed", started_at: startedAt, finished_at: Date.now(), result });
         return result;
       } finally { inFlightLock = null; }
@@ -3560,15 +3560,27 @@ async function scheduleOne(args) {
   job.delivery = chooseDelivery(await getMetaConn(), job, args.delivery);
   if (args.delivery !== "device" && job.delivery !== "meta" && asked && asked >= Date.now() + 15 * 60000 && asked <= Date.now() + 29 * 86400000 && String(job.target_type || "page") !== "profile") {
     // Hand it straight to Business Suite's own scheduler (shows in Planner; AntiGem need not stay open).
-    try {
-      const r = await self.MetaBS.bsPublish(job.post_type === "story" ? "story" : (job.post_type === "reel" || job.post_type === "video") ? "reel" : "post", { ...args, title: job.title, caption: job.caption, hashtags: job.hashtags, media_paths: job.media_paths, thumbnail_path: job.thumbnail_path, schedule_ms: asked });
-      job.delivery = "business_suite"; job.status = "scheduled_on_meta"; job.run_at_timestamp = Math.floor(asked / 1000); job.result = r;
-      jobs.push(job); await setStorage({ fb_scheduled_jobs: pruneJobs(jobs) });
-      await recordDedupe(job.caption, job.media_paths, job.post_id);
-      return { ...r, job_id: job.job_id, delivery: "business_suite", run_at_local: new Date(asked).toLocaleString(), message: `Scheduled in Meta Business Suite for ${new Date(asked).toLocaleString()} (see Business Suite > Planner).` };
-    } catch (e) {
-      return { success: false, stop_loop: true, error: e.message, agent_instruction: "Tell the user this in one sentence. Do not retry automatically." };
-    }
+    const bsId = `bs_${Date.now().toString(36)}`; const startedAt = Date.now();
+    bsJobs.set(bsId, { job_id: bsId, tool: "fb_schedule", status: "running", started_at: startedAt });
+    const p = (async () => {
+      try {
+        const r = await self.MetaBS.bsPublish(job.post_type === "story" ? "story" : (job.post_type === "reel" || job.post_type === "video") ? "reel" : "post", { ...args, title: job.title, caption: job.caption, hashtags: job.hashtags, media_paths: job.media_paths, thumbnail_path: job.thumbnail_path, schedule_ms: asked });
+        if (r && r.dry_run) { bsJobs.set(bsId, { job_id: bsId, tool: "fb_schedule", status: "done", started_at: startedAt, finished_at: Date.now(), result: r }); return r; }
+        job.delivery = "business_suite"; job.status = "scheduled_on_meta"; job.run_at_timestamp = Math.floor(asked / 1000); job.result = r;
+        const st2 = await getStorage(["fb_scheduled_jobs"]); const list = Array.isArray(st2.fb_scheduled_jobs) ? st2.fb_scheduled_jobs : [];
+        list.push(job); await setStorage({ fb_scheduled_jobs: pruneJobs(list) });
+        await recordDedupe(job.caption, job.media_paths, job.post_id);
+        const out = { ...r, schedule_job_id: job.job_id, delivery: "business_suite", run_at_local: new Date(asked).toLocaleString(), message: `Scheduled in Meta Business Suite for ${new Date(asked).toLocaleString()} (see Business Suite > Planner).` };
+        bsJobs.set(bsId, { job_id: bsId, tool: "fb_schedule", status: "done", started_at: startedAt, finished_at: Date.now(), result: out });
+        return out;
+      } catch (e) {
+        const out = { success: false, stop_loop: true, error: e.message, may_have_posted: !!e.submitted || undefined, agent_instruction: "Tell the user this in one sentence. Do not retry automatically." };
+        bsJobs.set(bsId, { job_id: bsId, tool: "fb_schedule", status: "failed", started_at: startedAt, finished_at: Date.now(), result: out });
+        return out;
+      }
+    })();
+    const quick = await Promise.race([p, sleep(40000).then(() => null)]);
+    return quick ? { job_id: bsId, ...quick } : { success: true, status: "running", job_id: bsId, agent_instruction: "Poll fb_publish_status {job_id, wait_seconds: 50} until done. Do not stop before that." };
   }
   const occ = buildOccupancy(jobs, await getPublishLog());
   const from = Math.max(asked || 0, Date.now() + (job.delivery === "meta" ? META_MIN_LEAD_MIN + 5 : 10) * 60000);

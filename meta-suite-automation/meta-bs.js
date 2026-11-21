@@ -554,11 +554,14 @@ async function bsSetToggle(tabId, labelRe, want) {
 
 async function bsWaitDone(tabId, startPath, timeoutMs = 90000) {
   return await bsWaitFor(tabId, (p) => {
-    const txt = document.body.innerText;
-    const err = /(couldn['’]t|could not|can['’]t|unable to) (be )?(publish|share|schedule|post)|something went wrong|try again/i.exec(txt);
-    if (err && document.querySelector('[role="dialog"],[role="alert"]')) return { ok: true, error: err[0] };
+    const vis = e => e.getBoundingClientRect().width > 2;
+    // Only read messages Business Suite raises AFTER the click: dialogs, alerts, toasts. Never the whole page
+    // (composer help texts mention "publish"/"published" and would give false results).
+    const boxes = [...document.querySelectorAll('[role="dialog"],[role="alert"],[role="alertdialog"],[role="status"],[aria-live]')].filter(vis).map(e => e.innerText || "").join("\n");
+    const err = /(couldn['’]t|could not|can['’]t|unable to|failed to) (be )?(publish|share|schedule|post|upload)[^\n]{0,80}|something went wrong[^\n]{0,60}/i.exec(boxes);
+    if (err) return { ok: true, error: err[0] };
     const left = !location.pathname.startsWith(p);
-    const toast = /(post|reel|story|video)[^.\n]{0,40}(published|scheduled|shared|is being published|will be published)/i.exec(txt);
+    const toast = /(post|reel|story|video)[^.\n]{0,40}(was |has been |is )?(published|scheduled|shared)/i.exec(boxes);
     return left || toast ? { ok: true, left, toast: toast && toast[0] } : null;
   }, [startPath], timeoutMs, 1000);
 }
@@ -645,8 +648,9 @@ async function bsPublish(kind, args = {}) {
     }
     steps.push("submitted");
     const done = await bsWaitDone(tabId, startPath, kind === "post" ? 90000 : 180000);
-    if (done && done.error) throw new Error(`Business Suite reported: ${done.error}`);
-    if (!done) throw new Error("Pressed the final button but Business Suite did not confirm. Check Business Suite > Content/Planner before retrying.");
+    const after = (msg) => { const e = new Error(msg); e.submitted = true; return e; };
+    if (done && done.error) throw after(`Business Suite reported: ${done.error}`);
+    if (!done) throw after("Pressed the final button but Business Suite did not confirm. It may still have posted: check Business Suite > Content/Planner before retrying.");
     return {
       success: true, via: "meta_business_suite", kind, status: when ? "scheduled" : "published",
       scheduled_for: when ? new Date(when).toLocaleString() : undefined, schedule_fields: sched || undefined,
@@ -704,12 +708,13 @@ async function bsRunBatch(items, timing, onProgress) {
       const when = times[i];
       const args = { ...it, schedule_ms: when || undefined, media_paths: it.media_paths || (it.video_path ? [it.video_path] : it.media_path ? [it.media_path] : []) };
       let r = null, lastErr = null;
-      for (let attempt = 1; attempt <= 3 && !(r && r.success); attempt++) {
-        try { r = await bsPublish(kind, args); } catch (e) { lastErr = e.message; r = null; await BS_W(2000 * attempt); }
+      let submitted = false;
+      for (let attempt = 1; attempt <= 3 && !(r && r.success) && !submitted; attempt++) {
+        try { r = await bsPublish(kind, args); } catch (e) { lastErr = e.message; r = null; submitted = !!e.submitted; if (!submitted) await BS_W(2000 * attempt); }
       }
       const row = r && r.success
         ? { index: i + 1, ok: true, kind: r.kind, status: r.status, scheduled_for: r.scheduled_for, thumbnail: r.thumbnail && r.thumbnail.status, ms: r.ms }
-        : { index: i + 1, ok: false, error: lastErr || (r && r.error) || "unknown error" };
+        : { index: i + 1, ok: false, error: lastErr || (r && r.error) || "unknown error", may_have_posted: submitted || undefined };
       results.push(row);
       if (onProgress) await onProgress(results, items.length);
       // "now" mode: publishing back-to-back is fine for the composer, keep a short human pause.
