@@ -481,14 +481,18 @@ async function bsSetEditorState(tabId, text) {
     document.querySelectorAll("[data-ag-cap]").forEach(e => e.removeAttribute("data-ag-cap"));
     ed.setAttribute("data-ag-cap", "1");
     const fk = Object.keys(ed).find(k => k.startsWith("__reactFiber"));
-    let f = fk && ed[fk], p = null;
-    for (let i = 0; i < 40 && f; i++) { const mp = f.memoizedProps || {}; if (mp.editorState && mp.editorState.getCurrentContent && typeof mp.onChange === "function") { p = mp; break; } f = f.return; }
+    // Use the HIGHEST component that owns editorState + onChange (MentionsInput), so the composer store hears it.
+    let f = fk && ed[fk], p = null, lvl = -1;
+    for (let i = 0; i < 40 && f; i++) { const mp = f.memoizedProps || {}; if (mp.editorState && mp.editorState.getCurrentContent && typeof mp.onChange === "function") { p = mp; lvl = i; } f = f.return; }
     if (!p) return { ok: false, why: "no editorState" };
     const ES = p.editorState.constructor, CS = p.editorState.getCurrentContent().constructor;
     if (!ES.push || !CS.createFromText) return { ok: false, why: "no draft api" };
+    ed.focus();
     const ns = ES.push(p.editorState, CS.createFromText(t), "insert-characters");
     p.onChange(ES.moveFocusToEnd ? ES.moveFocusToEnd(ns) : ns);
-    return { ok: true };
+    // Commit like a person leaving the box (many Meta composers save the text on blur).
+    setTimeout(() => { try { if (typeof p.onBlur === "function") p.onBlur({ target: ed, currentTarget: ed, relatedTarget: null, preventDefault() {}, stopPropagation() {} }); } catch (_) {} try { ed.blur(); } catch (_) {} }, 250);
+    return { ok: true, level: lvl };
   }, [text]).catch(e => ({ ok: false, why: e.message }));
 }
 async function bsReadEditorState(tabId) {
@@ -496,14 +500,19 @@ async function bsReadEditorState(tabId) {
     const eds = [...document.querySelectorAll('[contenteditable="true"]')].filter(e => e.getBoundingClientRect().width > 50 && !e.closest('[role="dialog"]') && !e.closest('[aria-hidden="true"]'));
     const ed = document.querySelector("[data-ag-cap]") || eds.find(e => /dialogue box|text with your post|describe|description|what your reel/i.test(e.getAttribute("aria-label") || "")) || eds[0];
     if (!ed) return null;
-    const fk = Object.keys(ed).find(k => k.startsWith("__reactFiber")); let f = fk && ed[fk];
-    for (let i = 0; i < 40 && f; i++) { const mp = f.memoizedProps || {}; if (mp.editorState && mp.editorState.getCurrentContent) return mp.editorState.getCurrentContent().getPlainText(); f = f.return; }
-    return null;
+    const fk = Object.keys(ed).find(k => k.startsWith("__reactFiber")); let f = fk && ed[fk], txt = null;
+    for (let i = 0; i < 40 && f; i++) { const mp = f.memoizedProps || {}; if (mp.editorState && mp.editorState.getCurrentContent) txt = mp.editorState.getCurrentContent().getPlainText(); f = f.return; }
+    return txt;
   }).catch(() => null);
 }
 async function bsWriteCaption(tabId, text, dbg, kind) {
   if (!text) return { ok: true, skipped: true };
   const norm = x => String(x || "").replace(/[​-‍﻿]/g, "").replace(/\s+/g, " ").trim();
+  if (kind === "post") {
+    // Post composer: one paste, verified in the live Feed preview (proven fastest path).
+    const r0 = await bsSetCaption(tabId, text, dbg).catch(e => ({ ok: false, error: e.message }));
+    if (r0.ok) return r0;
+  }
   for (let attempt = 1; attempt <= 6; attempt++) {
     const r = await bsSetEditorState(tabId, text);
     if (!r.ok) { console.log("[meta-bs] editor_state set failed", r.why); await BS_W(700); continue; }
@@ -516,8 +525,8 @@ async function bsWriteCaption(tabId, text, dbg, kind) {
     }
     console.log("[meta-bs] editor_state not kept, retry", attempt);
   }
-  // Fallbacks (older Business Suite builds)
-  return kind === "post" ? await bsSetCaption(tabId, text, dbg) : await bsTypeCaption(tabId, text, dbg);
+  if (kind === "post") throw new Error("Caption could not be written into the Business Suite post box.");
+  return await bsTypeCaption(tabId, text, dbg);
 }
 
 function bsSchedParts(ms) {
