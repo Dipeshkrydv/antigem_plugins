@@ -4132,7 +4132,12 @@ async function metaConnect(args = {}) {
   const def = args.default_page || conn.default_page_id;
   const defPage = pages.find(p => p.id === def || String(p.name).toLowerCase() === String(def || "").toLowerCase()) || pages[0];
   await setStorage({ fb_meta_conn: { pages, default_page_id: defPage.id, long_lived: longLived, connected_at: Date.now(), token_error: null, backoff_until: 0 } });
+  // Only Page tokens are kept (no user token, no app secret). Wipe the credentials file so the secret does not stay on disk.
+  let wiped = false;
+  if (args.credentials_file && args.wipe_credentials_file !== false) { try { await chrome.antigem.writeFile({ path: args.credentials_file, data: "" }); wiped = true; } catch (_) {} }
   return {
+    credentials_file_wiped: wiped,
+    stored: "Only Page access tokens for the listed Pages (no user token, no app secret).",
     success: true, pages: maskPages(pages), default_page: { id: defPage.id, name: defPage.name }, long_lived: longLived,
     note: longLived || pageToken ? "Connected. Scheduled posts now go to Meta's own scheduler (Business Suite > Planner)." : "Connected with a short-lived token (about 1 hour). Posts already handed to Meta still publish, but add app_id + app_secret for a token that does not expire.",
     agent_instruction: "Tell the user it is connected and which Page is the default, in one or two sentences. Never repeat any token."
@@ -4166,7 +4171,8 @@ const META_SETUP_GUIDE = [
   "1. Open developers.facebook.com > My Apps > Create App > choose 'Business'. Any name.",
   "2. Tools > Graph API Explorer > pick your app > 'Get Token' > 'Get User Access Token'. Tick pages_show_list, pages_read_engagement, pages_manage_posts (and business_management if the Page is in a Business portfolio). Generate and allow it for your Page.",
   "3. App settings > Basic: copy the App ID and App Secret.",
-  "4. Safest: save them in a file such as ~/meta-credentials.json as {\"user_access_token\":\"...\",\"app_id\":\"...\",\"app_secret\":\"...\"} and give only the file path to fb_meta_connect {credentials_file}. The app secret is used once and is not stored.",
+  "4. Save them in a file such as ~/meta-credentials.json as {\"user_access_token\":\"...\",\"app_id\":\"...\",\"app_secret\":\"...\"} and give only the file path to fb_meta_connect {credentials_file}. The app secret is used once, the file is wiped after connecting, and only Page tokens are kept.",
+  "No app secret option: in Graph API Explorer run GET me/accounts with your user token after extending it in the Access Token Debugger (developers.facebook.com/tools/debug/accesstoken > Extend Access Token), copy your Page's access_token, and save just {\"page_access_token\":\"...\"} in the file.",
   "Tokens can be revoked any time in Facebook Settings > Business integrations."
 ].join("\n");
 

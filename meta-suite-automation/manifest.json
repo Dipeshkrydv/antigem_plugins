@@ -654,7 +654,7 @@
     },
     {
       "name": "fb_meta_connect",
-      "description": "One-time connection to Meta's official scheduler (Graph API, the system behind Business Suite > Planner) so scheduled Page posts are published by Meta itself, with no browser automation. Best: credentials_file = path of a local JSON file {user_access_token, app_id, app_secret} (secret used once, not stored). Or pass user_access_token (+ app_id/app_secret for a non-expiring token) or page_access_token. Returns setup steps if nothing is given. Never echo tokens.",
+      "description": "One-time connection to Meta's official scheduler (Graph API, the system behind Business Suite > Planner) so scheduled Page posts are published by Meta itself, with no browser automation. Best: credentials_file = path of a local JSON file {user_access_token, app_id, app_secret} (secret used once and never stored; the file is wiped after connecting; only Page tokens are kept). Or pass user_access_token (+ app_id/app_secret for a non-expiring token) or page_access_token. Returns setup steps if nothing is given. Never echo tokens.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -676,6 +676,11 @@
           "default_page": {
             "type": "string",
             "description": "Page id or name to use when a post has no target_id."
+          },
+          "wipe_credentials_file": {
+            "type": "boolean",
+            "default": true,
+            "description": "Empty the credentials file after a successful connection (default true)."
           }
         }
       }
