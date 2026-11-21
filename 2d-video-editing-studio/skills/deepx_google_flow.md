@@ -1,7 +1,7 @@
 ---
 name: deepx_google_flow
-description: "DeepX Google Flow Studio (v1.0.0): generate images and videos on Google Flow from chat with zero setup. Before every generation ask ONE question — Agent Mode or Standard mode (without Agent) — then call deepx_generate instantly. Agent Mode splits >24 prompts into parts of ≤24 pasted back-to-back with 100% autopilot. Standard mode auto-switches to Agent Mode when Google shows an 'unusual activity / extension' error. Use for any image, video, storyboard, bulk batch, character, reference, upscale or 'DeepX' / 'Google Flow' / 'Nano Banana' / 'Veo' / 'Omni' request."
-version: 1.0.0
+description: "DeepX Google Flow Studio & DeepX MCP (v1.2.2): generate images and videos on Google Flow from chat with zero setup. Supports instant 11ms MCP tool execution, Google Flow Agent panel recognition, and 100% user script fidelity. Before every generation ask ONE question — Agent Mode or Standard mode (without Agent) — then call deepx_generate instantly. Agent Mode splits >24 prompts into parts of ≤24 pasted back-to-back with 100% autopilot. Standard mode auto-switches to Agent Mode when Google shows an 'unusual activity / extension' error. Use for any image, video, storyboard, bulk batch, character, reference, asset search, upscale or 'DeepX' / 'Google Flow' / 'deepx mcp' / 'deepx-mcp' / 'Nano Banana' / 'Veo' / 'Omni' request."
+version: 1.2.2
 ---
 
 # DeepX Google Flow Studio — Instant Production Playbook
@@ -22,7 +22,7 @@ You are a fast production operator. The plugin already contains every DeepX feat
 Rules:
 - Ask the mode question **before each new generation request**, unless the user already said it in this request ("use agent mode", "without agent", "standard").
 - If you call `deepx_generate` without `generation_mode`, it generates nothing and returns `ASK_GENERATION_MODE`. Ask that question, then call again.
-- `deepx_generate` checks the Google login itself (`LOGIN_REQUIRED` → tell the user to sign in in the Flow tab and stop). No separate status call is needed.
+- `deepx_generate` checks the Google login itself. If it returns `LOGIN_REQUIRED`, tell the user its one message (sign in to Google in the Flow tab of the AntiGem browser) and stop until they reply. If signed in, it continues straight into generation. No separate status call is needed.
 - Pass the user's prompts **verbatim**. Never rewrite the story, rename characters or drop items. Only add style details if the user asked for creative help.
 - One `deepx_generate` call per request. Put all prompts in `prompts` (any count). Do **not** loop over single calls.
 
@@ -40,7 +40,7 @@ Rules:
 | Consistent characters | Mention `@handles` in prompts; Standard: `references:[...]`; Agent: `style_lock` / `character_names` |
 
 ## 🤖 2. Agent Mode (what happens automatically)
-- Switches the canvas pill to **Agent**, sets **Confirm before generating: Never**, sets the default model/ratio, and syncs the **DeepX Master Autopilot Director** instructions (or `custom_instructions`).
+- Flips the **Agent spark switch** in the prompt box (next to the generate button; older canvases: the Agent pill), sets **Confirm before generating: Never**, sets the default model/ratio, and syncs the **DeepX Master Autopilot Director** instructions (or `custom_instructions`).
 - **More than 24 prompts → split into parts of ≤24** (e.g. 100 → 24+24+24+24+4). Each part is pasted, sent with a trusted touch, auto-approved ("Always approve in project"). Flow Agent questions ("I can only do 24…", "Should I start?") are answered automatically, and the next part goes in as soon as the agent is idle.
 - Returns a job: `total_parts`, `parts[]` (status per part), `approvals`, `media_ids` (new media in the project). Big jobs take minutes: keep polling `deepx_job_status`.
 Details: read `agent-mode.md` in this skill's folder.
@@ -55,10 +55,15 @@ Details: `standard-mode.md`.
 - Characters: `deepx_generate_character`, `deepx_upload_character`, `deepx_list_characters`, `deepx_rename_character`, `deepx_auto_character_pipeline`
 - References & chaining: `deepx_upload_asset`, `deepx_attach_references_batch`, `deepx_auto_chain_scene`, `deepx_extract_last_frame`, `flow_combine_videos`
 - Project & media: `deepx_open_new_project`, `deepx_rename_project`, `flow_list_media`, `flow_get_last_media`, `deepx_download_media`, `deepx_upscale_media`
-- Agent controls: `deepx_flow_agent_status|toggle|configure|set_instructions|approve_all|dispatch|batch_queue`
+- Agent controls: `deepx_flow_agent_status|toggle|configure|set_instructions|approve_all|open_chat|dispatch|batch_queue`
+- Search: `deepx_search_assets` (exact + similar results)
 - Jobs: `deepx_job_status`, `deepx_cancel_job`
 - Knowledge: `deepx_get_options` (models, limits, prompt craft). Full list: `tools.md`.
 - Trouble only: `deepx_status` once, then `deepx_doctor`.
+
+## 🔎 4b. Find assets in a project (Flow semantic search)
+- `deepx_search_assets {query}`: search the current Flow project by name, prompt words, **or by describing what the asset looks like or is about** ("red car at sunset", "moody blue close-up").
+- Returns `exact` (name / prompt / metadata matches, shown first) and `similar` (Flow matches on the image or video content: color, subject, mood). Use the returned `id`s with references, chaining, download or upscale tools.
 
 ## 🔑 5. Sign-in & errors (zero loops)
 - If a tool says Google Flow is not signed in, tell the user once: *"Please sign in to Google in the Flow tab that just opened in the AntiGem browser, then say continue."* Stop and wait.

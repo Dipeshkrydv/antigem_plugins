@@ -1628,7 +1628,7 @@ __m['deepx-agent'] = (function () {
 // 24-item back-to-back batch queue. Page DOM work lives in deepx-agent-page.js (MAIN world).
 
 const AGENT_MAX_PER_PART = 24;
-const AGENT_PAGE_VERSION = 4;
+const AGENT_PAGE_VERSION = 5;
 
 const DEFAULT_MASTER_AGENT_INSTRUCTIONS =
 `DEEPX MASTER AUTOPILOT & VISUAL CONSISTENCY MANDATE:

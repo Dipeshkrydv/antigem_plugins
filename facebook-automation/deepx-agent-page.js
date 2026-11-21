@@ -1,8 +1,19 @@
 // DeepX Agent Mode page helper (MAIN world). Ported from the DeepX Chrome extension
 // (service-worker.js agent functions + content-script-isolated.js autopilot watcher).
 // Injected lazily by deepx-agent.js through chrome.scripting.executeScript({files}).
+//
+// Flow UI map (Google help "Use the Google Flow Agent", support.google.com/flow/answer/17093911, Nov 2026):
+//   Agent on/off ........ prompt box -> "Agent" (select again to turn off; prompt box changes when on)
+//   Full chat ........... prompt box -> "Expand" -> expanded Agent side panel
+//   Sessions ............ expanded side panel -> top "Menu" -> "Create a new session" / select / More > Rename|Delete
+//   Agent Instructions .. bottom of prompt box -> "Agent Instructions" -> "Add instruction" -> "Done"
+//   Settings ............ bottom of prompt box -> "Settings" (icon labelled "Options")
+//       Confirm before generating: Always | Never
+//       Image generation: default aspect ratio, number of outputs, image model
+//       Video generation: default orientation, number of outputs, video model
+//   References .......... bottom of prompt box -> "Add" (or drag assets into the prompt box)
 (function () {
-  var VERSION = 4; // v4: Flow Nov-2026 UI (spark switch in prompt box, compact replies, semantic asset search)
+  var VERSION = 5; // v5: Google help-page locations (Agent button, Expand, Settings/Options, Image/Video sections, Sessions)
   if (window.__deepxAgent && window.__deepxAgent.v === VERSION) return;
 
   var BLOCK_RE = /unusual (?:activity|traffic|behaviou?r|request|usage)|suspicious (?:activity|traffic|request)|automated (?:queries|requests|traffic|software|access)|(?:browser )?extensions? (?:is|are|may be|might be)? ?(?:interfering|blocking|not (?:allowed|supported))|unsupported (?:browser|extension)|disable (?:your |any )?(?:browser )?extensions?|verify (?:that )?(?:you(?:'|’)re|you are) (?:a )?human|not a robot|re-?captcha|captcha (?:failed|required|verification)|couldn(?:'|’)t verify|PUBLIC_ERROR_UNUSUAL|UNUSUAL_ACTIVITY|PERMISSION_DENIED|request (?:was )?blocked by google/i;
@@ -51,7 +62,50 @@
     return out.toLowerCase();
   }
   function promptRoot() {
-    return document.querySelector('flow-prompt-box, flow-base-prompt-box, .agent-prompt-box, div.prompt-box') || (promptBox() && promptBox().closest('form, [class*="prompt-box"], [class*="composer"]'));
+    var direct = document.querySelector('.agent-panel-prompt-box, flow-prompt-box, flow-base-prompt-box, flow-agent-prompt-box, .agent-prompt-box, div.prompt-box');
+    if (direct && shown(direct)) return direct;
+    if (direct) return direct;
+    var pb = promptBox();
+    return pb ? pb.closest('form, [class*="prompt-box"], [class*="composer"]') : null;
+  }
+  // Text the user sees on a control, without Material icon ligature names ("tune", "spark", ...)
+  function visibleText(el) {
+    var t = norm(el.innerText || el.textContent);
+    var ics = el.querySelectorAll ? el.querySelectorAll('mat-icon, .material-symbols-outlined, .material-symbols-rounded, .google-symbols, i') : [];
+    for (var i = 0; i < ics.length; i++) { var it = norm(ics[i].textContent); if (it) t = t.replace(it, ' '); }
+    return norm(t);
+  }
+  function ariaOf(el) {
+    return norm(el.getAttribute('aria-label') || el.getAttribute('mattooltip') || el.getAttribute('data-tooltip') || el.getAttribute('title') || '');
+  }
+  // Find a control by its label (aria-label / tooltip / visible text) or icon, searching the prompt box first.
+  function findControl(labelRe, iconRe, root) {
+    var scopes = root ? [root] : [promptRoot(), document];
+    for (var s = 0; s < scopes.length; s++) {
+      if (!scopes[s]) continue;
+      var list = scopes[s].querySelectorAll("button, [role='button'], [role='switch'], a[role='menuitem'], mat-chip, mat-chip-option");
+      var byIcon = null;
+      for (var i = 0; i < list.length; i++) {
+        var b = list[i];
+        if (!shown(b)) continue;
+        if (labelRe && (labelRe.test(ariaOf(b)) || labelRe.test(visibleText(b)))) return b;
+        if (!byIcon && iconRe && iconRe.test(iconText(b).trim())) byIcon = b;
+      }
+      if (byIcon) return byIcon;
+    }
+    return null;
+  }
+  // Smallest visible overlay/panel whose text matches re (settings, instructions, side panel).
+  function containerWithText(re) {
+    var list = document.querySelectorAll(".cdk-overlay-pane, mat-dialog-container, [role='dialog'], aside, flow-agent-panel, flow-agent-settings, flow-agent-side-panel, [class*='side-panel'], [class*='settings'], [class*='instructions'], [class*='panel']");
+    var best = null, bestLen = Infinity;
+    for (var i = 0; i < list.length; i++) {
+      var el = list[i];
+      if (!shown(el)) continue;
+      var t = el.innerText || '';
+      if (re.test(t) && t.length < bestLen) { best = el; bestLen = t.length; }
+    }
+    return best;
   }
   function sparkSwitch() {
     var roots = [promptRoot(), document];
@@ -85,7 +139,18 @@
     }
     return null;
   }
+  // Current location (Google help, Nov 2026): a control labelled "Agent" inside the prompt box.
+  // Must NOT match "Agent Instructions" / "Agent settings", hence the anchored regex.
+  var AGENT_LABEL_RE = /^(agent|agent mode|flow agent|google flow agent|turn (on|off) (the )?agent)$/i;
+  function agentButton() {
+    var root = promptRoot();
+    var b = root && findControl(AGENT_LABEL_RE, null, root);
+    if (b) return b.matches("button, [role='switch'], [role='button']") ? b : (b.querySelector("button, [role='switch']") || b);
+    return null;
+  }
   function agentPill() {
+    var ab = agentButton();
+    if (ab) return ab;
     var sw = sparkSwitch();
     if (sw) return sw;
     var direct = document.querySelector('button.agent-mode-chip, button.agent-chip');
@@ -110,34 +175,80 @@
     if (box && box.checked) return true;
     if (/mat-mdc-slide-toggle-checked|mat-checked|mdc-switch--selected|mdc-switch--checked/.test(cls + ' ' + hostCls)) return true;
     if (/(^|\s)(on|checked|is-on|agent-on|toggle-on)(\s|$)/.test(cls)) return true;
-    return sel === 'true' || cls.indexOf('agent-mode-chip-checked') >= 0 || /(^|\s)(active|selected)(\s|$)/.test(cls) || cls.indexOf('mat-mdc-tab-active') >= 0;
+    if (sel === 'true' || cls.indexOf('agent-mode-chip-checked') >= 0 || /(^|\s)(active|selected)(\s|$)/.test(cls) || cls.indexOf('mat-mdc-tab-active') >= 0) return true;
+    if (sel === 'false') return false;
+    // Help page: "the prompt box changes when Agent is on" -> the Agent-only controls appear.
+    return !!(instructionsButton() || document.querySelector('flow-agent-prompt-box, .agent-prompt-box'));
+  }
+  function isAgentPanelOpen() {
+    var p = document.querySelector('.agent-panel-animation-container, .agent-panel-wrapper, flow-agent-side-panel, flow-agent-chat, .agent-side-panel, [class*="agent-panel"], [class*="agent-chat"]');
+    return !!(p && (p.offsetWidth > 0 || p.offsetHeight > 0));
+  }
+  function agentActive() {
+    if (isAgentPanelOpen()) return true;
+    return pillActive(agentPill());
   }
   function status() {
+    var panelOpen = isAgentPanelOpen();
     var p = agentPill();
+    var cr = compactReply();
+    var isFound = !!p || panelOpen;
+    var isActive = panelOpen || pillActive(p);
     return {
-      found: !!p,
-      active: pillActive(p),
-      label: p ? norm(p.getAttribute('aria-label') || p.innerText || 'Agent') : null,
-      control: p ? (sparkSwitch() === p ? 'spark_switch' : 'agent_pill') : null,
-      compact_reply: compactReply() ? norm(compactReply().innerText).slice(0, 300) : null,
-      full_chat_open: !!document.querySelector('flow-agent-chat, flow-agent-panel flow-agent-chat-message, .agent-side-panel'),
+      found: isFound,
+      active: isActive,
+      label: panelOpen ? 'Google Flow Agent (Side Panel Active)' : (p ? norm(ariaOf(p) || visibleText(p) || 'Agent') : null),
+      control: panelOpen ? 'agent_panel' : (p ? (agentButton() === p ? 'agent_button' : sparkSwitch() === p ? 'spark_switch' : 'agent_pill') : null),
+      location: panelOpen ? 'agent side panel (open)' : 'prompt box -> "Agent"',
+      compact_reply: cr ? norm(cr.innerText).slice(0, 300) : null,
+      full_chat_open: panelOpen || fullChatOpen(),
+      expand_button: !!expandButton(),
       instructions_button: !!instructionsButton(),
+      settings_button: !!settingsButton(),
       prompt_box: !!promptBox(),
       busy: busy().isBusy,
       url: location.href
     };
   }
   async function setAgent(desired) {
+    var panelOpen = isAgentPanelOpen();
     var p = agentPill();
-    if (!p) return { success: false, found: false, error: 'Google Flow Agent switch (spark icon in the prompt box) not found on this canvas. Open a project canvas first.' };
-    var before = pillActive(p);
+    var before = panelOpen || pillActive(p);
     var want = desired == null ? !before : !!desired;
-    if (before !== want) {
-      mdcClick(p);
-      for (var i = 0; i < 25 && pillActive(agentPill()) !== want; i++) await sleep(60);
+
+    if (before === want) {
+      return { success: true, found: true, active: before, changed: false };
     }
-    var now = pillActive(agentPill());
-    return { success: now === want, found: true, active: now, changed: before !== now };
+
+    if (!want && panelOpen) {
+      // Close the agent side panel via the header close button (right_panel_close or aria-label="Close")
+      var header = document.querySelector('.agent-panel-header, flow-agent-side-panel, .agent-side-panel');
+      var closeBtn = header && (header.querySelector('button[aria-label="Close"], button[aria-label*="close" i]') ||
+        Array.prototype.find.call(header.querySelectorAll('button'), function(b) {
+          return /right_panel_close|close/i.test(iconText(b));
+        }));
+      if (closeBtn) {
+        mdcClick(closeBtn);
+        for (var i = 0; i < 30 && isAgentPanelOpen(); i++) await sleep(60);
+      }
+    } else if (want && !panelOpen) {
+      if (p) {
+        mdcClick(p);
+        for (var i = 0; i < 30 && !agentActive(); i++) await sleep(60);
+      } else {
+        var exp = expandButton();
+        if (exp) {
+          mdcClick(exp);
+          for (var i = 0; i < 30 && !agentActive(); i++) await sleep(60);
+        }
+      }
+    } else if (p) {
+      mdcClick(p);
+      for (var i = 0; i < 30 && agentActive() !== want; i++) await sleep(60);
+    }
+
+    var now = agentActive();
+    return { success: now === want, found: !!p || isAgentPanelOpen(), active: now, changed: before !== now };
   }
 
   // ---------- Agent settings (Autopilot / models / ratio / quality) ----------
@@ -146,7 +257,9 @@
     var txt = String(uiText).toLowerCase().replace(/[^\w\s\.]/g, ' ');
     var tm = String(modelStr).toLowerCase().replace(/[^\w\s\.]/g, ' ');
     if (tm.indexOf('1.2') >= 0) return txt.indexOf('1.2') >= 0;
-    if (tm.indexOf('omni') >= 0) return (txt.indexOf('omni') >= 0 || txt.indexOf('1.1') >= 0) && txt.indexOf('1.2') < 0;
+    if (tm.indexOf('1.1') >= 0) return txt.indexOf('1.1') >= 0; // Omni Flash 1.1 retires Dec 5 2026
+    // Unversioned "omni"/"omni flash" = current Omni Flash (1.2 is the default since Nov 5 2026)
+    if (tm.indexOf('omni') >= 0) return txt.indexOf('omni') >= 0 && txt.indexOf('1.1') < 0;
     if (tm.indexOf('quality') >= 0) return txt.indexOf('quality') >= 0;
     if (tm.indexOf('lite') >= 0 && tm.indexOf('banana') < 0) return txt.indexOf('lite') >= 0 && txt.indexOf('banana') < 0;
     if (tm.indexOf('fast') >= 0) return txt.indexOf('fast') >= 0;
@@ -156,61 +269,158 @@
     if (tm.indexOf('imagen') >= 0) return txt.indexOf('imagen') >= 0;
     return tm.split(/\s+/).filter(function (w) { return w.length > 2; }).some(function (w) { return txt.indexOf(w) >= 0; });
   }
-  function settingsPanel() { return document.querySelector("flow-agent-panel, flow-agent-settings, .agent-panel-animation-container, [class*='agent-settings-panel']"); }
-  async function pickModel(panel, selector, model, applied) {
+  // Settings: "At the bottom of your project's prompt box, select Settings" (icon labelled "Options").
+  function settingsButton() {
+    var root = promptRoot();
+    var b = root && findControl(/^(settings|options|agent settings|agent options|prompt settings)$/i, /^(tune|settings|more_vert|page_info)$/, root);
+    if (b) return b;
+    return Array.prototype.slice.call(document.querySelectorAll('button.agent-action-button')).find(function (x) { return shown(x) && /tune/.test(iconText(x)); }) || null;
+  }
+  function settingsPanel() {
+    var p = document.querySelector("flow-agent-panel, flow-agent-settings, .agent-panel-animation-container, [class*='agent-settings-panel']");
+    if (p && shown(p) && /confirm before generating|generation/i.test(p.innerText || '')) return p;
+    return containerWithText(/confirm before generating/i) || (p && shown(p) ? p : null);
+  }
+  function isOn(el) {
+    if (!el) return false;
+    var input = el.matches && el.matches('input') ? el : (el.querySelector && el.querySelector("input[type='radio'], input[type='checkbox']"));
+    if (input && input.checked) return true;
+    var a = el.getAttribute('aria-checked') || el.getAttribute('aria-pressed') || el.getAttribute('aria-selected');
+    if (a === 'true') return true;
+    var host = el.closest && el.closest('mat-radio-button, mat-button-toggle, mat-chip-option, mat-option');
+    return /mat-mdc-radio-checked|mat-button-toggle-checked|mdc-evolution-chip--selected|mat-mdc-option-active|mdc-list-item--selected/.test(String((host || el).className || ''));
+  }
+  // The block under a heading such as "Image generation" / "Video generation" / "Confirm before generating".
+  function sectionOf(panel, headRe, stopRe) {
+    var nodes = panel.querySelectorAll("h1, h2, h3, h4, h5, h6, [role='heading'], legend, label, span, div, p");
+    var head = null;
+    for (var i = 0; i < nodes.length; i++) {
+      var t = norm(nodes[i].innerText);
+      if (t.length < 48 && nodes[i].childElementCount <= 3 && headRe.test(t)) { head = nodes[i]; break; }
+    }
+    if (!head) return null;
+    var s = head;
+    while (s.parentElement && s.parentElement !== panel && !(stopRe && stopRe.test(s.parentElement.innerText || ''))) s = s.parentElement;
+    return s;
+  }
+  var OPTION_SEL = "[role='option'], [role='menuitem'], [role='menuitemradio'], [role='radio'], mat-option, flow-menu-item, .mat-mdc-menu-item, mat-button-toggle button, mat-chip-option, button";
+  function closeOverlay() {
+    var bd = document.querySelector('.cdk-overlay-backdrop');
+    if (bd) bd.click(); else document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }));
+  }
+  // Set one setting: either click an inline option (radio / toggle / chip) or open its dropdown and pick.
+  async function pickSetting(scope, labelRe, test, name, applied) {
+    if (!scope) return false;
+    var inline = Array.prototype.slice.call(scope.querySelectorAll("[role='radio'], mat-radio-button, mat-button-toggle, mat-button-toggle button, mat-chip-option, button[aria-pressed]")).filter(shown);
+    var hit = inline.find(function (b) { return test(b); });
+    if (hit) {
+      if (!isOn(hit)) { mdcClick(hit.querySelector("input[type='radio']") || hit); await sleep(80); applied.push(name + ' set'); }
+      else applied.push(name + ' ok');
+      return true;
+    }
+    var triggers = Array.prototype.slice.call(scope.querySelectorAll("mat-select, [role='combobox'], button[aria-haspopup], button.mat-mdc-menu-trigger, button[class*='picker'], button[class*='select'], button[class*='dropdown']")).filter(shown);
+    var trig = triggers.find(function (t) {
+      var lab = ariaOf(t) + ' ' + norm((t.closest('label, .mat-mdc-form-field, [class*="row"], [class*="setting"]') || t).innerText);
+      return labelRe.test(lab);
+    }) || (triggers.length === 1 ? triggers[0] : null);
+    if (!trig) { applied.push(name + ' control not found'); return false; }
+    if (test(trig)) { applied.push(name + ' ok'); return true; }
+    mdcClick(trig);
+    var opt = null;
+    for (var i = 0; i < 12 && !opt; i++) {
+      await sleep(60);
+      var pane = document.querySelectorAll(".cdk-overlay-pane, [role='listbox'], [role='menu'], .mat-mdc-menu-panel, .flow-model-picker-panel");
+      for (var p = pane.length - 1; p >= 0 && !opt; p--) {
+        if (!shown(pane[p]) || scope.contains(pane[p])) continue;
+        opt = Array.prototype.slice.call(pane[p].querySelectorAll(OPTION_SEL)).filter(shown).find(function (o) { return test(o); });
+      }
+    }
+    if (opt) { mdcClick(opt.querySelector('button') || opt); applied.push(name + ' set'); await sleep(120); return true; }
+    closeOverlay(); applied.push(name + ' not offered'); return false;
+  }
+  function textTest(re) { return function (el) { return re.test(visibleText(el)) || re.test(ariaOf(el)); }; }
+  function ratioTest(ratio) {
+    var clean = String(ratio).replace('_', ':'), icon = 'crop_' + clean.replace(':', '_');
+    var named = { '16:9': /landscape|horizontal|widescreen/i, '9:16': /portrait|vertical/i, '1:1': /square/i, '4:3': /standard/i, '3:4': /portrait 3/i };
+    return function (el) {
+      var t = visibleText(el) + ' ' + ariaOf(el), ic = iconText(el);
+      return t.indexOf(clean) >= 0 || ic.indexOf(icon) >= 0 || (clean === '1:1' && ic.indexOf('crop_square') >= 0) || (!!named[clean] && named[clean].test(t) && !/\d+:\d+/.test(t.replace(clean, '')));
+    };
+  }
+  function orientationTest(o) {
+    var land = /^(land|horiz|16)/i.test(String(o));
+    var re = land ? /landscape|horizontal|16:9/i : /portrait|vertical|9:16/i;
+    return function (el) { return re.test(visibleText(el) + ' ' + ariaOf(el)) || iconText(el).indexOf(land ? 'crop_landscape' : 'crop_portrait') >= 0 || iconText(el).indexOf(land ? 'crop_16_9' : 'crop_9_16') >= 0; };
+  }
+  function countTest(n) {
+    var re = new RegExp('^(?:[x×]\\s?' + n + '|' + n + '\\s?[x×]?|' + n + ' (?:outputs?|images?|videos?|results?))$', 'i');
+    return function (el) { return re.test(visibleText(el)) || re.test(ariaOf(el)); };
+  }
+  function modelTest(model) { return function (el) { return modelMatch(visibleText(el) || ariaOf(el), model); }; }
+  async function pickModel(panel, selector, model, applied, section) {
+    if (!model) return;
     var picker = panel.querySelector(selector);
-    if (!picker || !model) return;
+    if (!picker) { await pickSetting(section || panel, /model/i, modelTest(model), 'model ' + model, applied); return; }
     if (modelMatch(norm(picker.innerText), model)) { applied.push('model ok: ' + model); return; }
     mdcClick(picker);
     await sleep(220);
-    var opts = Array.prototype.slice.call(document.querySelectorAll(".flow-model-picker-panel flow-menu-item, .mat-mdc-menu-panel flow-menu-item, flow-menu-item.model-select-option, [role='menuitem'], .mat-mdc-menu-item, flow-menu-item"));
+    var opts = Array.prototype.slice.call(document.querySelectorAll(".flow-model-picker-panel flow-menu-item, .mat-mdc-menu-panel flow-menu-item, flow-menu-item.model-select-option, [role='menuitem'], [role='option'], mat-option, .mat-mdc-menu-item, flow-menu-item"));
     var target = opts.find(function (m) { return modelMatch(m.innerText, model); });
     if (target) { mdcClick(target.querySelector('button') || target); applied.push('model set: ' + model); await sleep(140); }
-    else { var bd = document.querySelector('.cdk-overlay-backdrop'); if (bd) bd.click(); applied.push('model not offered: ' + model); }
+    else { closeOverlay(); applied.push('model not offered: ' + model); }
+  }
+  async function openSettings() {
+    var panel = settingsPanel();
+    if (panel) return panel;
+    var btn = settingsButton();
+    if (!btn) return null;
+    mdcClick(btn);
+    for (var i = 0; i < 30 && !panel; i++) { await sleep(50); panel = settingsPanel(); }
+    return panel;
+  }
+  // Veo 3.1 Fast / Veo 3.1 Quality / Omni Flash 1.1 retire Dec 5 2026 -> fall back to Omni Flash 1.2.
+  function liveVideoModel(m, applied) {
+    if (!m) return m;
+    var t = String(m).toLowerCase();
+    if (Date.now() >= Date.UTC(2026, 11, 5) && (/veo.*(fast|quality)/.test(t) || /1\.1/.test(t) || /^veo[-_ ]omni$/.test(t))) {
+      applied.push('model "' + m + '" retired Dec 5 2026 -> Omni Flash 1.2');
+      return 'Omni Flash 1.2';
+    }
+    return m;
   }
   async function configure(cfg) {
-    cfg = cfg || {};
+    cfg = Object.assign({}, cfg || {});
     var applied = [];
-    var panel = settingsPanel();
-    if (!panel) {
-      var tune = Array.prototype.slice.call(document.querySelectorAll('flow-prompt-box button, button.agent-action-button, button')).find(function (b) {
-        var cls = String(b.className || ''), aria = b.getAttribute('aria-label') || '';
-        return (cls.indexOf('agent-action-button') >= 0 || /settings/i.test(aria)) && /tune/.test(b.innerText || b.innerHTML || '');
-      });
-      if (tune) mdcClick(tune);
-      for (var i = 0; i < 30 && !panel; i++) { await sleep(50); panel = settingsPanel(); }
-    }
-    if (!panel) return { success: false, reason: 'Agent settings panel could not be opened (Agent Mode may be off).' };
+    cfg.agentVideoModel = liveVideoModel(cfg.agentVideoModel, applied);
+    if (!agentActive()) await setAgent(true);
+    var panel = await openSettings();
+    if (!panel) return { success: false, reason: 'Agent Settings could not be opened. Location: bottom of the prompt box -> "Settings" (Options icon), with Agent turned on.' };
 
-    if (cfg.autopilot !== false) {
-      var never = Array.prototype.slice.call(panel.querySelectorAll('mat-radio-button, [role="radio"], label')).find(function (r) { return /\bnever\b/i.test(r.innerText || ''); });
-      if (never) {
-        var input = never.querySelector && never.querySelector("input[type='radio']");
-        if (input && !input.checked) { mdcClick(input); input.dispatchEvent(new Event('change', { bubbles: true })); }
-        else if (!input && never.getAttribute('aria-checked') !== 'true') mdcClick(never);
-        applied.push('confirm before generating: Never');
-        await sleep(90);
-      }
-    }
-    if (cfg.aspectRatio) {
-      var clean = String(cfg.aspectRatio).replace('_', ':');
-      var icon = 'crop_' + clean.replace(':', '_');
-      var ar = Array.prototype.slice.call(panel.querySelectorAll("button[role='radio'], mat-button-toggle button")).find(function (b) {
-        var t = norm(b.innerText), h = b.innerHTML || '';
-        return t.indexOf(clean) >= 0 || h.indexOf(icon) >= 0 || (clean === '1:1' && h.indexOf('crop_square') >= 0);
-      });
-      if (ar && ar.getAttribute('aria-checked') !== 'true') { mdcClick(ar); applied.push('aspect ' + clean); await sleep(70); }
-    }
+    // Confirm before generating: Always | Never (autopilot = Never)
+    var confirmWant = cfg.confirmBeforeGenerating ? String(cfg.confirmBeforeGenerating).toLowerCase() : (cfg.autopilot === false ? 'always' : 'never');
+    var confirmScope = sectionOf(panel, /^confirm before generating$/i, /image generation|video generation/i) || panel;
+    await pickSetting(confirmScope, /confirm before generating/i, textTest(confirmWant === 'always' ? /^always$/i : /^never$/i), 'confirm before generating: ' + confirmWant, applied);
+
+    var imgSec = sectionOf(panel, /^image generation$/i, /video generation|confirm before generating/i);
+    var vidSec = sectionOf(panel, /^video generation$/i, /image generation|confirm before generating/i);
+
+    // Image generation: default aspect ratio, number of outputs, image model
+    var imgRatio = cfg.imageAspectRatio || cfg.aspectRatio;
+    if (imgRatio) await pickSetting(imgSec || panel, /aspect|ratio/i, ratioTest(imgRatio), 'image aspect ' + imgRatio, applied);
+    if (cfg.imageOutputs) await pickSetting(imgSec || panel, /output|number|count/i, countTest(cfg.imageOutputs), 'image outputs x' + cfg.imageOutputs, applied);
+    await pickModel(panel, "button.image-model-picker-button, button[aria-label='Image generation default model']", cfg.agentImageModel, applied, imgSec);
+
+    // Video generation: default orientation, number of outputs, video model
+    var orient = cfg.orientation || (cfg.aspectRatio === '9:16' ? 'portrait' : cfg.aspectRatio === '16:9' ? 'landscape' : null);
+    if (orient && vidSec) await pickSetting(vidSec, /orientation|aspect|ratio/i, orientationTest(orient), 'video orientation ' + orient, applied);
+    if (cfg.videoOutputs) await pickSetting(vidSec || panel, /output|number|count/i, countTest(cfg.videoOutputs), 'video outputs x' + cfg.videoOutputs, applied);
+    await pickModel(panel, "button.video-model-picker-button, button[aria-label='Video generation default model']", cfg.agentVideoModel, applied, vidSec);
+
     if (cfg.quality) {
       var q = String(cfg.quality).toLowerCase();
-      var want = /1080|2k|4k|high/.test(q) ? /^(high|1080p?|2k|4k)$/ : /720|med|standard/.test(q) ? /^(medium|720p?)$/ : /low|360/.test(q) ? /^(low|360p?)$/ : null;
-      if (want) {
-        var qb = Array.prototype.slice.call(panel.querySelectorAll("button, mat-button-toggle, [role='radio']")).find(function (b) { return want.test(norm(b.innerText).toLowerCase()); });
-        if (qb && qb.getAttribute('aria-checked') !== 'true' && qb.getAttribute('aria-pressed') !== 'true') { mdcClick(qb); applied.push('quality ' + cfg.quality); await sleep(70); }
-      }
+      var want = /1080|2k|4k|high/.test(q) ? /^(high|1080p?|2k|4k)$/i : /720|med|standard/.test(q) ? /^(medium|720p?)$/i : /low|360/.test(q) ? /^(low|360p?)$/i : null;
+      if (want) await pickSetting(vidSec || panel, /quality|resolution/i, textTest(want), 'quality ' + cfg.quality, applied);
     }
-    await pickModel(panel, "button.video-model-picker-button, button[aria-label='Video generation default model']", cfg.agentVideoModel, applied);
-    await pickModel(panel, "button.image-model-picker-button, button[aria-label='Image generation default model']", cfg.agentImageModel, applied);
 
     var save = panel.querySelector('button.settings-save-button') || Array.prototype.slice.call(panel.querySelectorAll('button')).find(function (b) { return /^save$/i.test(norm(b.innerText)); });
     if (save && !isDisabled(save)) { mdcClick(save); applied.push('saved'); await sleep(140); }
@@ -225,10 +435,18 @@
   }
 
   // ---------- Custom instructions (article_spark panel) ----------
+  // "At the bottom of your project's prompt box, select Agent Instructions" -> "Add instruction" -> "Done"
   function instructionsButton() {
-    return Array.prototype.slice.call(document.querySelectorAll('button')).find(function (b) {
-      return (String(b.className || '').indexOf('agent-action-button') >= 0 && (b.innerText || '').indexOf('article_spark') >= 0) || /^agent instructions$/i.test(b.getAttribute('aria-label') || '');
+    var root = promptRoot();
+    var b = root && findControl(/^(agent instructions|instructions|project instructions)$/i, /^article_spark$/, root);
+    if (b) return b;
+    return Array.prototype.slice.call(document.querySelectorAll('button')).find(function (x) {
+      return shown(x) && ((String(x.className || '').indexOf('agent-action-button') >= 0 && iconText(x).indexOf('article_spark') >= 0) || /^agent instructions$/i.test(ariaOf(x)));
     }) || null;
+  }
+  function instructionsPanel() {
+    var c = document.querySelector('.instructions-container');
+    return (c && shown(c)) ? c : containerWithText(/add instruction|agent instructions/i);
   }
   function setValue(el, val) {
     if (!el) return;
@@ -241,26 +459,32 @@
   }
   async function syncInstructions(data) {
     var btn = instructionsButton();
-    if (!btn) return { success: false, reason: 'Agent instructions button not found (turn Agent Mode on first).' };
+    if (!btn && !agentActive()) { await setAgent(true); btn = instructionsButton(); }
+    if (!btn) return { success: false, reason: 'Agent Instructions not found. Location: bottom of the prompt box -> "Agent Instructions", with Agent turned on.' };
     mdcClick(btn);
     var box = null;
-    for (var i = 0; i < 30 && !box; i++) { await sleep(50); box = document.querySelector('.instructions-container'); }
+    for (var i = 0; i < 30 && !box; i++) { await sleep(50); box = instructionsPanel(); }
     if (!box) return { success: false, reason: 'Instructions panel did not open.' };
-    var existing = Array.prototype.slice.call(box.querySelectorAll('input.editable-text-input')).some(function (inp) { return norm(inp.value) === norm(data.title); });
+    var titleSel = 'input.editable-text-input, input[type="text"], input:not([type])';
+    var descSel = 'textarea.description-input, textarea';
+    var existing = Array.prototype.slice.call(box.querySelectorAll(titleSel)).some(function (inp) { return norm(inp.value) === norm(data.title); });
     if (!existing) {
-      var add = box.querySelector('button.add-instruction-button');
-      if (add) { mdcClick(add); await sleep(150); }
+      var add = box.querySelector('button.add-instruction-button') || textButton(/^(\+ ?)?add (an )?instruction$/i, box) || textButton(/^(\+ ?)?add (an )?instruction$/i);
+      if (add) { mdcClick(add); for (var w = 0; w < 10 && !box.querySelector(descSel); w++) await sleep(60); await sleep(80); }
     }
-    var titles = box.querySelectorAll('input.editable-text-input');
-    var descs = box.querySelectorAll('textarea.description-input');
+    var titles = box.querySelectorAll(titleSel);
+    var descs = box.querySelectorAll(descSel);
     var title = titles[titles.length - 1], desc = descs[descs.length - 1];
+    if (existing) { // update the matching entry in place
+      for (var t = 0; t < titles.length; t++) if (norm(titles[t].value) === norm(data.title)) { title = titles[t]; desc = descs[t] || desc; break; }
+    }
     if (title) setValue(title, data.title);
     if (desc) setValue(desc, data.text);
     await sleep(140);
-    var done = box.querySelector('button.done-button');
-    if (done) { mdcClick(done); await sleep(140); }
-    var close = document.querySelector(".agent-panel-animation-container button[aria-label='Close'], button.header-action[aria-label='Close']");
-    if (close) mdcClick(close);
+    var done = box.querySelector('button.done-button') || textButton(/^(done|save)$/i, box);
+    if (done && !isDisabled(done)) { mdcClick(done); await sleep(140); }
+    var close = document.querySelector(".agent-panel-animation-container button[aria-label='Close'], button.header-action[aria-label='Close']") || findControl(/^close$/i, /^close$/, box);
+    if (close && shown(close)) mdcClick(close);
     return { success: !!(title || desc), instructionsSynced: !!(title || desc), reused_entry: existing };
   }
 
@@ -280,23 +504,78 @@
     for (var i = 0; i < 6 && el.parentElement; i++) { el = el.parentElement; if (norm(el.innerText).length > 40) break; }
     return el;
   }
+  // "To open the expanded Agent side panel, select Expand" (in the Agent prompt box).
+  var CHAT_SEL = '.agent-panel-animation-container, .agent-panel-wrapper, flow-agent-chat, flow-agent-side-panel, flow-agent-chat-message, flow-agent-message, .agent-message-container, .agent-side-panel, [class*="agent-side-panel"], [class*="agent-panel"]';
+  function fullChatOpen() { var c = document.querySelector(CHAT_SEL); return !!(c && shown(c)); }
+  function expandButton() {
+    var root = promptRoot();
+    return (root && findControl(/^(expand|expand agent|expand (agent )?(side )?panel|open (agent )?side panel)$/i, /^(open_in_full|expand_content|right_panel_open|left_panel_open|open_in_new_down|fullscreen|expand)$/, root))
+      || textButton(/^(expand|use side panel|open (in )?side panel)$/i) || textButton(/^read more$/i);
+  }
   async function openFullChat() {
-    if (document.querySelector('flow-agent-chat-message, flow-agent-message, .agent-message-container')) return { open: true, already: true };
-    var b = textButton(/^(use side panel|open (in )?side panel)$/i) || textButton(/^read more$/i);
-    if (!b) return { open: false };
+    if (fullChatOpen()) return { open: true, already: true };
+    var b = expandButton();
+    if (!b) return { open: false, reason: 'Expand button not found. Location: Agent prompt box -> "Expand".' };
     mdcClick(b);
-    for (var i = 0; i < 30; i++) { await sleep(60); if (document.querySelector('flow-agent-chat-message, flow-agent-message, .agent-message-container')) return { open: true, via: norm(b.innerText) }; }
-    return { open: false, clicked: norm(b.innerText) };
+    for (var i = 0; i < 30; i++) { await sleep(60); if (fullChatOpen()) return { open: true, via: norm(ariaOf(b) || visibleText(b)) }; }
+    return { open: false, clicked: norm(ariaOf(b) || visibleText(b)) };
+  }
+
+  // ---------- Sessions (expanded side panel -> Menu) ----------
+  function sidePanel() { return document.querySelector('.agent-panel-animation-container, .agent-panel-wrapper, flow-agent-side-panel, flow-agent-chat, .agent-side-panel, [class*="agent-side-panel"], flow-agent-panel, [class*="agent-panel"]'); }
+  async function openSessionMenu() {
+    var o = await openFullChat();
+    if (!o.open) return { ok: false, reason: o.reason || 'Expanded Agent side panel did not open.' };
+    if (textButton(/^create a new session$|^new session$/i)) return { ok: true };
+    var sp = sidePanel();
+    var menu = findControl(/^(menu|sessions|session history|show sessions|open session history)$/i, /^(menu|history|view_list|forum)$/, sp || undefined);
+    if (!menu) return { ok: false, reason: 'Session "Menu" not found at the top of the expanded Agent side panel.' };
+    mdcClick(menu);
+    for (var i = 0; i < 20; i++) { await sleep(60); if (textButton(/^create a new session$|^new session$/i)) return { ok: true }; }
+    return { ok: true, partial: true };
+  }
+  async function newSession() {
+    var m = await openSessionMenu();
+    if (!m.ok) return { success: false, reason: m.reason };
+    var b = textButton(/^create a new session$|^new session$/i);
+    if (!b) return { success: false, reason: '"Create a new session" not found in the session Menu.' };
+    mdcClick(b);
+    await sleep(250);
+    return { success: true };
+  }
+  async function listSessions() {
+    var m = await openSessionMenu();
+    if (!m.ok) return { success: false, reason: m.reason };
+    var pane = containerWithText(/create a new session/i) || sidePanel() || document;
+    var items = Array.prototype.slice.call(pane.querySelectorAll("[role='menuitem'], [role='option'], [role='listitem'], li, a, button")).filter(shown)
+      .map(function (el) { return visibleText(el); })
+      .filter(function (t, i, arr) { return t && t.length < 120 && !/^(create a new session|new session|more|rename|delete|menu|close)$/i.test(t) && arr.indexOf(t) === i; });
+    closeOverlay();
+    return { success: true, sessions: items.slice(0, 50) };
+  }
+  async function openSession(name) {
+    var m = await openSessionMenu();
+    if (!m.ok) return { success: false, reason: m.reason };
+    var want = norm(name).toLowerCase();
+    var pane = containerWithText(/create a new session/i) || sidePanel() || document;
+    var hit = Array.prototype.slice.call(pane.querySelectorAll("[role='menuitem'], [role='option'], [role='listitem'], li, a, button")).filter(shown)
+      .find(function (el) { return visibleText(el).toLowerCase() === want; }) ||
+      Array.prototype.slice.call(pane.querySelectorAll("[role='menuitem'], [role='option'], [role='listitem'], li, a, button")).filter(shown)
+      .find(function (el) { return visibleText(el).toLowerCase().indexOf(want) >= 0; });
+    if (!hit) { closeOverlay(); return { success: false, reason: 'Session not found: ' + name }; }
+    mdcClick(hit);
+    await sleep(250);
+    return { success: true, opened: visibleText(hit) };
   }
 
   // ---------- Autopilot approvals + question resolver ----------
   var handled = new WeakSet();
   function approve(keywords, allowReply) {
     // Compact strip may hide approval cards / questions: expand it into the full side-panel chat.
-    var cr = !document.querySelector('flow-agent-chat-message, flow-agent-message, .agent-message-container') && compactReply();
+    var cr = !fullChatOpen() && compactReply();
     if (cr && !handled.has(cr)) {
       handled.add(cr); // expand once per reply; never toggle it back and forth
-      var sp = textButton(/^(use side panel|open (in )?side panel)$/i) || textButton(/^read more$/i);
+      var sp = expandButton();
       if (sp) mdcClick(sp);
     }
     var cards = Array.prototype.slice.call(document.querySelectorAll('flow-agent-chat-message, flow-agent-message, .agent-message-container, .choice-container, flow-agent-approval-card, [class*="approval"], flow-agent-quick-reply, flow-agent-inline-response, [class*="agent-quick"], [class*="quick-answer"], [class*="agent-inline"]'));
@@ -512,6 +791,8 @@
     pressEnter: pressEnter, busy: busy, blockMark: blockMark, blockScan: blockScan, isBlockText: isBlockText,
     openFullChat: openFullChat, compactReply: function () { var c = compactReply(); return c ? norm(c.innerText).slice(0, 2000) : null; },
     searchAssets: searchAssets, clearSearch: clearSearch,
-    agentToggle: agentPill, agentActive: function () { return pillActive(agentPill()); }
+    openSettings: function () { return openSettings().then(function (p) { return { open: !!p }; }); },
+    newSession: newSession, listSessions: listSessions, openSession: openSession,
+    agentToggle: agentPill, agentActive: agentActive
   };
 })();
