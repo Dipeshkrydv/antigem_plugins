@@ -44,6 +44,7 @@ const DEDUPE_WINDOW_MS = 24 * 3600 * 1000; // 24 hours
 const MIN_POST_INTERVAL_MS = 8 * 1000;     // 8s anti-burst spacing
 
 const bsJobs = new Map();
+function bsCaptionOf(it) { return [it.title, it.caption, (it.hashtags || []).join(" ")].filter(Boolean).join("\n\n"); }
 let inFlightLock = null;
 const attachedDebuggerTabs = new Set();
 
@@ -3178,6 +3179,10 @@ async function dispatchProtectedBrowserTask(toolName, args) {
   inFlightLock = { tool: toolName, startedAt: Date.now() };
   const recordId = args.id || `fb_${Date.now()}`;
 
+  if (useBS && !args.publish_now && !args.schedule_time_iso && !args.schedule_ms && !args.dry_run && !args.from_scheduler) {
+    inFlightLock = null;
+    return { success: false, needs_user_input: true, error: "Timing not chosen.", agent_instruction: "ASK THE USER FIRST: publish now, or at an exact date/time? (For several posts use fb_publish_batch and also ask the gap between posts.) Then call again with publish_now:true or schedule_time_iso." };
+  }
   if (useBS) {
     // Business Suite job runs in the background; the call returns within ~40 s with a job_id when it needs longer.
     const jobId = `bs_${Date.now().toString(36)}`;
@@ -4833,12 +4838,33 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (DEEPX_TOOLS.has(tool)) return await DEEPX.deepxExecute(tool, args);
 
     switch (tool) {
+      case "fb_publish_batch": {
+        if (!args.timing || !args.timing.mode) return { success: false, needs_user_input: true, error: "Timing not chosen.", agent_instruction: "ASK THE USER FIRST (one question): publish all now, exact time for each post, or a start time + gap between posts (how many minutes/hours). Then call fb_publish_batch again with timing." };
+        try { self.MetaBS.bsPlanTimes((args.items || []).length, args.timing); } catch (e) { return { success: false, needs_user_input: true, error: e.message, agent_instruction: "Ask the user for the missing timing detail, then call again." }; }
+        const jobId = `batch_${Date.now().toString(36)}`; const startedAt = Date.now(); const total = (args.items || []).length;
+        bsJobs.set(jobId, { job_id: jobId, tool: "fb_publish_batch", status: "running", started_at: startedAt, total, done: 0, results: [] });
+        const p = self.MetaBS.bsRunBatch(args.items, args.timing, async (results) => {
+          bsJobs.set(jobId, { job_id: jobId, tool: "fb_publish_batch", status: "running", started_at: startedAt, total, done: results.length, results: [...results] });
+          const last = results[results.length - 1]; const it = args.items[results.length - 1];
+          if (last.ok) {
+            await recordDedupe(bsCaptionOf(it), it.media_paths || [], `${jobId}_${last.index}`);
+            await recordPostHistory({ id: `${jobId}_${last.index}`, post_type: last.kind, target_type: "page", title: it.title || "", caption: it.caption || "", hashtags: it.hashtags || [], media_paths: it.media_paths || [], status: last.status, via: "meta_business_suite", scheduled_for: last.scheduled_for });
+            if (last.status === "published") await recordPublishLog(last.kind === "reel" ? "reel" : last.kind === "story" ? "story" : "feed");
+          }
+        }).then(results => {
+          const failed = results.filter(r => !r.ok).length;
+          bsJobs.set(jobId, { job_id: jobId, tool: "fb_publish_batch", status: failed ? "done_with_errors" : "done", started_at: startedAt, finished_at: Date.now(), total, done: results.length, failed, results });
+        }).catch(e => bsJobs.set(jobId, { job_id: jobId, tool: "fb_publish_batch", status: "failed", error: e.message, started_at: startedAt, finished_at: Date.now(), total, results: (bsJobs.get(jobId) || {}).results || [] }));
+        await Promise.race([p, sleep(40000)]);
+        const j = bsJobs.get(jobId);
+        return { success: true, ...j, agent_instruction: j.status === "running" ? `PROJECT IN PROGRESS (${j.done}/${total}). Keep calling fb_publish_status {job_id: "${jobId}", wait_seconds: 50} until status is done / done_with_errors. NEVER end your turn or stop before that.` : "Project finished. Report each post's result to the user." };
+      }
       case "fb_publish_status": {
         const id = args.job_id; const wait = Math.min(50, Math.max(0, +args.wait_seconds || 0)) * 1000; const end = Date.now() + wait;
         if (!id) return { jobs: [...bsJobs.values()].slice(-10) };
         while (Date.now() < end && bsJobs.get(id) && bsJobs.get(id).status === "running") await sleep(1000);
         const j = bsJobs.get(id); if (!j) return { success: false, error: "Unknown job_id (the plugin may have been reloaded). Check Business Suite > Content/Planner." };
-        return j.status === "running" ? { ...j, elapsed_s: Math.round((Date.now() - j.started_at) / 1000) } : { ...j, ...(j.result || {}) };
+        return j.status === "running" ? { ...j, elapsed_s: Math.round((Date.now() - j.started_at) / 1000), agent_instruction: "Still working. Call fb_publish_status again with wait_seconds 50. Do NOT stop or end your turn until status is done." } : { ...j, ...(j.result || {}) };
       }
       case "meta_bs_eval": return await self.MetaBS.bsEvalTool(args);
       case "meta_bs_inspect": return await self.MetaBS.bsInspect(args);

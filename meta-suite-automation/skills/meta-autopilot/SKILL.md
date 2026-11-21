@@ -11,6 +11,21 @@ description: >-
 Every Page upload now runs **inside Meta Business Suite** (`business.facebook.com`), driven by the plugin itself.
 It never uses the facebook.com composer, never switches profile, never needs native taps, and **locks the screen** while it works.
 
+
+**🕒 RULE 1: ASK THE TIMING BEFORE ANY UPLOAD (mandatory, one short question)**
+Before posting anything, ask the user in one message:
+- **Publish now**, or
+- **Exact date/time** (one per post), or
+- **Gap**: start time + gap between each post (e.g. every 2 hours).
+
+The tools enforce this: `fb_publish*` without `publish_now:true` or `schedule_time_iso` (and `fb_publish_batch` without `timing`) return `needs_user_input`.
+
+**🔁 RULE 2: NEVER STOP BEFORE THE PROJECT IS COMPLETE**
+- For 2 or more posts, use **one** `fb_publish_batch {items, timing}` call. It works through every item (3 tries each), and the screen stays locked ("AI is working") until the last one is published or scheduled.
+- While the status is `running`, keep calling `fb_publish_status {job_id, wait_seconds: 50}`. **Never end your turn, summarize, or ask anything mid-project.**
+- Stop only when the status is `done` / `done_with_errors`, then report each post's result. For any failed item, say exactly which one failed and why.
+- If assets must be generated first (DeepX), generate **all** of them, then start the batch, in the same turn.
+
 **Hard rules for the agent**
 1. **Never use browser MCP tools (`browser_*`) to post, schedule, or tap anything for this Page.** Call this plugin's tools only.
 2. **Never upload to the Page through facebook.com.** `fb_publish*` / `fb_schedule` already go to Business Suite.
@@ -25,6 +40,7 @@ It never uses the facebook.com composer, never switches profile, never needs nat
 | Story | `fb_publish_story(media_path)` | Home → Create story → Add photo/video → Share now / Schedule → Share |
 | Schedule | Add `schedule_time_iso` (15 min to 29 days ahead) to any of the above, or call `fb_schedule` | Business Suite's own scheduler: date field plus hour/minute/AM-PM fields, read back and verified. The post appears in **Planner**; AntiGem does not need to stay open |
 | Also post to Story | `share_to_story: true` | Turns on "Share to Facebook Story" |
+| Several posts (a project) | `fb_publish_batch {items:[...], timing:{mode:"now"} or {mode:"exact", times:[...]} or {mode:"gap", start_time_iso, gap_minutes}}` | Runs every item in Business Suite, one after another, until all are done |
 | Test without posting | `dry_run: true` | Fills the whole composer but does not press Publish/Share/Schedule |
 
 **Long uploads:** if the tool returns `status: "running"` with a `job_id`, call `fb_publish_status {job_id, wait_seconds: 45}` until `done`/`failed`. Do not start another upload meanwhile.

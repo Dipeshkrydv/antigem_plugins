@@ -260,7 +260,12 @@ const BS_W = ms => new Promise(r => setTimeout(r, ms));
 async function bsLock(tabId, on) {
   try { if (chrome.antigem && chrome.antigem.automation) await chrome.antigem.automation(on ? { tabId, busy: true, locked: true } : { tabId, locked: false, busy: false }); } catch (_) {}
 }
+let bsBatchDepth = 0; // while a batch/project runs, the screen stays locked between posts
 async function bsSession(tabId, fn) {
+  if (bsBatchDepth > 0) {
+    const dbg = await ensureDebuggerAttached(tabId);
+    try { return await fn(dbg); } finally { if (dbg) await releaseDebugger(tabId); }
+  }
   await bsLock(tabId, true);
   const hb = setInterval(() => { chrome.antigem && chrome.antigem.automation && chrome.antigem.automation({ tabId, busy: true }).catch(() => {}); }, 12000);
   const dbg = await ensureDebuggerAttached(tabId);
@@ -427,11 +432,42 @@ async function bsSetSchedule(tabId, ms, kind, dbg) {
   const has = await bsWaitFor(tabId, () => !!document.querySelector('input[placeholder="mm/dd/yyyy"]'), [], 8000);
   if (!has) throw new Error("Business Suite schedule fields did not appear.");
   const P = bsSchedParts(ms);
-  const focus = async (sel) => bsExec(tabId, (s) => { const el = [...document.querySelectorAll(s)].filter(e => e.getBoundingClientRect().width > 2).pop(); if (!el) return false; el.scrollIntoView({ block: "center" }); el.focus(); el.click(); if (el.select) el.select(); return true; }, [sel]);
-  await focus('input[placeholder="mm/dd/yyyy"]');
-  await bsCdp(tabId, "Input.dispatchKeyEvent", { type: "keyDown", key: "a", code: "KeyA", modifiers: 2, windowsVirtualKeyCode: 65 });
-  await bsCdp(tabId, "Input.dispatchKeyEvent", { type: "keyUp", key: "a", code: "KeyA", modifiers: 2, windowsVirtualKeyCode: 65 });
-  await bsType(tabId, P.date); await bsKey(tabId, "Enter"); await BS_W(300); await bsKey(tabId, "Escape");
+  // Focus helper: returns true only when the target really has keyboard focus (never type into the wrong box).
+  const focus = async (sel) => {
+    for (let i = 0; i < 4; i++) {
+      const ok = await bsExec(tabId, (s) => {
+        const el = [...document.querySelectorAll(s)].filter(e => e.getBoundingClientRect().width > 2).pop();
+        if (!el) return false;
+        el.scrollIntoView({ block: "center" }); el.focus(); el.click(); if (el.select) el.select();
+        if (document.activeElement !== el) el.focus();
+        return document.activeElement === el;
+      }, [sel]).catch(() => false);
+      if (ok) return true;
+      await BS_W(250);
+    }
+    return false;
+  };
+  const dateSel = 'input[placeholder="mm/dd/yyyy"]';
+  const dateOkNow = async () => {
+    const v = await bsExec(tabId, (s) => ([...document.querySelectorAll(s)].filter(e => e.getBoundingClientRect().width > 2).pop() || {}).value || "", [dateSel]);
+    return v.includes(P.date) || (new RegExp(`\\b${P.day}\\b`).test(v) && v.includes(P.mon));
+  };
+  // 1) Keyboard entry with verified focus (proven path).
+  if (await focus(dateSel)) {
+    await bsCdp(tabId, "Input.dispatchKeyEvent", { type: "keyDown", key: "a", code: "KeyA", modifiers: 2, windowsVirtualKeyCode: 65 });
+    await bsCdp(tabId, "Input.dispatchKeyEvent", { type: "keyUp", key: "a", code: "KeyA", modifiers: 2, windowsVirtualKeyCode: 65 });
+    await bsType(tabId, P.date); await bsKey(tabId, "Enter"); await BS_W(300); await bsKey(tabId, "Escape"); await BS_W(200);
+  }
+  // 2) Fallback: React-safe value set.
+  if (!await dateOkNow()) {
+    await bsExec(tabId, (s, d) => {
+      const el = [...document.querySelectorAll(s)].filter(e => e.getBoundingClientRect().width > 2).pop(); if (!el) return;
+      const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+      el.focus(); set.call(el, d); el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true }));
+    }, [dateSel, P.date]);
+    await BS_W(400);
+  }
+  await bsExec(tabId, () => { const d = [...document.querySelectorAll('[role="dialog"]')].find(x => /calendar|Sun|Mon/i.test(x.innerText || "") && x.getBoundingClientRect().width > 2); if (d) document.body.click(); }).catch(() => {});
   const keyPress = async (key, code, vk) => {
     await bsCdp(tabId, "Input.dispatchKeyEvent", { type: "keyDown", key, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk });
     if (key.length === 1) await bsCdp(tabId, "Input.dispatchKeyEvent", { type: "char", key, text: key });
@@ -441,7 +477,7 @@ async function bsSetSchedule(tabId, ms, kind, dbg) {
   const target = { hours: +P.hh, minutes: +P.mm, meridiem: P.ap === "PM" ? 1 : 0 };
   for (const lab of ["hours", "minutes", "meridiem"]) {
     const ok = await focus(`[role="spinbutton"][aria-label="${lab}"]`);
-    if (!ok) throw new Error(`Business Suite time field "${lab}" not found.`);
+    if (!ok) throw new Error(`Could not focus the Business Suite time field "${lab}".`);
     if (lab === "meridiem") await keyPress(P.ap[0], `Key${P.ap[0]}`, P.ap.charCodeAt(0));
     else for (const ch of (lab === "hours" ? P.hh : P.mm)) await keyPress(ch, `Digit${ch}`, 48 + +ch);
     await BS_W(150);
@@ -449,7 +485,7 @@ async function bsSetSchedule(tabId, ms, kind, dbg) {
     for (let i = 0; i < 70; i++) {
       const cur = await readSpin(lab);
       if (cur === target[lab]) break;
-      await focus(`[role="spinbutton"][aria-label="${lab}"]`);
+      if (!await focus(`[role="spinbutton"][aria-label="${lab}"]`)) break;
       const max = lab === "hours" ? 12 : lab === "minutes" ? 60 : 2;
       const up = ((target[lab] - cur) % max + max) % max <= max / 2;
       await keyPress(up ? "ArrowUp" : "ArrowDown", up ? "ArrowUp" : "ArrowDown", up ? 38 : 40);
@@ -628,3 +664,61 @@ async function bsPublishTool(toolName, args) {
 self.MetaBS.bsPublish = bsPublish;
 self.MetaBS.bsPublishTool = bsPublishTool;
 self.MetaBS.bsAssetId = bsAssetId;
+
+
+// ===========================================================================
+// Project / batch runner: publishes or schedules EVERY item before it stops.
+// timing.mode: "now" (publish one after another), "exact" (times[] per item),
+// "gap" (start_time_iso + gap_minutes between posts).
+// ===========================================================================
+function bsPlanTimes(n, timing = {}) {
+  const mode = String(timing.mode || "").toLowerCase();
+  if (mode === "now") return Array(n).fill(null);
+  if (mode === "exact") {
+    const t = (timing.times || []).map(x => Date.parse(x));
+    if (t.length !== n || t.some(x => !Number.isFinite(x))) throw new Error(`timing.times needs ${n} valid ISO date/times (one per post).`);
+    return t;
+  }
+  if (mode === "gap") {
+    const gap = +timing.gap_minutes;
+    if (!(gap > 0)) throw new Error("timing.gap_minutes must be > 0.");
+    const start = timing.start_time_iso ? Date.parse(timing.start_time_iso) : Date.now() + 20 * 60000;
+    if (!Number.isFinite(start)) throw new Error("timing.start_time_iso is not a valid date/time.");
+    return Array.from({ length: n }, (_, i) => start + i * gap * 60000);
+  }
+  throw new Error('timing.mode is required: "now", "exact" or "gap". Ask the user first.');
+}
+
+async function bsRunBatch(items, timing, onProgress) {
+  if (!Array.isArray(items) || !items.length) throw new Error("items[] is empty.");
+  const times = bsPlanTimes(items.length, timing);
+  const results = [];
+  const tab = await bsEnsureTab(BS_HOME_URL, { navigate: false });
+  await bsLock(tab.id, true);
+  const hb = setInterval(() => { chrome.antigem && chrome.antigem.automation && chrome.antigem.automation({ tabId: tab.id, busy: true }).catch(() => {}); }, 12000);
+  bsBatchDepth++;
+  try {
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      const kind = /^(reel|video)$/i.test(it.post_type || "") ? "reel" : /^story$/i.test(it.post_type || "") ? "story" : "post";
+      const when = times[i];
+      const args = { ...it, schedule_ms: when || undefined, media_paths: it.media_paths || (it.video_path ? [it.video_path] : it.media_path ? [it.media_path] : []) };
+      let r = null, lastErr = null;
+      for (let attempt = 1; attempt <= 3 && !(r && r.success); attempt++) {
+        try { r = await bsPublish(kind, args); } catch (e) { lastErr = e.message; r = null; await BS_W(2000 * attempt); }
+      }
+      const row = r && r.success
+        ? { index: i + 1, ok: true, kind: r.kind, status: r.status, scheduled_for: r.scheduled_for, thumbnail: r.thumbnail && r.thumbnail.status, ms: r.ms }
+        : { index: i + 1, ok: false, error: lastErr || (r && r.error) || "unknown error" };
+      results.push(row);
+      if (onProgress) await onProgress(results, items.length);
+      // "now" mode: publishing back-to-back is fine for the composer, keep a short human pause.
+      if (!when && i < items.length - 1) await BS_W(3000);
+    }
+  } finally {
+    bsBatchDepth--; clearInterval(hb); await bsLock(tab.id, false);
+  }
+  return results;
+}
+self.MetaBS.bsRunBatch = bsRunBatch;
+self.MetaBS.bsPlanTimes = bsPlanTimes;

@@ -221,6 +221,10 @@
           "dry_run": {
             "type": "boolean",
             "description": "Fill the Business Suite composer completely but do not press Publish/Schedule."
+          },
+          "publish_now": {
+            "type": "boolean",
+            "description": "Set true only after the user chose 'publish now'. Either publish_now or schedule_time_iso is required (ask the user)."
           }
         },
         "title": "fb_publishArguments",
@@ -316,6 +320,10 @@
               "type": "string"
             },
             "description": "Alternative to video_path."
+          },
+          "publish_now": {
+            "type": "boolean",
+            "description": "Set true only after the user chose 'publish now'. Either publish_now or schedule_time_iso is required (ask the user)."
           }
         },
         "title": "fb_publish_reelArguments",
@@ -390,12 +398,96 @@
             "items": {
               "type": "string"
             }
+          },
+          "publish_now": {
+            "type": "boolean",
+            "description": "Set true only after the user chose 'publish now'. Either publish_now or schedule_time_iso is required (ask the user)."
           }
         },
         "title": "fb_publish_storyArguments",
         "type": "object"
       },
       "name": "fb_publish_story"
+    },
+    {
+      "name": "fb_publish_batch",
+      "description": "Run a whole Page project (several posters/photos/reels/videos/stories) through META BUSINESS SUITE as ONE job that does not stop until every item is published or scheduled (3 tries per item, screen stays locked the whole time). REQUIRED timing chosen by the user beforehand: {mode:'now'} publish all now one after another; {mode:'exact', times:[ISO per item]}; {mode:'gap', start_time_iso, gap_minutes} (scheduled natively in Business Suite, 15 min to 29 days ahead). Without timing it returns needs_user_input. Poll fb_publish_status until done.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "post_type": {
+                  "type": "string",
+                  "description": "photo | carousel | text | reel | video | story"
+                },
+                "media_paths": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "video_path": {
+                  "type": "string"
+                },
+                "thumbnail_path": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "caption": {
+                  "type": "string"
+                },
+                "hashtags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "share_to_story": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "timing": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "now",
+                  "exact",
+                  "gap"
+                ]
+              },
+              "times": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start_time_iso": {
+                "type": "string"
+              },
+              "gap_minutes": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "timing"
+        ]
+      }
     },
     {
       "name": "fb_publish_status",
