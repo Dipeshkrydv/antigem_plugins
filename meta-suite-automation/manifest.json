@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "id": "meta-suite-automation",
   "name": "Meta Suite Page Management",
-  "version": "2.6.0",
-  "description": "Master Autonomous Meta Suite Production Engine (v2.6.0): Facebook Page management that really posts AS your Page (auto Page discovery + profile switch, default Page), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
+  "version": "2.7.0",
+  "description": "Master Autonomous Meta Suite Production Engine (v2.7.0): Facebook Page management that really posts AS your Page (auto Page discovery + profile switch, default Page), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
   "author": "Dipesh Kr Yadav",
   "icon": "icon.png",
   "icons": {
@@ -35,7 +35,9 @@
     "https://labs.google/*",
     "https://trends.google.com/*",
     "https://trends24.in/*",
-    "https://www.reddit.com/*"
+    "https://www.reddit.com/*",
+    "https://graph.facebook.com/*",
+    "https://graph-video.facebook.com/*"
   ],
   "background": {
     "service_worker": "worker.js"
@@ -357,7 +359,7 @@
     },
     {
       "name": "fb_schedule",
-      "description": "Schedule ONE Facebook Page post, reel or story. It is queued in the plugin and published from this device by AntiGem at that time (AntiGem must be open). Pass schedule_time_iso (e.g. 2026-11-22T09:00:00+05:30); with no time it takes the next safe slot. The Page Safety Governor moves any time that breaks a rule (daily post limit, minimum gap, night hours, duplicate text) and says so in adjusted_for_safety. For more than 3 posts use fb_schedule_bulk.",
+      "description": "Schedule ONE Facebook Page post, reel or story. With Meta connected (fb_meta_connect) it is created in Meta's own scheduler (Business Suite > Planner) and Meta publishes it; otherwise it publishes from this device (AntiGem must be open). Pass schedule_time_iso (e.g. 2026-11-22T09:00:00+05:30); with no time it takes the next safe slot. The Page Safety Governor moves any time that breaks a rule (daily post limit, minimum gap, night hours, duplicate text) and says so in adjusted_for_safety. For more than 3 posts use fb_schedule_bulk.",
       "inputSchema": {
         "properties": {
           "run_at_timestamp": {
@@ -488,6 +490,15 @@
               "type": "string"
             },
             "description": "Optional local HH:MM times to prefer, e.g. ['09:00','19:30']"
+          },
+          "delivery": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "meta",
+              "device"
+            ],
+            "description": "auto (default): Meta's own scheduler when connected, else this device."
           }
         },
         "title": "fb_scheduleArguments",
@@ -496,7 +507,7 @@
     },
     {
       "name": "fb_schedule_bulk",
-      "description": "Schedule many Facebook posts at once (1-500 per call, a week or a month of content) in ONE call. The Page Safety Governor spreads them out: Pages up to 30 posts/day (default 3) with a 4-week warm-up above 6/day (e.g. 6 -> 14 -> 22 -> 30), evenly spaced (about 30 min apart at 30/day, never back-to-back), 07:00-23:00 above 20/day; personal profiles max 3/day. Repeated captions, repeated images (even renamed) and missing files are rejected up front. Returns the date range, per-day plan and warm-up.",
+      "description": "Schedule many Facebook Page posts at once (1-500 per call) in ONE call. With Meta connected (fb_meta_connect), posts are created in Meta's OWN scheduler (the one behind Business Suite > Planner): Meta publishes them even when this device is off. publish_first_now=true publishes post #1 immediately and schedules the rest. The Page Safety Governor picks the times: Pages up to 30/day with a 4-week warm-up above 6/day, evenly spaced (~30 min at 30/day, never back-to-back), personal profiles max 3/day; repeated captions/images and missing files are rejected. Reels, stories, profiles and groups post from this device at their time.",
       "inputSchema": {
         "type": "object",
         "required": [
@@ -570,6 +581,19 @@
               "type": "string"
             },
             "description": "Local HH:MM times, e.g. ['09:00','13:00','19:30']. Default: spread over posting hours."
+          },
+          "publish_first_now": {
+            "type": "boolean",
+            "description": "Publish the first post right away (respects today's limit and the 10-minute rule), schedule the rest."
+          },
+          "delivery": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "meta",
+              "device"
+            ],
+            "description": "auto (default): Meta's scheduler when connected and supported, else this device."
           }
         }
       }
@@ -629,8 +653,57 @@
       }
     },
     {
+      "name": "fb_meta_connect",
+      "description": "One-time connection to Meta's official scheduler (Graph API, the system behind Business Suite > Planner) so scheduled Page posts are published by Meta itself, with no browser automation. Best: credentials_file = path of a local JSON file {user_access_token, app_id, app_secret} (secret used once, not stored). Or pass user_access_token (+ app_id/app_secret for a non-expiring token) or page_access_token. Returns setup steps if nothing is given. Never echo tokens.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "credentials_file": {
+            "type": "string"
+          },
+          "user_access_token": {
+            "type": "string"
+          },
+          "app_id": {
+            "type": "string"
+          },
+          "app_secret": {
+            "type": "string"
+          },
+          "page_access_token": {
+            "type": "string"
+          },
+          "default_page": {
+            "type": "string",
+            "description": "Page id or name to use when a post has no target_id."
+          }
+        }
+      }
+    },
+    {
+      "name": "fb_meta_status",
+      "description": "Show the Meta scheduler connection: connected Pages, default Page, token problems, how many posts are already on Meta and how many are waiting for Meta's 28-day window.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "fb_meta_disconnect",
+      "description": "Remove the Meta scheduler connection. By default pulls future posts back from Meta first (they stay in the local queue and post from this device).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "pull_back": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      }
+    },
+    {
       "name": "fb_manage_queue",
-      "description": "Inspect and control the scheduled post queue: action='list'|'status' (counts, next/last post, pause state), 'cancel' (job_id), 'cancel_all', 'reschedule' (job_id + new_schedule_time_iso, moved to a safe slot if needed), 'run_now' (job_id, still respects the minimum gap), 'pause', 'resume' (only after the user checked the Page; after a Meta warning it halves the daily volume and restarts the warm-up).",
+      "description": "Inspect and control the scheduled post queue: action='list'|'status' (counts, next/last post, pause state), 'cancel' (job_id), 'cancel_all', 'reschedule' (job_id + new_schedule_time_iso, moved to a safe slot if needed), 'run_now' (job_id, still respects the minimum gap), 'pause', 'resume' (only after the user checked the Page; after a Meta warning it halves the daily volume and restarts the warm-up). Cancel/reschedule also remove the post from Meta's scheduler when it was already handed over; pause pulls future posts back from Meta.",
       "inputSchema": {
         "properties": {
           "action": {
@@ -1812,5 +1885,5 @@
     "reels",
     "video thumbnail"
   ],
-  "tool_count": 46
+  "tool_count": 49
 }

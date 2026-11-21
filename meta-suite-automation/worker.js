@@ -1,5 +1,5 @@
 /**
- * AntiGem WebView MCP Service Worker for Meta Suite Page Management (v2.6.0)
+ * AntiGem WebView MCP Service Worker for Meta Suite Page Management (v2.7.0)
  * Built on the Facebook Automation precision engine + Meta Suite layer (managed Page routing,
  * queue manager, viral SEO, algorithm audit, trend radar, DeepX Google Flow media).
  *
@@ -31,11 +31,11 @@
 // deepx-bundle.js is generated from deepx-google-flow (tools/build_classic_bundle.py).
 importScripts("deepx-bundle.js");
 const DEEPX = self.DeepXFlow;
-DEEPX.configureDeepX({ pluginId: "meta-suite-automation", version: "2.6.0" });
+DEEPX.configureDeepX({ pluginId: "meta-suite-automation", version: "2.7.0" });
 const DEEPX_TOOLS = new Set(["deepx_generate", "deepx_job_status", "deepx_check_login", "deepx_status", "deepx_cancel_job", "deepx_get_options", "deepx_flow_agent_status", "deepx_flow_agent_toggle", "deepx_flow_agent_configure", "deepx_flow_agent_set_instructions", "deepx_flow_agent_approve_all", "deepx_flow_agent_batch_queue", "deepx_upscale_media", "deepx_download_media", "deepx_upload_asset", "flow_get_last_media", "flow_get_media", "flow_list_media"]);
 
 const PLUGIN_ID = "meta-suite-automation";
-const PLUGIN_VERSION = "2.6.0";
+const PLUGIN_VERSION = "2.7.0";
 const FB_HOME_URL = "https://www.facebook.com/";
 const FB_REELS_CREATE_URL = "https://www.facebook.com/reels/create";
 const FB_STORIES_CREATE_URL = "https://www.facebook.com/stories/create";
@@ -3390,16 +3390,16 @@ async function getPublishLog() {
   const cutoff = Date.now() - 14 * 86400000;
   return (Array.isArray(st.fb_publish_log) ? st.fb_publish_log : []).filter(e => e && e.at >= cutoff);
 }
-async function recordPublishLog(kind) {
+async function recordPublishLog(kind, at = Date.now()) {
   const log = await getPublishLog();
-  log.push({ at: Date.now(), kind });
+  log.push({ at, kind });
   await setStorage({ fb_publish_log: log.slice(-500) });
 }
 
 // Every post that is already published or still planned occupies a slot.
 function buildOccupancy(jobs, log, excludeJobId) {
   const occ = log.map(e => ({ at: e.at, kind: e.kind || "feed" }));
-  for (const j of jobs) if (j && j.job_id !== excludeJobId && ["queued", "running"].includes(j.status) && Number.isFinite(j.run_at_timestamp)) occ.push({ at: j.run_at_timestamp * 1000, kind: jobKind(j.post_type, j.target_type) });
+  for (const j of jobs) if (j && j.job_id !== excludeJobId && ["queued", "running", "handing_off", "scheduled_on_meta"].includes(j.status) && Number.isFinite(j.run_at_timestamp)) occ.push({ at: j.run_at_timestamp * 1000, kind: jobKind(j.post_type, j.target_type) });
   return occ;
 }
 
@@ -3502,18 +3502,18 @@ async function prepareJob(args, s) {
 async function knownCaptionHashes(jobs) {
   const st = await getStorage(["fb_dedupe_ledger"]);
   const set = new Set((Array.isArray(st.fb_dedupe_ledger) ? st.fb_dedupe_ledger : []).filter(e => e.type === "caption").map(e => e.hash));
-  for (const j of jobs) if (j.caption_hash && ["queued", "running", "completed"].includes(j.status)) set.add(j.caption_hash);
+  for (const j of jobs) if (j.caption_hash && ["queued", "running", "handing_off", "scheduled_on_meta", "completed"].includes(j.status)) set.add(j.caption_hash);
   return set;
 }
 function knownMediaHashes(jobs) {
   const set = new Set();
-  for (const j of jobs) if (["queued", "running", "completed"].includes(j.status)) for (const h of j.media_hashes || []) set.add(h);
+  for (const j of jobs) if (["queued", "running", "handing_off", "scheduled_on_meta", "completed"].includes(j.status)) for (const h of j.media_hashes || []) set.add(h);
   return set;
 }
 
 function pruneJobs(jobs) {
   const cutoff = Date.now() - 30 * 86400000;
-  return jobs.filter(j => ["queued", "running", "needs_review"].includes(j.status) || (j.completed_at || j.created_at || 0) >= cutoff);
+  return jobs.filter(j => ["queued", "running", "needs_review", "handing_off", "scheduled_on_meta"].includes(j.status) || (j.completed_at || j.created_at || 0) >= cutoff);
 }
 
 async function scheduleOne(args) {
@@ -3526,20 +3526,23 @@ async function scheduleOne(args) {
   if (job.caption_hash && (await knownCaptionHashes(jobs)).has(job.caption_hash)) return { success: false, duplicate_detected: true, error: "This caption is already queued or was published recently. Meta treats repeated posts as spam; change the text." };
   const asked = parseWhen(args);
   if (Number.isNaN(asked)) return { success: false, error: "schedule_time_iso must be an ISO date/time, e.g. 2026-11-22T09:00:00+05:30" };
+  job.delivery = chooseDelivery(await getMetaConn(), job, args.delivery);
   const occ = buildOccupancy(jobs, await getPublishLog());
-  const from = Math.max(asked || 0, Date.now() + 10 * 60000);
+  const from = Math.max(asked || 0, Date.now() + (job.delivery === "meta" ? META_MIN_LEAD_MIN + 5 : 10) * 60000);
   const problem = asked ? slotProblem(from, jobKind(job.post_type, job.target_type), occ, s) : "no time given";
   const at = problem ? nextSafeSlot(from, jobKind(job.post_type, job.target_type), occ, s, args.preferred_times) : from;
   if (!at) return { success: false, error: `No safe slot in the next ${s.max_horizon_days} days. The queue is full under the safety limits.` };
   job.run_at_timestamp = Math.floor(at / 1000);
   jobs.push(job);
   await setStorage({ fb_scheduled_jobs: pruneJobs(jobs) });
+  if (job.delivery === "meta") metaTick().catch(() => {});
   const adjusted = Boolean(asked) && problem && Math.abs(at - asked) > 60000;
   return {
     success: true, status: "scheduled", job_id: job.job_id, post_id: job.post_id, title: job.title, hashtags: job.hashtags,
     run_at_timestamp: job.run_at_timestamp, run_at_iso: new Date(at).toISOString(), run_at_local: new Date(at).toLocaleString(),
     adjusted_for_safety: adjusted, adjustment_reason: adjusted ? problem : undefined,
-    message: `Facebook ${job.post_type} scheduled for ${new Date(at).toLocaleString()}${adjusted ? ` (moved for account safety: ${problem})` : ""}. AntiGem must be open at that time.`
+    delivery: job.delivery,
+    message: `Facebook ${job.post_type} scheduled for ${new Date(at).toLocaleString()}${adjusted ? ` (moved for account safety: ${problem})` : ""}. ${job.delivery === "meta" ? "Meta's own scheduler will publish it (it appears in Business Suite > Planner)." : "It posts from this device, so AntiGem must be open at that time."}`
   };
 }
 
@@ -3559,14 +3562,49 @@ async function scheduleBulk(args) {
   const times = Array.isArray(args.preferred_times) && args.preferred_times.length ? args.preferred_times : defaultTimes(perDay, s);
   const startAsked = parseWhen({ schedule_time_iso: args.start_date_iso || args.start_iso });
   if (Number.isNaN(startAsked)) return { success: false, error: "start_date_iso must be an ISO date, e.g. 2026-11-22 or 2026-11-22T09:00:00+05:30" };
-  const startMs = Math.max(startAsked || 0, Date.now() + 10 * 60000);
+  let startMs = Math.max(startAsked || 0, Date.now() + (META_MIN_LEAD_MIN + 5) * 60000);
+  const conn = await getMetaConn();
   const st = await getStorage(["fb_scheduled_jobs"]);
   const jobs = Array.isArray(st.fb_scheduled_jobs) ? st.fb_scheduled_jobs : [];
   const seen = await knownCaptionHashes(jobs), seenMedia = knownMediaHashes(jobs);
   const occ = buildOccupancy(jobs, await getPublishLog());
   const added = [], rejected = [];
-  let cursor = startMs;
-  for (let i = 0; i < posts.length; i++) {
+  let cursor = startMs, startIndex = 0, firstNow = null;
+  // Optional: publish post #1 right away (still inside today's limit and the 10-minute rule), schedule the rest.
+  if (args.publish_first_now) {
+    let job0 = null;
+    try { job0 = await prepareJob(posts[0] || {}, s); } catch (e) { firstNow = { published: false, reason: e.message }; }
+    if (job0 && ((job0.caption_hash && seen.has(job0.caption_hash)) || (job0.media_hashes || []).some(h => seenMedia.has(h)))) { firstNow = { published: false, reason: "post #1 is a duplicate" }; job0 = null; startIndex = 1; rejected.push({ index: 0, title: posts[0] && posts[0].title, reason: "duplicate caption or image" }); }
+    if (job0) {
+      const kind0 = jobKind(job0.post_type, job0.target_type);
+      const guard = await manualPublishGuard(kind0, false);
+      if (guard) firstNow = { published: false, reason: guard.error };
+      else {
+        job0.delivery = chooseDelivery(conn, job0, (posts[0] && posts[0].delivery) || args.delivery);
+        try {
+          if (job0.delivery === "meta") {
+            const r = await metaCreatePost(resolveMetaPage(conn, job0), job0, null);
+            await recordPublishLog(kind0);
+            job0.result = { meta_id: r.id };
+          } else {
+            const r = await dispatchProtectedBrowserTask("fb_publish", { id: job0.post_id, title: job0.title, caption: job0.caption, hashtags: job0.hashtags, thumbnail_path: job0.thumbnail_path, media_paths: job0.media_paths, post_type: job0.post_type, target_type: job0.target_type, target_id: job0.target_id, from_scheduler: true });
+            if (!r || !r.success) throw new Error((r && r.error) || "Publishing failed");
+            job0.result = { fb_post_id: r.fb_post_id, post_url: r.post_url };
+          }
+          job0.status = "completed"; job0.completed_at = Date.now(); job0.run_at_timestamp = Math.floor(Date.now() / 1000);
+          jobs.push(job0); startIndex = 1;
+          if (job0.caption_hash) seen.add(job0.caption_hash);
+          for (const h of job0.media_hashes || []) seenMedia.add(h);
+          occ.push({ at: Date.now(), kind: kind0 });
+          firstNow = { published: true, title: job0.title, delivery: job0.delivery };
+        } catch (e) {
+          if (e.kind) { const action = await handleMetaError(e, job0); if (action === "stop" && e.kind === "RESTRICTED") return { success: false, stop_loop: true, error: e.message, agent_instruction: "Tell the user Meta refused the post and the queue is paused for account safety. Do not retry." }; }
+          firstNow = { published: false, reason: e.message };
+        }
+      }
+    }
+  }
+  for (let i = startIndex; i < posts.length; i++) {
     const p = posts[i] || {};
     let job;
     try { job = await prepareJob(p, s); } catch (e) { rejected.push({ index: i, title: p.title || null, reason: e.message }); continue; }
@@ -3578,6 +3616,7 @@ async function scheduleBulk(args) {
     if (!at) at = nextSafeSlot(asked && !Number.isNaN(asked) ? Math.max(asked, startMs) : (kind === "story" ? startMs : cursor), kind, occ, plan, times);
     if (!at) { rejected.push({ index: i, title: job.title, reason: `no safe slot within ${s.max_horizon_days} days` }); continue; }
     job.run_at_timestamp = Math.floor(at / 1000);
+    job.delivery = chooseDelivery(conn, job, p.delivery || args.delivery);
     if (job.caption_hash) seen.add(job.caption_hash);
     for (const h of job.media_hashes || []) seenMedia.add(h);
     occ.push({ at, kind });
@@ -3585,6 +3624,7 @@ async function scheduleBulk(args) {
     jobs.push(job); added.push(job);
   }
   await setStorage({ fb_scheduled_jobs: pruneJobs(jobs) });
+  if (added.some(j => j.delivery === "meta")) metaTick().catch(() => {});
   const perDayCount = {};
   for (const j of added) { const k = localDayKey(j.run_at_timestamp * 1000); perDayCount[k] = (perDayCount[k] || 0) + 1; }
   const sorted = added.map(j => j.run_at_timestamp).sort((a, b) => a - b);
@@ -3597,10 +3637,14 @@ async function scheduleBulk(args) {
     days_covered: days, posts_per_day_target: perDay, preferred_times: times,
     warmup: s.warmup && !s.established_high_volume && perDay > WARMUP_STEPS[0] ? `Warm-up: ${[...new Set(warmupSteps(perDay, s.ramp_from))].join(" -> ")} posts/day, one step per week, so the Page's volume rises gradually.` : null,
     settings_changed: settingsChanged,
+    first_post_now: firstNow,
+    delivery: { meta: added.filter(j => j.delivery === "meta").length, device: added.filter(j => j.delivery !== "meta").length, meta_connected: conn.pages.length > 0 && !conn.token_error },
     per_day: perDayCount,
     preview: added.slice(0, 10).map(j => ({ job_id: j.job_id, title: j.title, post_type: j.post_type, run_at_local: new Date(j.run_at_timestamp * 1000).toLocaleString() })),
     safety: plan,
-    note: "Posts publish one at a time from this device, so AntiGem must stay open. If it was closed, overdue posts are moved to the next safe slot instead of being posted in a burst. Any Meta warning pauses the whole queue.",
+    note: added.some(j => j.delivery === "meta")
+      ? `Meta's own scheduler publishes the "meta" posts (they appear in Business Suite > Planner as they are handed over, about 3 per minute). Posts more than ${META_MAX_DAYS} days ahead are handed over automatically when AntiGem is next open within ${META_MAX_DAYS} days of them. "device" posts (reels, stories, profiles) need AntiGem open. Any Meta warning pauses everything and pulls future posts back from Meta.`
+      : "Posts publish one at a time from this device, so AntiGem must stay open. Connect Meta's own scheduler with fb_meta_connect so posts publish even when this device is off. Any Meta warning pauses the whole queue.",
     agent_instruction: "Tell the user in 2-3 short sentences: how many posts were scheduled, the date range and posts per day (mention the warm-up if present), and how many were rejected and why. Do not call fb_schedule_bulk again for the same posts."
   };
 }
@@ -3632,6 +3676,8 @@ async function updateJobs(mutator) {
 
 async function pauseQueue(reason, untilMs = null, kind = "manual") {
   await setStorage({ fb_queue_paused: { reason, at: Date.now(), until: untilMs, kind } });
+  // Posts already scheduled on Meta would still publish during a warning or a user pause: pull them back.
+  if (kind === "restriction" || kind === "manual") { try { await metaPullBack(kind === "restriction" ? "Meta warning" : "queue paused"); } catch (_) {} }
 }
 
 async function processDueScheduledJobs() {
@@ -3651,7 +3697,7 @@ async function processDueScheduledJobs() {
     // 2) Overdue jobs (AntiGem was closed) are re-slotted instead of being fired back-to-back.
     const pick = await updateJobs(async jobs => {
       for (const j of jobs) if (j.status === "running" && (j.started_at || 0) < now - 30 * 60000) { j.status = "needs_review"; j.last_note = "Posting was interrupted. Check the Page; if it is not there, use fb_manage_queue reschedule."; }
-      const due = jobs.filter(j => j.status === "queued" && Number.isFinite(j.run_at_timestamp) && j.run_at_timestamp * 1000 <= now).sort((a, b) => a.run_at_timestamp - b.run_at_timestamp);
+      const due = jobs.filter(j => j.status === "queued" && j.delivery !== "meta" && Number.isFinite(j.run_at_timestamp) && j.run_at_timestamp * 1000 <= now).sort((a, b) => a.run_at_timestamp - b.run_at_timestamp);
       let chosen = null;
       for (const j of due) {
         const kind = jobKind(j.post_type, j.target_type);
@@ -3721,6 +3767,7 @@ if (chrome.alarms) {
     if (alarm && alarm.name === "fb_scheduler_tick") {
       checkAndAutoResumePendingTask();
       processDueScheduledJobs();
+      metaTick().catch(() => {});
     }
   });
 }
@@ -3762,12 +3809,12 @@ async function safetySettingsTool(args = {}) {
   return { success: true, settings: s, today_cap: dailyCapFor(Date.now(), s), hard_limits: SAFETY_HARD, note: "Values beyond the hard limits are clamped: they cannot be loosened further, only made stricter." };
 }
 
-function scheduleList(jobs, limit = 20, statuses = ["queued", "awaiting_login", "running", "needs_review"]) {
+function scheduleList(jobs, limit = 20, statuses = ["queued", "awaiting_login", "running", "needs_review", "handing_off", "scheduled_on_meta"]) {
   return jobs
     .filter(j => statuses.includes(j.status))
     .sort((a, b) => (a.run_at_timestamp || 0) - (b.run_at_timestamp || 0))
     .slice(0, limit)
-    .map(j => ({ job_id: j.job_id, post_type: j.post_type, title: j.title, run_at_local: new Date((j.run_at_timestamp || 0) * 1000).toLocaleString(), run_at_iso: new Date((j.run_at_timestamp || 0) * 1000).toISOString(), status: j.status, note: j.last_note || undefined, target_type: j.target_type, target_id: j.target_id }));
+    .map(j => ({ job_id: j.job_id, post_type: j.post_type, title: j.title, run_at_local: new Date((j.run_at_timestamp || 0) * 1000).toLocaleString(), run_at_iso: new Date((j.run_at_timestamp || 0) * 1000).toISOString(), status: j.status, delivery: j.delivery || "device", note: j.last_note || undefined, target_type: j.target_type, target_id: j.target_id }));
 }
 
 async function manageQueue(args = {}) {
@@ -3793,9 +3840,22 @@ async function manageQueue(args = {}) {
     await setStorage({ fb_queue_paused: null, fb_sched_failures: 0 });
     return { success: true, paused: false, step_down: stepDown, message: `Queue resumed${stepDown ? ` at a safer ${stepDown.max_posts_per_day} posts/day (halved after the Meta warning)` : ""}. Overdue posts are spread out to the next safe slots, not posted at once.` };
   }
-  if (action === "cancel_all") { let n = 0; for (const j of jobs) if (j.status === "queued") { j.status = "cancelled"; n++; } await setStorage({ fb_scheduled_jobs: pruneJobs(jobs) }); return { success: true, cancelled: n }; }
+  if (action === "cancel_all") {
+    let n = 0; const errors = [];
+    for (const j of jobs) {
+      if (j.status === "scheduled_on_meta") { const u = await metaUnschedule(j); if (!u.ok) { errors.push(u.error); continue; } await sleep(500); }
+      if (["queued", "scheduled_on_meta"].includes(j.status)) { j.status = "cancelled"; n++; }
+    }
+    await setStorage({ fb_scheduled_jobs: pruneJobs(jobs) });
+    return { success: errors.length === 0, cancelled: n, errors: errors.slice(0, 5) };
+  }
   const job = jobs.find(j => String(j.job_id) === String(args.job_id) || String(j.post_id) === String(args.job_id));
   if (!job) return { success: false, error: `Scheduled job not found: ${args.job_id}`, upcoming: scheduleList(jobs, 10) };
+  if (["cancel", "reschedule", "run_now"].includes(action) && job.status === "scheduled_on_meta") {
+    const u = await metaUnschedule(job);
+    if (!u.ok) return { success: false, error: u.error };
+    job.status = "queued";
+  }
   if (action === "cancel") job.status = "cancelled";
   else if (action === "reschedule" || action === "run_now") {
     const asked = action === "run_now" ? Date.now() + 60000 : parseWhen({ schedule_time_iso: args.new_schedule_time_iso });
@@ -3809,6 +3869,306 @@ async function manageQueue(args = {}) {
   await setStorage({ fb_scheduled_jobs: pruneJobs(jobs) });
   return { success: true, action, job: scheduleList([job], 1, [job.status])[0], upcoming: scheduleList(jobs, 10) };
 }
+
+// ============================================================================
+// 8b. Meta Native Scheduling (official Graph API = the scheduler behind Meta Business Suite Planner)
+// ============================================================================
+// Posts are created on Meta's servers as scheduled posts (published=false + scheduled_publish_time). Meta publishes
+// them itself, they appear in Business Suite > Planner, and no browser automation runs at posting time.
+// Timing still comes from the Page Safety Governor. Personal profiles, groups, reels and stories stay on "device".
+const GRAPH_URL = "https://graph.facebook.com";
+const GRAPH_VIDEO_URL = "https://graph-video.facebook.com";
+const META_MAX_DAYS = 28;            // Meta accepts scheduled posts 10 min to ~30 days ahead; later posts are handed over when they get close
+const META_MIN_LEAD_MIN = 15;
+const META_HANDOFF_PER_TICK = 3;     // gentle API pace: about 3 posts per minute
+const META_PHOTO_MAX = 10 * 1024 * 1024;
+const META_VIDEO_MAX = 150 * 1024 * 1024;
+let metaBusy = false;
+
+function graphErrorKind(err = {}) {
+  const c = Number(err.code), sub = Number(err.error_subcode), msg = String(err.message || "");
+  if (c === 190 || c === 102 || [458, 459, 460, 463, 464, 467, 492].includes(sub)) return "TOKEN";
+  if (c === 368 || RESTRICTION_RE.test(msg)) return "RESTRICTED";
+  if ([4, 17, 32, 613, 80001].includes(c) || /rate limit|too many calls|request limit/i.test(msg)) return "RATE_LIMIT";
+  if (c === 10 || (c >= 200 && c < 300)) return "PERMISSION";
+  return "OTHER";
+}
+
+async function graphCall(method, path, token, params = {}, opts = {}) {
+  const url = new URL(`${opts.video ? GRAPH_VIDEO_URL : GRAPH_URL}/${String(path).replace(/^\/+/, "")}`);
+  const init = { method };
+  if (method === "GET" || method === "DELETE") {
+    for (const [k, v] of Object.entries(params)) if (v != null) url.searchParams.set(k, String(v));
+    url.searchParams.set("access_token", token);
+  } else {
+    const fd = new FormData();
+    for (const [k, v] of Object.entries(params)) if (v != null) fd.append(k, typeof v === "object" ? JSON.stringify(v) : String(v));
+    if (opts.file) fd.append("source", opts.file.blob, opts.file.name);
+    fd.append("access_token", token);
+    init.body = fd;
+  }
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), opts.video ? 15 * 60000 : 120000);
+  try {
+    const r = await fetch(url.toString(), { ...init, signal: ac.signal });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || data.error) {
+      const e = new Error((data.error && data.error.message) || `Meta API HTTP ${r.status}`);
+      e.graph = data.error || { code: r.status }; e.kind = graphErrorKind(e.graph);
+      throw e;
+    }
+    return data;
+  } catch (e) {
+    if (!e.kind) { e.kind = "NETWORK"; }
+    throw e;
+  } finally { clearTimeout(timer); }
+}
+
+async function getMetaConn() {
+  const st = await getStorage(["fb_meta_conn"]);
+  const c = st.fb_meta_conn || {};
+  return { pages: Array.isArray(c.pages) ? c.pages : [], default_page_id: c.default_page_id || null, token_error: c.token_error || null, long_lived: Boolean(c.long_lived), connected_at: c.connected_at || null, backoff_until: c.backoff_until || 0 };
+}
+async function saveMetaConn(patch) { const cur = await getMetaConn(); await setStorage({ fb_meta_conn: { ...cur, ...patch } }); }
+function maskPages(pages) { return pages.map(p => ({ id: p.id, name: p.name })); }
+
+// Map a job's target to a connected Page. Unknown targets never fall back to another Page (no posting to the wrong Page).
+function resolveMetaPage(conn, job) {
+  if (String(job.target_type || "page").toLowerCase() !== "page" || !conn.pages.length || conn.token_error) return null;
+  const t = String(job.target_id || "").trim().toLowerCase();
+  if (!t || t === "me") return conn.pages.find(p => p.id === conn.default_page_id) || (conn.pages.length === 1 ? conn.pages[0] : null);
+  return conn.pages.find(p => t === p.id || t === String(p.name).toLowerCase() || t.includes(`/${p.id}`) || t.includes(`id=${p.id}`) || (p.username && t.includes(String(p.username).toLowerCase()))) || null;
+}
+function metaSupports(job) {
+  const t = String(job.post_type || "text").toLowerCase();
+  return ["text", "photo", "carousel", "video", "link"].includes(t);
+}
+function chooseDelivery(conn, job, asked) {
+  const want = String(asked || "auto").toLowerCase();
+  if (want === "device") return "device";
+  const ok = resolveMetaPage(conn, job) && metaSupports(job);
+  if (want === "meta" && !ok) return "device";
+  return ok ? "meta" : "device";
+}
+
+async function loadMediaFile(path) {
+  const r = await resolveLocalFile(path);
+  const name = String(r.path).split("/").pop();
+  const ext = name.split(".").pop().toLowerCase();
+  const mime = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif", mp4: "video/mp4", mov: "video/quicktime", m4v: "video/mp4", webm: "video/webm" }[ext] || "application/octet-stream";
+  const video = mime.startsWith("video/");
+  const st = await chrome.antigem.stat({ path: r.path });
+  if (st.size > (video ? META_VIDEO_MAX : META_PHOTO_MAX)) throw Object.assign(new Error(`${name} is too large for Meta scheduling (${Math.round(st.size / 1048576)} MB)`), { kind: "MEDIA" });
+  const b64 = await chrome.antigem.readFile({ path: r.path, encoding: "base64" });
+  const bin = atob(b64), bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return { name, mime, video, blob: new Blob([bytes], { type: mime }) };
+}
+
+// whenMs = null publishes now; otherwise schedules on Meta.
+async function metaCreatePost(page, job, whenMs) {
+  const sched = whenMs ? { published: "false", scheduled_publish_time: String(Math.floor(whenMs / 1000)) } : { published: "true" };
+  const message = String(job.caption || "");
+  const media = job.media_paths || [];
+  if (!media.length) {
+    const r = await graphCall("POST", `${page.id}/feed`, page.token, { message, link: job.link || null, ...sched });
+    return { id: r.id, post_id: r.id };
+  }
+  const files = [];
+  for (const p of media) files.push(await loadMediaFile(p));
+  if (files.some(f => f.video)) {
+    if (files.length > 1) throw Object.assign(new Error("Meta scheduling takes one video per post"), { kind: "MEDIA" });
+    const r = await graphCall("POST", `${page.id}/videos`, page.token, { description: message, title: job.title || null, ...sched }, { video: true, file: files[0] });
+    return { id: r.id, post_id: r.post_id || null };
+  }
+  if (files.length === 1) {
+    const r = await graphCall("POST", `${page.id}/photos`, page.token, { caption: message, ...sched }, { file: files[0] });
+    return { id: r.id, post_id: r.post_id || null };
+  }
+  const ids = [];
+  for (const f of files) { const r = await graphCall("POST", `${page.id}/photos`, page.token, { published: "false", temporary: whenMs ? "true" : null }, { file: f }); ids.push(r.id); await sleep(600); }
+  const params = { message, ...sched };
+  ids.forEach((id, i) => { params[`attached_media[${i}]`] = { media_fbid: id }; });
+  const r = await graphCall("POST", `${page.id}/feed`, page.token, params);
+  return { id: r.id, post_id: r.id };
+}
+
+async function handleMetaError(e, job) {
+  if (e.kind === "TOKEN" || e.kind === "PERMISSION") {
+    await saveMetaConn({ token_error: `${e.message} Reconnect with fb_meta_connect.` });
+    return "stop";
+  }
+  if (e.kind === "RESTRICTED") {
+    await pauseQueue(`Meta refused a post: "${e.message}". The queue stopped and future posts were pulled back from Meta. Wait 24-48 hours, check Page Quality in Meta Business Suite, then resume.`, null, "restriction");
+    return "stop";
+  }
+  if (e.kind === "RATE_LIMIT" || e.kind === "NETWORK") { await saveMetaConn({ backoff_until: Date.now() + (e.kind === "RATE_LIMIT" ? 60 : 10) * 60000 }); return "stop"; }
+  return "fail";
+}
+
+// Hand queued "meta" jobs to Meta once they are inside Meta's scheduling window; verify ones whose time has passed.
+async function metaTick() {
+  if (metaBusy) return;
+  metaBusy = true;
+  try {
+    const conn = await getMetaConn();
+    if (!conn.pages.length || conn.token_error || conn.backoff_until > Date.now()) return;
+    const st = await getStorage(["fb_queue_paused", "fb_scheduled_jobs"]);
+    const s = await getSafety(), now = Date.now();
+    if (!st.fb_queue_paused) {
+      const jobs0 = Array.isArray(st.fb_scheduled_jobs) ? st.fb_scheduled_jobs : [];
+      const ids = jobs0.filter(j => j.status === "queued" && j.delivery === "meta" && j.run_at_timestamp * 1000 <= now + META_MAX_DAYS * 86400000)
+        .sort((a, b) => a.run_at_timestamp - b.run_at_timestamp).slice(0, META_HANDOFF_PER_TICK).map(j => j.job_id);
+      for (const id of ids) {
+        const log = await getPublishLog();
+        const job = await updateJobs(async jobs => {
+          const j = jobs.find(x => x.job_id === id); if (!j || j.status !== "queued") return null;
+          const kind = jobKind(j.post_type, j.target_type), occ = buildOccupancy(jobs, log, j.job_id);
+          let at = j.run_at_timestamp * 1000;
+          // Re-check the slot at hand-off time (limits may have been lowered, or AntiGem was closed past the slot).
+          const problem = at < now + META_MIN_LEAD_MIN * 60000 ? "too close to schedule on Meta" : slotProblem(at, kind, occ, s);
+          if (problem) {
+            at = nextSafeSlot(Math.max(at, now + (META_MIN_LEAD_MIN + 5) * 60000), kind, occ, s);
+            if (!at) { j.status = "needs_review"; j.last_note = `No safe slot (${problem}).`; return null; }
+            j.run_at_timestamp = Math.floor(at / 1000); j.last_note = `Moved to ${new Date(at).toLocaleString()} (${problem}).`;
+            if (at > now + META_MAX_DAYS * 86400000) return null;
+          }
+          j.status = "handing_off"; j.handoff_started = now;
+          return { ...j };
+        });
+        if (!job) continue;
+        const page = resolveMetaPage(conn, job);
+        if (!page) { await updateJobs(async jobs => { const j = jobs.find(x => x.job_id === id); if (j) { j.status = "queued"; j.delivery = "device"; j.last_note = "No connected Page matches this target; it will post from this device."; } }); continue; }
+        try {
+          const r = await metaCreatePost(page, job, job.run_at_timestamp * 1000);
+          await updateJobs(async jobs => { const j = jobs.find(x => x.job_id === id); if (j) { j.status = "scheduled_on_meta"; j.meta_id = r.id; j.meta_post_id = r.post_id; j.meta_page_id = page.id; j.handed_off_at = Date.now(); j.last_note = `Scheduled on Meta (visible in Business Suite Planner) for ${new Date(j.run_at_timestamp * 1000).toLocaleString()}.`; } });
+        } catch (e) {
+          const action = await handleMetaError(e, job);
+          await updateJobs(async jobs => {
+            const j = jobs.find(x => x.job_id === id); if (!j) return;
+            j.status = "queued"; j.result = { error: e.message, code: e.graph && e.graph.code };
+            if (action === "fail") { j.meta_attempts = (j.meta_attempts || 0) + 1; if (j.meta_attempts >= 2 || e.kind === "MEDIA") { j.status = "failed"; j.completed_at = Date.now(); } j.last_note = `Meta rejected it: ${e.message}`; }
+          });
+          if (action === "stop") return;
+        }
+        await sleep(2500);
+      }
+    }
+    // Verify posts whose time has passed (Meta published them on its own).
+    const due = ((await getStorage(["fb_scheduled_jobs"])).fb_scheduled_jobs || []).filter(j => j.status === "scheduled_on_meta" && j.run_at_timestamp * 1000 < now - 20 * 60000).slice(0, 5);
+    for (const d of due) {
+      const page = conn.pages.find(p => p.id === d.meta_page_id);
+      if (!page) continue;
+      let ok = null, url = null;
+      try { const r = await graphCall("GET", d.meta_post_id || d.meta_id, page.token, { fields: "id,permalink_url" }); ok = true; url = r.permalink_url || null; }
+      catch (e) { if (e.kind === "TOKEN" || e.kind === "PERMISSION") { await handleMetaError(e, d); return; } if (e.kind === "RATE_LIMIT" || e.kind === "NETWORK") return; ok = false; }
+      await updateJobs(async jobs => { const j = jobs.find(x => x.job_id === d.job_id); if (!j) return; if (ok) { j.status = "completed"; j.completed_at = Date.now(); j.result = { meta_id: d.meta_id, post_url: url }; } else { j.status = "needs_review"; j.last_note = "Not found on Meta after its time. Check Business Suite > Planner / Published."; } });
+      if (ok) await recordPublishLog(jobKind(d.post_type, d.target_type), d.run_at_timestamp * 1000);
+    }
+    // A hand-off interrupted mid-upload: check Meta's list is impossible without the id, so ask for a manual look instead of re-posting.
+    await updateJobs(async jobs => { for (const j of jobs) if (j.status === "handing_off" && (j.handoff_started || 0) < now - 20 * 60000) { j.status = "needs_review"; j.last_note = "Hand-off to Meta was interrupted. Check Business Suite > Planner; if the post is not there, reschedule it."; } });
+  } finally { metaBusy = false; }
+}
+
+async function metaUnschedule(job) {
+  if (job.status !== "scheduled_on_meta" || !job.meta_id) return { ok: true };
+  const conn = await getMetaConn(), page = conn.pages.find(p => p.id === job.meta_page_id);
+  if (!page) return { ok: false, error: "The Page this post was scheduled on is no longer connected. Remove it in Business Suite > Planner." };
+  try { await graphCall("DELETE", job.meta_id, page.token); }
+  catch (e) { if (!(e.graph && Number(e.graph.code) === 100)) return { ok: false, error: `Meta did not remove it: ${e.message}` }; }
+  job.meta_id = null; job.meta_post_id = null;
+  return { ok: true };
+}
+
+// Pull future posts back from Meta (pause / warning): Meta would otherwise keep publishing while the Page is under a warning.
+async function metaPullBack(reason) {
+  const conn = await getMetaConn();
+  if (!conn.pages.length) return 0;
+  const jobs0 = ((await getStorage(["fb_scheduled_jobs"])).fb_scheduled_jobs || []).filter(j => j.status === "scheduled_on_meta" && j.run_at_timestamp * 1000 > Date.now() + 5 * 60000);
+  let n = 0;
+  for (const j0 of jobs0) {
+    const page = conn.pages.find(p => p.id === j0.meta_page_id); if (!page) continue;
+    try { await graphCall("DELETE", j0.meta_id, page.token); }
+    catch (e) { if (e.kind === "TOKEN" || e.kind === "PERMISSION" || e.kind === "RATE_LIMIT") break; if (e.kind === "NETWORK") break; }
+    await updateJobs(async jobs => { const j = jobs.find(x => x.job_id === j0.job_id); if (j) { j.status = "queued"; j.meta_id = null; j.meta_post_id = null; j.last_note = `Pulled back from Meta: ${reason}`; } });
+    n++; await sleep(700);
+  }
+  return n;
+}
+
+async function readCredentialFile(path) {
+  if (!path) return {};
+  const text = String(await chrome.antigem.readFile({ path, encoding: "utf8" })).trim();
+  try { return JSON.parse(text); } catch (_) { return { access_token: text }; }
+}
+
+async function metaConnect(args = {}) {
+  const file = await readCredentialFile(args.credentials_file);
+  const pageToken = args.page_access_token || file.page_access_token || null;
+  let userToken = args.user_access_token || file.user_access_token || (pageToken ? null : file.access_token) || null;
+  const appId = args.app_id || file.app_id, appSecret = args.app_secret || file.app_secret;
+  if (!pageToken && !userToken) return { success: false, error: "Give user_access_token (+ app_id and app_secret for a token that does not expire) or page_access_token, or a credentials_file path.", setup: META_SETUP_GUIDE };
+  let pages = [], longLived = false;
+  try {
+    if (userToken) {
+      if (appId && appSecret) {
+        const ex = await graphCall("GET", "oauth/access_token", userToken, { grant_type: "fb_exchange_token", client_id: appId, client_secret: appSecret, fb_exchange_token: userToken });
+        if (ex.access_token) { userToken = ex.access_token; longLived = true; }
+      }
+      const res = await graphCall("GET", "me/accounts", userToken, { fields: "id,name,username,access_token,tasks", limit: 100 });
+      pages = (res.data || []).filter(p => p.access_token && (!p.tasks || p.tasks.includes("CREATE_CONTENT") || p.tasks.includes("MANAGE"))).map(p => ({ id: p.id, name: p.name, username: p.username || null, token: p.access_token }));
+    } else {
+      const me = await graphCall("GET", "me", pageToken, { fields: "id,name,username" });
+      pages = [{ id: me.id, name: me.name, username: me.username || null, token: pageToken }];
+      longLived = Boolean(args.long_lived);
+    }
+    if (!pages.length) return { success: false, error: "No Pages with posting rights were found for this token. When generating the token, tick pages_show_list, pages_read_engagement and pages_manage_posts and select your Page.", setup: META_SETUP_GUIDE };
+    // Permission check without posting anything.
+    await graphCall("GET", `${pages[0].id}/scheduled_posts`, pages[0].token, { limit: 1 });
+  } catch (e) {
+    return { success: false, error: `Meta did not accept the token: ${e.message}`, setup: META_SETUP_GUIDE };
+  }
+  const conn = await getMetaConn();
+  const def = args.default_page || conn.default_page_id;
+  const defPage = pages.find(p => p.id === def || String(p.name).toLowerCase() === String(def || "").toLowerCase()) || pages[0];
+  await setStorage({ fb_meta_conn: { pages, default_page_id: defPage.id, long_lived: longLived, connected_at: Date.now(), token_error: null, backoff_until: 0 } });
+  return {
+    success: true, pages: maskPages(pages), default_page: { id: defPage.id, name: defPage.name }, long_lived: longLived,
+    note: longLived || pageToken ? "Connected. Scheduled posts now go to Meta's own scheduler (Business Suite > Planner)." : "Connected with a short-lived token (about 1 hour). Posts already handed to Meta still publish, but add app_id + app_secret for a token that does not expire.",
+    agent_instruction: "Tell the user it is connected and which Page is the default, in one or two sentences. Never repeat any token."
+  };
+}
+
+async function metaStatus() {
+  const conn = await getMetaConn();
+  const jobs = (await getStorage(["fb_scheduled_jobs"])).fb_scheduled_jobs || [];
+  let live = null;
+  const page = conn.pages.find(p => p.id === conn.default_page_id);
+  if (page && !conn.token_error) { try { await graphCall("GET", "me", page.token, { fields: "id" }); live = true; } catch (e) { live = false; if (e.kind === "TOKEN") await saveMetaConn({ token_error: `${e.message} Reconnect with fb_meta_connect.` }); } }
+  return {
+    success: true, connected: conn.pages.length > 0 && !conn.token_error && live !== false, pages: maskPages(conn.pages), default_page_id: conn.default_page_id,
+    long_lived: conn.long_lived, token_error: conn.token_error, backoff_until: conn.backoff_until > Date.now() ? new Date(conn.backoff_until).toLocaleString() : null,
+    on_meta: jobs.filter(j => j.status === "scheduled_on_meta").length, waiting_for_meta_window: jobs.filter(j => j.status === "queued" && j.delivery === "meta").length,
+    setup: conn.pages.length ? undefined : META_SETUP_GUIDE
+  };
+}
+
+async function metaDisconnect(args = {}) {
+  let pulled = 0;
+  if (args.pull_back !== false) pulled = await metaPullBack("Meta connection removed");
+  await setStorage({ fb_meta_conn: null });
+  const n = await updateJobs(async jobs => { let c = 0; for (const j of jobs) if (j.status === "queued" && j.delivery === "meta") { j.delivery = "device"; c++; } return c; });
+  return { success: true, pulled_back: pulled, moved_to_device: n };
+}
+
+const META_SETUP_GUIDE = [
+  "One-time setup (about 10 minutes, free, no App Review needed for your own Pages):",
+  "1. Open developers.facebook.com > My Apps > Create App > choose 'Business'. Any name.",
+  "2. Tools > Graph API Explorer > pick your app > 'Get Token' > 'Get User Access Token'. Tick pages_show_list, pages_read_engagement, pages_manage_posts (and business_management if the Page is in a Business portfolio). Generate and allow it for your Page.",
+  "3. App settings > Basic: copy the App ID and App Secret.",
+  "4. Safest: save them in a file such as ~/meta-credentials.json as {\"user_access_token\":\"...\",\"app_id\":\"...\",\"app_secret\":\"...\"} and give only the file path to fb_meta_connect {credentials_file}. The app secret is used once and is not stored.",
+  "Tokens can be revoked any time in Facebook Settings > Business integrations."
+].join("\n");
 
 // ============================================================================
 // 9. Senior Social Media Manager Auto-Copywriter & AI Thumbnail Engine
@@ -4533,6 +4893,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       case "fb_schedule": return await scheduleOne(args);
       case "fb_schedule_bulk": return await scheduleBulk(args);
       case "fb_safety_settings": return await safetySettingsTool(args);
+      case "fb_meta_connect": return await metaConnect(args);
+      case "fb_meta_status": return await metaStatus();
+      case "fb_meta_disconnect": return await metaDisconnect(args);
 
       case "fb_list_posts": {
         const limit = args.limit || 15;

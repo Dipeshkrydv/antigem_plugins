@@ -1,9 +1,9 @@
 ---
 name: meta-suite-automation
-description: "Master Autonomous Meta Suite Production Engine (v2.6.0). Enterprise Meta Business Suite Facebook Page management and scheduling engine. Enforces 1-click publishing & scheduling of Page Reels (9:16), Long Videos (16:9), Photos, Stories, and Announcements with custom video thumbnails/covers, in-memory DataTransfer injection, <100ms synthetic clipboard paste, anti-ad organic shield, anti-comment box firewall, and 100% script-fidelity DeepX Google Flow AI media generation."
+description: "Master Autonomous Meta Suite Production Engine (v2.7.0). Enterprise Meta Business Suite Facebook Page management and scheduling engine. Enforces 1-click publishing & scheduling of Page Reels (9:16), Long Videos (16:9), Photos, Stories, and Announcements with custom video thumbnails/covers, in-memory DataTransfer injection, <100ms synthetic clipboard paste, anti-ad organic shield, anti-comment box firewall, and 100% script-fidelity DeepX Google Flow AI media generation."
 ---
 
-# Master Meta Suite Page Management Engine (v2.6.0)
+# Master Meta Suite Page Management Engine (v2.7.0)
 
 The definitive autonomous production, publishing, and scheduling engine dedicated 100% to **Facebook Page Management via Meta Business Suite**. Zero delays. Zero questions. Zero friction.
 
@@ -166,6 +166,19 @@ When the user asks to "find trends", "what's trending", "search topics", "viral 
   - Automatically calculates local machine time and converts to UTC Unix epoch timestamp (`run_at_timestamp`).
   - Persisted in the plugin's storage (`fb_scheduled_jobs`); list / cancel / reschedule with `fb_manage_queue`.
   - The built-in 1-minute scheduler publishes due posts automatically while AntiGem is running. Missed slots are MOVED to the next safe slot, never posted in a burst.
+
+### 5-0. Meta's own scheduler (recommended for every Page)
+- `fb_meta_connect` once: scheduled Page posts are then created in **Meta's own scheduler** (official Graph API, the system behind Business Suite > Planner). Meta publishes them itself: no browser automation at posting time, and this device may be off.
+- If `fb_meta_status` shows not connected, show the user the setup steps it returns (Meta developer app → Graph API Explorer token with pages_show_list, pages_read_engagement, pages_manage_posts → App ID + App Secret) and ask them to save them in a local JSON file and give you only the path (`credentials_file`). Never ask them to paste tokens into chat if a file is possible; never repeat a token.
+- Meta takes scheduled posts up to ~30 days ahead: the plugin hands posts over automatically when they are within 28 days (about 3 per minute), so for a 2-month plan AntiGem only needs to be opened once every few weeks.
+- Reels, stories, personal profiles and groups are not scheduled through the API: they post from this device at their time (AntiGem open).
+
+### 5-1. "Generate everything, post 1 now, schedule the rest" (daily 25-30 Page posts)
+1. Generate the designs with DeepX in Agent Mode bulk (`deepx_flow_agent_batch_queue`), poll until done, collect the file paths.
+2. Write a different caption (3-6 hashtags) for every design.
+3. ONE call: `fb_schedule_bulk {posts:[{caption, media_paths:[path], post_type:"photo"}, ...], posts_per_day: 30, publish_first_now: true}`.
+4. Report: post #1 published (or why not), how many went to Meta's scheduler vs device, date range, warm-up, rejected items.
+- The warm-up (6 → 14 → 22 → 30 over 4 weeks) is on by default. Only if the user confirms the Page ALREADY posts 25-30 times a day may they turn it off with `fb_safety_settings {action:"set", warmup:false}`.
 
 ### 5A. Bulk scheduling: a week or a month of content in one call
 - For more than 3 posts use **`fb_schedule_bulk {posts:[...], start_date_iso, posts_per_day?, preferred_times?}`** (1-500 posts per call; call again for the next batch). Never loop `fb_schedule`.
