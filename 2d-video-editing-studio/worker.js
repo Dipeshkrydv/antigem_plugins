@@ -4,7 +4,7 @@
 import { configureDeepX, deepxExecute, deepxGenerate, loginCheck, jobs, snapshot, sleep, mcpListener } from './deepx-core.js';
 
 const PLUGIN_ID = "2d-video-editing-studio";
-const PLUGIN_VERSION = "3.5.3";
+const PLUGIN_VERSION = "3.5.4";
 configureDeepX({ pluginId: PLUGIN_ID, version: PLUGIN_VERSION });
 
 const STYLES = {

@@ -13,7 +13,7 @@
 //       Video generation: default orientation, number of outputs, video model
 //   References .......... bottom of prompt box -> "Add" (or drag assets into the prompt box)
 (function () {
-  var VERSION = 5; // v5: Google help-page locations (Agent button, Expand, Settings/Options, Image/Video sections, Sessions)
+  var VERSION = 6; // v6: panel auto-close before paste, instant paste with verification, faster send. v5: Google help-page locations (Agent button, Expand, Settings/Options, Image/Video sections, Sessions)
   if (window.__deepxAgent && window.__deepxAgent.v === VERSION) return;
 
   var BLOCK_RE = /unusual (?:activity|traffic|behaviou?r|request|usage)|suspicious (?:activity|traffic|request)|automated (?:queries|requests|traffic|software|access)|(?:browser )?extensions? (?:is|are|may be|might be)? ?(?:interfering|blocking|not (?:allowed|supported))|unsupported (?:browser|extension)|disable (?:your |any )?(?:browser )?extensions?|verify (?:that )?(?:you(?:'|’)re|you are) (?:a )?human|not a robot|re-?captcha|captcha (?:failed|required|verification)|couldn(?:'|’)t verify|PUBLIC_ERROR_UNUSUAL|UNUSUAL_ACTIVITY|PERMISSION_DENIED|request (?:was )?blocked by google/i;
@@ -431,7 +431,9 @@
     if (back) mdcClick(back);
     else document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }));
     await sleep(100);
-    return { success: true, applied: applied };
+    var cl = await closePanels(); // v6: never leave Settings covering the prompt box
+    if (cl.closed.length) applied.push('panel closed: ' + cl.closed.join('+'));
+    return { success: true, applied: applied, prompt_box: cl.prompt_box };
   }
 
   // ---------- Custom instructions (article_spark panel) ----------
@@ -485,7 +487,9 @@
     if (done && !isDisabled(done)) { mdcClick(done); await sleep(140); }
     var close = document.querySelector(".agent-panel-animation-container button[aria-label='Close'], button.header-action[aria-label='Close']") || findControl(/^close$/i, /^close$/, box);
     if (close && shown(close)) mdcClick(close);
-    return { success: !!(title || desc), instructionsSynced: !!(title || desc), reused_entry: existing };
+    await sleep(80);
+    var cl = await closePanels(); // v6: instructions panel must not stay over the prompt box
+    return { success: !!(title || desc), instructionsSynced: !!(title || desc), reused_entry: existing, prompt_box: cl.prompt_box };
   }
 
   // ---------- Compact Agent replies (Nov 2026) ----------
@@ -627,15 +631,57 @@
   }
 
   // ---------- Prompt box + submit ----------
+  var PANEL_SEL = '.instructions-container, flow-agent-settings, [class*="agent-settings"], [class*="settings-panel"], .cdk-overlay-pane, mat-dialog-container';
+  function inPanel(el) { return !!(el && el.closest && el.closest(PANEL_SEL)); }
   function promptBox() {
-    var el = document.querySelector('div.ProseMirror[contenteditable="true"]');
-    if (el && shown(el)) return el;
-    var list = document.querySelectorAll("flow-rich-text-editor div[role='textbox'], [contenteditable='true'], flow-prompt-box textarea, textarea");
-    for (var i = 0; i < list.length; i++) if (shown(list[i])) return list[i];
+    var pm = document.querySelectorAll('div.ProseMirror[contenteditable="true"]');
+    for (var i = 0; i < pm.length; i++) if (shown(pm[i]) && !inPanel(pm[i])) return pm[i];
+    var list = document.querySelectorAll("flow-rich-text-editor div[role='textbox'], flow-prompt-box [contenteditable='true'], flow-base-prompt-box [contenteditable='true'], .agent-panel-prompt-box [contenteditable='true'], [contenteditable='true'][role='textbox'], flow-prompt-box textarea, flow-base-prompt-box textarea, .agent-panel-prompt-box textarea");
+    for (var j = 0; j < list.length; j++) if (shown(list[j]) && !inPanel(list[j])) return list[j];
     return null;
   }
+  // Close Agent Settings / Agent Instructions / any overlay that covers the prompt box.
+  function backButtonIn(root) {
+    if (!root) return null;
+    return Array.prototype.slice.call(root.querySelectorAll('button')).find(function (b) {
+      if (!shown(b)) return false;
+      var ic = iconText(b), aria = (b.getAttribute('aria-label') || '').toLowerCase();
+      return /arrow_back|chevron_left|close/.test(ic) || /^(back|close|go back|done)$/.test(aria);
+    }) || null;
+  }
+  async function closePanels() {
+    var closed = [];
+    for (var round = 0; round < 4; round++) {
+      var sp = settingsPanel(), ip = document.querySelector('.instructions-container');
+      var open = (sp && shown(sp) && /confirm before generating/i.test(sp.innerText || '')) ? sp : (ip && shown(ip) ? ip : null);
+      var bd = document.querySelector('.cdk-overlay-backdrop');
+      if (!open && !(bd && shown(bd)) && promptBox()) break;
+      if (bd && shown(bd)) { bd.click(); closed.push('overlay'); }
+      else if (open) {
+        var host = open.closest('.agent-panel-animation-container, .agent-panel-wrapper, flow-agent-side-panel, [class*="agent-panel"]') || open;
+        var save = open.querySelector('button.settings-save-button');
+        if (save && !isDisabled(save)) { mdcClick(save); closed.push('save'); await sleep(80); }
+        var back = backButtonIn(open) || backButtonIn(host);
+        if (back) { mdcClick(back); closed.push('back'); }
+        else { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true, cancelable: true })); closed.push('escape'); }
+      } else {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', keyCode: 27, bubbles: true, cancelable: true })); closed.push('escape');
+      }
+      for (var w = 0; w < 10 && !promptBox(); w++) await sleep(50);
+    }
+    return { closed: closed, prompt_box: !!promptBox() };
+  }
+  async function ensurePromptBox() {
+    var el = promptBox();
+    if (el) return el;
+    await closePanels();
+    for (var i = 0; i < 20 && !(el = promptBox()); i++) await sleep(50);
+    return el;
+  }
   function submitButton() {
-    var roots = [document.querySelector('flow-prompt-box, flow-base-prompt-box, .agent-prompt-box'), document];
+    var pb = promptBox();
+    var near = pb && pb.closest('.agent-panel-prompt-box, flow-agent-prompt-box, flow-prompt-box, flow-base-prompt-box, .agent-prompt-box, form, div.prompt-box');
+    var roots = [near, document.querySelector('.agent-panel-prompt-box, flow-prompt-box, flow-base-prompt-box, .agent-prompt-box'), document];
     for (var r = 0; r < roots.length; r++) {
       if (!roots[r]) continue;
       var btns = Array.prototype.filter.call(roots[r].querySelectorAll('button'), shown);
@@ -645,28 +691,64 @@
     }
     return null;
   }
-  function fillPrompt(text) {
-    window.__agFlowExpect = null; // never let the standard-mode send guard block an Agent request
-    var el = promptBox();
-    if (!el) return { ok: false, error: 'Prompt box not found on the Flow canvas.' };
+  function boxValue(el) { return norm(el.tagName === 'TEXTAREA' ? el.value : el.innerText); }
+  function pasted(el, text) {
+    var v = boxValue(el), t = norm(text);
+    if (!t) return true;
+    if (v.length < t.length * 0.9 || v.length > t.length * 1.1 + 4) return false; // missing or doubled text
+    var head = t.slice(0, 40), tail = t.slice(-40);
+    return v.indexOf(head) >= 0 && v.indexOf(tail) >= 0;
+  }
+  function clearBox(el) {
     el.focus();
+    if (el.tagName === 'TEXTAREA') { el.select(); document.execCommand('delete', false); if (el.value) setValue(el, ''); return; }
+    var range = document.createRange(); range.selectNodeContents(el);
+    var sel = getSelection(); sel.removeAllRanges(); sel.addRange(range);
+    document.execCommand('delete', false);
+  }
+  function selectAll(el) {
+    el.focus();
+    if (el.tagName === 'TEXTAREA') { el.select(); return; }
+    var range = document.createRange(); range.selectNodeContents(el);
+    var sel = getSelection(); sel.removeAllRanges(); sel.addRange(range);
+  }
+  // v6: instant paste. Order: synthetic clipboard paste (ProseMirror handles it in one transaction, keeps
+  // line breaks) -> execCommand insertText -> paragraph DOM write. Each step is verified (full text, not doubled).
+  async function fillPrompt(text) {
+    window.__agFlowExpect = null; // never let the standard-mode send guard block an Agent request
+    text = String(text || '');
+    var el = await ensurePromptBox();
+    if (!el) return { ok: false, error: 'Prompt box not found on the Flow canvas (a panel may be covering it).' };
+    var method = 'none';
     if (el.tagName === 'TEXTAREA') {
-      el.select(); document.execCommand('insertText', false, text);
-      if (norm(el.value) !== norm(text)) setValue(el, text);
+      el.focus(); el.select(); document.execCommand('insertText', false, text); method = 'insertText';
+      if (!pasted(el, text)) { setValue(el, text); method = 'setValue'; }
     } else {
-      var range = document.createRange(); range.selectNodeContents(el);
-      var sel = getSelection(); sel.removeAllRanges(); sel.addRange(range);
-      document.execCommand('delete', false);
-      document.execCommand('insertText', false, text);
-      if (norm(el.innerText).length < Math.min(40, norm(text).length)) {
-        // Fallback: synthetic paste keeps ProseMirror paragraphs intact
-        var dt = new DataTransfer(); dt.setData('text/plain', text);
-        el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+      // 1) one-shot paste replacing the selection
+      selectAll(el);
+      var dt = new DataTransfer(); dt.setData('text/plain', text);
+      el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+      method = 'paste';
+      await sleep(30);
+      if (!pasted(el, text)) {
+        // 2) insertText (single call, newlines preserved by ProseMirror)
+        clearBox(el);
+        document.execCommand('insertText', false, text);
+        method = 'insertText';
+        await sleep(30);
+      }
+      if (!pasted(el, text)) {
+        // 3) direct paragraph write + input event (last resort)
+        el.innerHTML = '';
+        text.split('\n').forEach(function (line) { var pEl = document.createElement('p'); if (line) pEl.textContent = line; else pEl.appendChild(document.createElement('br')); el.appendChild(pEl); });
+        el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertFromPaste', data: text }));
+        method = 'dom';
+        await sleep(60);
       }
       el.dispatchEvent(new Event('input', { bubbles: true }));
     }
-    var value = norm(el.tagName === 'TEXTAREA' ? el.value : el.innerText);
-    return { ok: value.length >= Math.min(20, norm(text).length) * 0.9, length: value.length };
+    var ok = pasted(el, text);
+    return { ok: ok, length: boxValue(el).length, expected: norm(text).length, method: method, error: ok ? null : 'Prompt text did not stick in the Flow prompt box.' };
   }
   async function submitPoint() {
     var btn = null;
@@ -686,7 +768,9 @@
   function pressEnter() {
     var el = promptBox() || document.activeElement || document.body;
     var ev = { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true };
+    if (el.focus) el.focus();
     el.dispatchEvent(new KeyboardEvent('keydown', ev));
+    el.dispatchEvent(new KeyboardEvent('keypress', ev));
     el.dispatchEvent(new KeyboardEvent('keyup', ev));
     return { ok: true };
   }
@@ -808,7 +892,7 @@
     approve: approve, fillPrompt: fillPrompt, submitPoint: submitPoint, clickSubmit: clickSubmit,
     pressEnter: pressEnter, busy: busy, blockMark: blockMark, blockScan: blockScan, isBlockText: isBlockText,
     openFullChat: openFullChat, compactReply: function () { var c = compactReply(); return c ? norm(c.innerText).slice(0, 2000) : null; },
-    searchAssets: searchAssets, clearSearch: clearSearch, getCompletedTiles: getCompletedTiles,
+    searchAssets: searchAssets, clearSearch: clearSearch, getCompletedTiles: getCompletedTiles, closePanels: closePanels, ensurePromptBox: function () { return ensurePromptBox().then(function (el) { return { ok: !!el }; }); },
     openSettings: function () { return openSettings().then(function (p) { return { open: !!p }; }); },
     newSession: newSession, listSessions: listSessions, openSession: openSession,
     agentToggle: agentPill, agentActive: agentActive

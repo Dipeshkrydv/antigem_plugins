@@ -1,7 +1,7 @@
 ---
 name: deepx-google-flow
-description: "DeepX Google Flow Studio (v1.2.3): generate images and videos on Google Flow from chat with zero setup. Before every generation ask ONE question — Agent Mode or Standard mode (without Agent) — then call deepx_generate instantly. Agent Mode splits >24 prompts into parts of ≤24 pasted back-to-back with 100% autopilot. Standard mode auto-switches to Agent Mode when Google shows an 'unusual activity / extension' error. Use for any image, video, storyboard, bulk batch, character, reference, asset search, upscale or 'DeepX' / 'Google Flow' / 'Nano Banana' / 'Veo' / 'Omni' request."
-version: 1.2.3
+description: "DeepX Google Flow Studio (v1.2.4): generate images and videos on Google Flow from chat with zero setup. Before every generation ask ONE question — Agent Mode or Standard mode (without Agent) — then call deepx_generate instantly. Agent Mode splits >24 prompts into parts of ≤24 pasted back-to-back with 100% autopilot. Standard mode auto-switches to Agent Mode when Google shows an 'unusual activity / extension' error. Use for any image, video, storyboard, bulk batch, character, reference, asset search, upscale or 'DeepX' / 'Google Flow' / 'Nano Banana' / 'Veo' / 'Omni' request."
+version: 1.2.4
 ---
 
 # DeepX Google Flow Studio — Instant Production Playbook
@@ -43,6 +43,13 @@ Rules:
 - Returns a job: `total_parts`, `parts[]` (status per part), `approvals`, `media_ids` (new media in the project). Big jobs take minutes: keep polling `deepx_job_status`.
 Details: read `agent-mode.md` in this skill's folder.
 
+## ⚡ 2b. Speed & reliability (v1.2.4 — fixed Nov 22 2026)
+- **Instant paste**: the prompt is pasted in one shot (clipboard paste → insertText → paragraph write), and verified head + tail + length (never half-pasted, never doubled). Agent Settings / Agent Instructions panels are **closed automatically** before pasting, so "Prompt box not found" no longer happens.
+- **Instant send**: trusted tap on Send → DOM click → Enter, each checked within ~1.5 s (was up to 10 s). If Flow still ignores it, the panel is closed, the prompt re-pasted and sent once more.
+- **Fast ordered downloads**: Agent Mode downloads each finished part **in parallel (8 at a time) while the next part is generating**. Files are saved as `001_…`, `002_…` (zero-padded, prompt order) in `~/flow-media/`; late images are matched to their empty slot, not dumped as extras. `job.files` comes back sorted. Set `download_concurrency` (1–12) to change speed.
+- **Bulk download of existing media**: one call `deepx_download_media {media_ids:[...], folder, prefix?, start_index?, type?}` downloads them all in parallel with ordered names. **Never** call download once per image.
+- Do **not** paste prompts yourself with browser taps or `browser_eval_js`; the tools now do it correctly. Only if a tool reports an error twice, call `deepx_flow_agent_status` once and tell the user.
+
 ## 🎯 3. Standard mode + automatic Agent fallback
 - Runs on AntiGem's native Flow engine: exact model, ratio, count, references, frames; a request guard; downloaded files per item.
 - If Google rejects generation with **"unusual activity" / "extension" / captcha / PERMISSION_DENIED**, the plugin cancels the unsent prompts and re-sends every blocked or unsent prompt through **Agent Mode** (24 per part). Standard requests in the next 15 minutes go straight to Agent Mode.
@@ -52,7 +59,7 @@ Details: `standard-mode.md`.
 ## 🧰 4. Other tools (use only when asked)
 - Characters: `deepx_generate_character`, `deepx_upload_character`, `deepx_list_characters`, `deepx_rename_character`, `deepx_auto_character_pipeline`
 - References & chaining: `deepx_upload_asset`, `deepx_attach_references_batch`, `deepx_auto_chain_scene`, `deepx_extract_last_frame`, `flow_combine_videos`
-- Project & media: `deepx_open_new_project`, `deepx_rename_project`, `flow_list_media`, `flow_get_last_media`, `deepx_download_media`, `deepx_upscale_media`
+- Project & media: `deepx_open_new_project`, `deepx_rename_project`, `flow_list_media`, `flow_get_last_media`, `deepx_download_media` (single, or `media_ids:[...]` for parallel bulk), `deepx_upscale_media`
 - Agent controls: `deepx_flow_agent_status|toggle|configure|set_instructions|approve_all|open_chat|dispatch|batch_queue`
 - Search: `deepx_search_assets` (exact + similar results)
 - Jobs: `deepx_job_status`, `deepx_cancel_job`

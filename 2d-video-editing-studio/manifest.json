@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "id": "2d-video-editing-studio",
   "name": "2D Video Editing Studio",
-  "version": "3.5.3",
-  "description": "Senior Video Editor & Autonomous 2D Production Engine (v3.5.3): 6 Official Styles (Vox/Box Paper, Stickman, Sticker, Noir, Hand-Drawn Doodle, Retro Arcade), Recipe-Driven Autopilot Edits, Voice-Synced Asset Placement, built-in DeepX Google Flow asset engine (login check \u2192 one Agent/Standard question \u2192 autopilot; Agent Mode \u226424 prompts per part back-to-back; automatic Agent fallback on unusual-activity blocks), Anti-Offline Server Shield, high-speed render presets and 15-minute timeline scaling.",
+  "version": "3.5.4",
+  "description": "Senior Video Editor & Autonomous 2D Production Engine (v3.5.4): 6 Official Styles (Vox/Box Paper, Stickman, Sticker, Noir, Hand-Drawn Doodle, Retro Arcade), Recipe-Driven Autopilot Edits, Voice-Synced Asset Placement, built-in DeepX Google Flow asset engine (login check → one Agent/Standard question → autopilot; Agent Mode ≤24 prompts per part back-to-back; automatic Agent fallback on unusual-activity blocks), Anti-Offline Server Shield, high-speed render presets and 15-minute timeline scaling.",
   "author": "Dipesh Kr Yadav",
   "icon": "icon.png",
   "icons": {
@@ -38,7 +38,7 @@
     },
     {
       "name": "studio_generate_assets",
-      "description": "AUTOPILOT ASSET GENERATION for a 2D video project: reads ELEMENTS.tsv, skips assets already in elements/, checks the Google Flow login (LOGIN_REQUIRED \u2192 tell the user to sign in, stop), then asks ONE last question if generation_mode is missing (ASK_GENERATION_MODE: with Agent Mode or without Agent Mode). Generates every missing image through the built-in DeepX Google Flow engine \u2014 Agent Mode pastes \u226424 prompts per part back-to-back; Standard mode auto-switches to Agent Mode on Google 'unusual activity / extension' errors \u2014 and saves elements/raw/<name>.<ext>. Never paste prompts into Google Flow manually. Returns a job; poll deepx_job_status.",
+      "description": "AUTOPILOT ASSET GENERATION for a 2D video project: reads ELEMENTS.tsv, skips assets already in elements/, checks the Google Flow login (LOGIN_REQUIRED → tell the user to sign in, stop), then asks ONE last question if generation_mode is missing (ASK_GENERATION_MODE: with Agent Mode or without Agent Mode). Generates every missing image through the built-in DeepX Google Flow engine — Agent Mode pastes ≤24 prompts per part back-to-back; Standard mode auto-switches to Agent Mode on Google 'unusual activity / extension' errors — and saves elements/raw/<name>.<ext>. Never paste prompts into Google Flow manually. Returns a job; poll deepx_job_status.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -167,7 +167,7 @@
     },
     {
       "name": "deepx_generate",
-      "description": "PRIMARY TOOL for every DeepX/Google Flow image or video request. Before ANY generation the user must choose Agent Mode or Standard mode (without Agent): if generation_mode is missing this tool generates nothing and returns ASK_GENERATION_MODE \u2014 ask that one question, then call again with generation_mode. Agent Mode: switches Flow to Agent + 100% autopilot, splits >24 prompts into parts of \u226424 and pastes them back-to-back. Standard mode: AntiGem native composer; if Google shows an 'unusual activity / extension / captcha' error it automatically re-sends the prompts in Agent Mode. Returns a job; poll deepx_job_status.",
+      "description": "PRIMARY TOOL for every DeepX/Google Flow image or video request. Before ANY generation the user must choose Agent Mode or Standard mode (without Agent): if generation_mode is missing this tool generates nothing and returns ASK_GENERATION_MODE — ask that one question, then call again with generation_mode. Agent Mode: switches Flow to Agent + 100% autopilot, splits >24 prompts into parts of ≤24 and pastes them back-to-back. Standard mode: AntiGem native composer; if Google shows an 'unusual activity / extension / captcha' error it automatically re-sends the prompts in Agent Mode. Returns a job; poll deepx_job_status.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -196,7 +196,7 @@
             "items": {
               "type": "string"
             },
-            "description": "List of prompts, one output item each (any length; Agent Mode splits into parts of \u226424, Standard mode accepts \u2264500)."
+            "description": "List of prompts, one output item each (any length; Agent Mode splits into parts of ≤24, Standard mode accepts ≤500)."
           },
           "script_text": {
             "type": "string",
@@ -235,7 +235,7 @@
           },
           "count": {
             "type": "integer",
-            "description": "Standard mode: outputs per prompt (1\u20134).",
+            "description": "Standard mode: outputs per prompt (1–4).",
             "minimum": 1,
             "maximum": 4
           },
@@ -310,13 +310,19 @@
           },
           "wait_seconds": {
             "type": "integer",
-            "description": "Seconds to wait before returning (0\u201345). Poll deepx_job_status afterwards.",
+            "description": "Seconds to wait before returning (0–45). Poll deepx_job_status afterwards.",
             "minimum": 0,
             "maximum": 45
           },
           "dry_run": {
             "type": "boolean",
             "description": "Standard mode: prepare and guard-block the request without spending credits."
+          },
+          "download_concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12,
+            "description": "Parallel downloads per part (default 8). Each part downloads while the next part generates."
           }
         },
         "additionalProperties": false
@@ -341,7 +347,7 @@
           },
           "wait_seconds": {
             "type": "integer",
-            "description": "0\u201350 seconds to wait.",
+            "description": "0–50 seconds to wait.",
             "minimum": 0,
             "maximum": 50
           }
@@ -601,7 +607,7 @@
     },
     {
       "name": "flow_agent_dispatch",
-      "description": "Agent Mode dispatch of a storyboard/prompt list (user already chose Agent Mode). Auto-splits into parts of \u226424 pasted back-to-back. Returns a job.",
+      "description": "Agent Mode dispatch of a storyboard/prompt list (user already chose Agent Mode). Auto-splits into parts of ≤24 pasted back-to-back. Returns a job.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -618,7 +624,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Explicit prompt list (split into parts of \u226424)."
+            "description": "Explicit prompt list (split into parts of ≤24)."
           },
           "media_type": {
             "type": "string",
@@ -698,9 +704,15 @@
           },
           "wait_seconds": {
             "type": "integer",
-            "description": "Seconds to wait before returning (0\u201345).",
+            "description": "Seconds to wait before returning (0–45).",
             "minimum": 0,
             "maximum": 45
+          },
+          "download_concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12,
+            "description": "Parallel downloads per part (default 8). Each part downloads while the next part generates."
           }
         },
         "additionalProperties": false
@@ -708,7 +720,7 @@
     },
     {
       "name": "deepx_flow_agent_dispatch",
-      "description": "Agent Mode dispatch of a storyboard/prompt list (user already chose Agent Mode). Auto-splits into parts of \u226424 pasted back-to-back. Returns a job.",
+      "description": "Agent Mode dispatch of a storyboard/prompt list (user already chose Agent Mode). Auto-splits into parts of ≤24 pasted back-to-back. Returns a job.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -725,7 +737,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Explicit prompt list (split into parts of \u226424)."
+            "description": "Explicit prompt list (split into parts of ≤24)."
           },
           "media_type": {
             "type": "string",
@@ -805,9 +817,15 @@
           },
           "wait_seconds": {
             "type": "integer",
-            "description": "Seconds to wait before returning (0\u201345).",
+            "description": "Seconds to wait before returning (0–45).",
             "minimum": 0,
             "maximum": 45
+          },
+          "download_concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12,
+            "description": "Parallel downloads per part (default 8). Each part downloads while the next part generates."
           }
         },
         "additionalProperties": false
@@ -815,7 +833,7 @@
     },
     {
       "name": "flow_agent_batch_queue",
-      "description": "Agent Mode bulk queue for 1\u20135000 items (ranges like 1 to 1000, '100 images of X', or long prompt lists): \u226424 items per part, back-to-back, autopilot approvals. Returns a job.",
+      "description": "Agent Mode bulk queue for 1–5000 items (ranges like 1 to 1000, '100 images of X', or long prompt lists): ≤24 items per part, back-to-back, autopilot approvals. Returns a job.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -832,7 +850,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Explicit prompt list (split into parts of \u226424)."
+            "description": "Explicit prompt list (split into parts of ≤24)."
           },
           "media_type": {
             "type": "string",
@@ -912,9 +930,15 @@
           },
           "wait_seconds": {
             "type": "integer",
-            "description": "Seconds to wait before returning (0\u201345).",
+            "description": "Seconds to wait before returning (0–45).",
             "minimum": 0,
             "maximum": 45
+          },
+          "download_concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12,
+            "description": "Parallel downloads per part (default 8). Each part downloads while the next part generates."
           }
         },
         "additionalProperties": false
@@ -922,7 +946,7 @@
     },
     {
       "name": "deepx_flow_agent_batch_queue",
-      "description": "Agent Mode bulk queue for 1\u20135000 items (ranges like 1 to 1000, '100 images of X', or long prompt lists): \u226424 items per part, back-to-back, autopilot approvals. Returns a job.",
+      "description": "Agent Mode bulk queue for 1–5000 items (ranges like 1 to 1000, '100 images of X', or long prompt lists): ≤24 items per part, back-to-back, autopilot approvals. Returns a job.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -939,7 +963,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Explicit prompt list (split into parts of \u226424)."
+            "description": "Explicit prompt list (split into parts of ≤24)."
           },
           "media_type": {
             "type": "string",
@@ -1019,9 +1043,15 @@
           },
           "wait_seconds": {
             "type": "integer",
-            "description": "Seconds to wait before returning (0\u201345).",
+            "description": "Seconds to wait before returning (0–45).",
             "minimum": 0,
             "maximum": 45
+          },
+          "download_concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12,
+            "description": "Parallel downloads per part (default 8). Each part downloads while the next part generates."
           }
         },
         "additionalProperties": false
@@ -1051,7 +1081,7 @@
           },
           "wait_seconds": {
             "type": "integer",
-            "description": "0\u201345.",
+            "description": "0–45.",
             "minimum": 0,
             "maximum": 45
           }
@@ -1092,7 +1122,7 @@
         "properties": {
           "zoom_factor": {
             "type": "number",
-            "description": "Zoom factor 0.25\u20132."
+            "description": "Zoom factor 0.25–2."
           }
         },
         "additionalProperties": false,
@@ -1327,7 +1357,7 @@
     },
     {
       "name": "flow_generate_image",
-      "description": "Generate IMAGES (not videos) on Google Flow with the user's own account. For videos use flow_generate_video. For several different prompts, pass them all at once in items (each with its own prompt and optional settings): they are sent to Flow one right after another and generate in parallel \u2014 do NOT call this tool once per prompt and wait in between. All settings are applied explicitly (defaults shown). Takes 15-30 s; images cost 0 credits on most plans. Waits up to wait_seconds; if not finished, returns job_id \u2014 call flow_get_job to keep waiting. Results are saved once in ~/flow-media; to show one in chat write ![caption](<path>) on its own line.",
+      "description": "Generate IMAGES (not videos) on Google Flow with the user's own account. For videos use flow_generate_video. For several different prompts, pass them all at once in items (each with its own prompt and optional settings): they are sent to Flow one right after another and generate in parallel — do NOT call this tool once per prompt and wait in between. All settings are applied explicitly (defaults shown). Takes 15-30 s; images cost 0 credits on most plans. Waits up to wait_seconds; if not finished, returns job_id — call flow_get_job to keep waiting. Results are saved once in ~/flow-media; to show one in chat write ![caption](<path>) on its own line.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1394,7 +1424,7 @@
     },
     {
       "name": "flow_generate_video",
-      "description": "Generate VIDEOS (not images) on Google Flow \u2014 from text, from a start (and optional end) frame, or from reference images with the user's own account. For images use flow_generate_image. For several different prompts, pass them all at once in items (each with its own prompt and optional settings): they are sent one right after another and generate in parallel \u2014 do NOT call this tool once per prompt and wait in between. max_credits is the total for the whole call. All settings are applied explicitly (defaults shown). Videos cost credits: Omni 1.1 Flash 360p = 4/5/6/7 and 7500p = 7/10/12/15 for 4/6/8/10 s; Veo 3.1 Lite 10, Fast 500, Quality 100 (fixed 7500p, 8 s); times count \u2014 set max_credits to cap it. Takes about 1-5 min: waits up to wait_seconds, then returns job_id and media_ids \u2014 call flow_get_job (or flow_video_status) to keep waiting. Results are saved once in ~/flow-media; to show one in chat write ![caption](<path>) on its own line.",
+      "description": "Generate VIDEOS (not images) on Google Flow — from text, from a start (and optional end) frame, or from reference images with the user's own account. For images use flow_generate_image. For several different prompts, pass them all at once in items (each with its own prompt and optional settings): they are sent one right after another and generate in parallel — do NOT call this tool once per prompt and wait in between. max_credits is the total for the whole call. All settings are applied explicitly (defaults shown). Videos cost credits: Omni 1.1 Flash 360p = 4/5/6/7 and 7500p = 7/10/12/15 for 4/6/8/10 s; Veo 3.1 Lite 10, Fast 500, Quality 100 (fixed 7500p, 8 s); times count — set max_credits to cap it. Takes about 1-5 min: waits up to wait_seconds, then returns job_id and media_ids — call flow_get_job (or flow_video_status) to keep waiting. Results are saved once in ~/flow-media; to show one in chat write ![caption](<path>) on its own line.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1805,7 +1835,7 @@
     },
     {
       "name": "flow_extend_video",
-      "description": "Continue a Veo video seamlessly with a new 8 s clip (\"what happens next\"); costs about one Veo video of that tier. Only for Veo clips \u2014 for Omni clips use flow_extract_frame (upload: true) then flow_generate_video with start_frame. Returns a job.",
+      "description": "Continue a Veo video seamlessly with a new 8 s clip (\"what happens next\"); costs about one Veo video of that tier. Only for Veo clips — for Omni clips use flow_extract_frame (upload: true) then flow_generate_video with start_frame. Returns a job.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -1834,7 +1864,7 @@
     },
     {
       "name": "flow_upscale_video",
-      "description": "Upscale a Flow video (360p Omni \u2192 720p; 720p videos may offer 1080p / 4K). The upscaled copy is a new media item saved in ~/flow-media. Returns a job.",
+      "description": "Upscale a Flow video (360p Omni → 720p; 720p videos may offer 1080p / 4K). The upscaled copy is a new media item saved in ~/flow-media. Returns a job.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -3279,7 +3309,7 @@
     },
     {
       "name": "flow_download_media",
-      "description": "Download media by ID or URL into local terminal storage, with an optional filename and folder.",
+      "description": "Download media by ID, a list of IDs (media_ids — parallel, ordered names) or URL into local terminal storage, with an optional filename and folder.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -3297,6 +3327,36 @@
           },
           "download_folder": {
             "type": "string"
+          },
+          "media_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Bulk download (v1.2.4): many media IDs at once, downloaded in parallel (8 at a time) and saved with ordered names 001_, 002_ … in this exact order. Use this instead of one call per image."
+          },
+          "start_index": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number offset for ordered names (e.g. 24 -> first file is 025_)."
+          },
+          "prefix": {
+            "type": "string",
+            "description": "Optional name part after the number, e.g. 'quote' -> 001_quote_<id>.jpg."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video"
+            ],
+            "description": "Media type hint; skips a lookup per file."
+          },
+          "concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12,
+            "description": "Parallel downloads (default 8)."
           }
         },
         "additionalProperties": false
@@ -3323,7 +3383,7 @@
     },
     {
       "name": "deepx_generate_video",
-      "description": "Chrome Flow MCP compatibility alias for flow_generate_video. Generate VIDEOS (not images) on Google Flow \u2014 from text, from a start (and optional end) frame, or from reference images with the user's own account. For images use flow_generate_image. For several different prompts, pass them all at once in items (each with its own prompt and optional settings): they are sent one right after another and generate in parallel \u2014 do NOT call this tool once per prompt and wait in between. max_credits is the total for the whole call. All settings are applied explicitly (defaults shown). Videos cost credits: Omni 1.1 Flash 360p = 4/5/6/7 and 720p = 7/10/12/15 for 4/6/8/10 s; Veo 3.1 Lite 10, Fast 20, Quality 100 (fixed 720p, 8 s); times count \u2014 set max_credits to cap it. Takes about 1-5 min: waits up to wait_seconds, then returns job_id and media_ids \u2014 call flow_get_job (or flow_video_status) to keep waiting. Results are saved once in ~/flow-media; to show one in chat write ![caption](<path>) on its own line.",
+      "description": "Chrome Flow MCP compatibility alias for flow_generate_video. Generate VIDEOS (not images) on Google Flow — from text, from a start (and optional end) frame, or from reference images with the user's own account. For images use flow_generate_image. For several different prompts, pass them all at once in items (each with its own prompt and optional settings): they are sent one right after another and generate in parallel — do NOT call this tool once per prompt and wait in between. max_credits is the total for the whole call. All settings are applied explicitly (defaults shown). Videos cost credits: Omni 1.1 Flash 360p = 4/5/6/7 and 720p = 7/10/12/15 for 4/6/8/10 s; Veo 3.1 Lite 10, Fast 20, Quality 100 (fixed 720p, 8 s); times count — set max_credits to cap it. Takes about 1-5 min: waits up to wait_seconds, then returns job_id and media_ids — call flow_get_job (or flow_video_status) to keep waiting. Results are saved once in ~/flow-media; to show one in chat write ![caption](<path>) on its own line.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -3419,7 +3479,7 @@
     },
     {
       "name": "deepx_generate_image",
-      "description": "Chrome Flow MCP compatibility alias for flow_generate_image. Generate IMAGES (not videos) on Google Flow with the user's own account. For videos use flow_generate_video. For several different prompts, pass them all at once in items (each with its own prompt and optional settings): they are sent to Flow one right after another and generate in parallel \u2014 do NOT call this tool once per prompt and wait in between. All settings are applied explicitly (defaults shown). Takes 15-30 s; images cost 0 credits on most plans. Waits up to wait_seconds; if not finished, returns job_id \u2014 call flow_get_job to keep waiting. Results are saved once in ~/flow-media; to show one in chat write ![caption](<path>) on its own line.",
+      "description": "Chrome Flow MCP compatibility alias for flow_generate_image. Generate IMAGES (not videos) on Google Flow with the user's own account. For videos use flow_generate_video. For several different prompts, pass them all at once in items (each with its own prompt and optional settings): they are sent to Flow one right after another and generate in parallel — do NOT call this tool once per prompt and wait in between. All settings are applied explicitly (defaults shown). Takes 15-30 s; images cost 0 credits on most plans. Waits up to wait_seconds; if not finished, returns job_id — call flow_get_job to keep waiting. Results are saved once in ~/flow-media; to show one in chat write ![caption](<path>) on its own line.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -4563,7 +4623,7 @@
     },
     {
       "name": "deepx_download_media",
-      "description": "Chrome Flow MCP compatibility alias for flow_download_media. Download media by ID or URL into local terminal storage, with an optional filename and folder.",
+      "description": "Chrome Flow MCP compatibility alias for flow_download_media. Download media by ID, a list of IDs (media_ids — parallel, ordered names) or URL into local terminal storage, with an optional filename and folder.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -4601,6 +4661,36 @@
           },
           "media_id": {
             "type": "string"
+          },
+          "media_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Bulk download (v1.2.4): many media IDs at once, downloaded in parallel (8 at a time) and saved with ordered names 001_, 002_ … in this exact order. Use this instead of one call per image."
+          },
+          "start_index": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number offset for ordered names (e.g. 24 -> first file is 025_)."
+          },
+          "prefix": {
+            "type": "string",
+            "description": "Optional name part after the number, e.g. 'quote' -> 001_quote_<id>.jpg."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video"
+            ],
+            "description": "Media type hint; skips a lookup per file."
+          },
+          "concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12,
+            "description": "Parallel downloads (default 8)."
           }
         },
         "type": "object"

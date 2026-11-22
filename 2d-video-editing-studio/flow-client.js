@@ -4,6 +4,7 @@ export const VIDEO_MODELS = ['Omni 1.1 Flash', 'Veo 3.1 - Lite', 'Veo 3.1 - Fast
 const IMAGE_KEYS = { 'Nano Banana 2.1': 'BELUGA', 'Nano Banana Pro': 'GEM_PIX_2', 'Nano Banana 2 Lite': 'HARBOR_SEAL' };
 const IMAGE_ASPECTS = { '1:1':1, '9:16':2, '16:9':3, '3:4':4, '4:3':5 };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+export const DOWNLOAD_CONCURRENCY = 8;
 const quoted = JSON.stringify;
 export class FlowClient {
   constructor(chrome) { this.chrome = chrome; this.uploads = new Map(); this.attached = new Set(); this.pending = 0; this.history = []; this.serial = Promise.resolve(); this.active = new Map(); this.readyTab = null; this.libraryCache = new Map(); this.debugHeld = new Set();
@@ -318,15 +319,30 @@ export class FlowClient {
       job.stage=job.request.video?'submitting video':'generating image';let reply;
       try{reply=await this.wait(async()=>{const r=await this.js(tabId,`s.capResult(${sub.seq})`);if(r.lost)throw new Error('Flow page reloaded before its reply; check flow_list_media before retrying');return r.done&&r;},job.request.video?60000:240000,500,job.abort.signal);}finally{this.pending=Math.max(0,this.pending-1);}
       if(reply.error)throw new Error(reply.error);
-      if(reply.images){job.media_ids=reply.images.map(x=>x.mediaId);job.files=[];for(const image of reply.images)job.files.push(await this.file(tabId,image.mediaId,image.url));}
+      if(reply.images){job.media_ids=reply.images.map(x=>x.mediaId);job.files=[];job.files=await this.files(tabId,reply.images.map(image=>({id:image.mediaId,url:image.url})));}
       else if(reply.mediaId && !job.request.video){job.media_ids=[reply.mediaId];job.files=[await this.file(tabId,reply.mediaId)];}
       else {let ids=reply.mediaIds || [];if(!ids.length&&job.request.action==='upscale_video')ids=await this.wait(async()=>{const items=await this.contents(tabId,job.project_id);const fresh=items.filter(m=>m.type==='video'&&!job.knownMedia.includes(m.mediaId)).map(m=>m.mediaId);return fresh.length&&fresh;},120000,1000,job.abort.signal);if(!ids.length)throw new Error('Flow response contained no media ids');job.media_ids=ids;job.files=[];
-        await this.wait(async()=>{const statuses=await this.statusVideos(tabId,ids);for(const id of ids){if(job.files.some(f=>f.media_id===id))continue;const status=statuses.find(s=>s.mediaId===id)?.status;if(status===3)job.files.push(await this.file(tabId,id));else if(status!=null&&![1,2,6].includes(status))throw new Error(`Flow video ${id} failed (status ${status})`);}job.stage=`generating video (${job.files.length}/${ids.length})`;return job.files.length===ids.length;},1200000,2000,job.abort.signal);
+        await this.wait(async()=>{const statuses=await this.statusVideos(tabId,ids);const ready=[];for(const id of ids){if(job.files.some(f=>f.media_id===id))continue;const status=statuses.find(s=>s.mediaId===id)?.status;if(status===3)ready.push(id);else if(status!=null&&![1,2,6].includes(status))throw new Error(`Flow video ${id} failed (status ${status})`);}if(ready.length)job.files.push(...await this.files(tabId,ready.map(id=>({id}))));job.stage=`generating video (${job.files.length}/${ids.length})`;return job.files.length===ids.length;},1200000,2000,job.abort.signal);
       }
       this.history.push(...job.files);this.history=this.history.slice(-200);job.status='done';job.stage='done';
     } finally { await this.end(tabId); }
   }
-  async file(tabId,id,url,targetFilename) { const media=await this.media(tabId,id),type=media.type==='video'?'video':'image';const ext=type==='video'?'mp4':'jpg';const baseName=targetFilename || `flow_${id}.${ext}`;const filename=baseName.startsWith('~/') || baseName.startsWith('/') ? baseName : `~/flow-media/${baseName}`;const saved=await this.chrome.antigem.download({url:url || media.url,path:filename,reuse:true});return {media_id:id,type,path:saved.path,title:media.title || '',filename:baseName}; }
+  async file(tabId,id,url,targetFilename,typeHint) {
+    // v1.2.4: when Flow already gave us the URL (image replies), skip the extra GET_MEDIA round-trip.
+    let media=null;if(!url||!typeHint){try{media=await this.media(tabId,id);}catch(e){if(!url)throw e;}}
+    const type=(typeHint||media?.type)==='video'?'video':'image';const ext=type==='video'?'mp4':'jpg';
+    let baseName=targetFilename || `flow_${id}.${ext}`;if(!/\.[a-z0-9]{2,4}$/i.test(baseName))baseName+=`.${ext}`;const filename=baseName.startsWith('~/') || baseName.startsWith('/') ? baseName : `~/flow-media/${baseName}`;
+    let saved,lastErr;for(let attempt=0;attempt<3;attempt++){try{saved=await this.chrome.antigem.download({url:url || media.url,path:filename,reuse:true});break;}catch(e){lastErr=e;if(attempt<2){await sleep(400*(attempt+1));if(!url||attempt===1){try{media=await this.media(tabId,id);url=media.url;}catch(_){}}}}}
+    if(!saved)throw lastErr||new Error('download failed: '+id);
+    return {media_id:id,type,path:saved.path,title:media?.title || '',filename:baseName};
+  }
+  /** Parallel, order-preserving download pool. items: [{id,url?,name?,type?}] -> files in the same order (failed entries are dropped, error kept on .errors). */
+  async files(tabId,items,concurrency=DOWNLOAD_CONCURRENCY) {
+    const out=new Array(items.length),errors=[];let next=0;
+    const worker=async()=>{while(next<items.length){const k=next++,it=items[k];try{out[k]=await this.file(tabId,it.id,it.url,it.name,it.type);}catch(e){errors.push({media_id:it.id,error:e.message});}}};
+    await Promise.all(Array.from({length:Math.max(1,Math.min(concurrency,items.length))},worker));
+    const list=out.filter(Boolean);if(errors.length)list.errors=errors;return list;
+  }
   async tileAction(tabId,title,steps) { await this.js(tabId,`s.gridSearch(${quoted(title)})`);await this.wait(async()=> (await this.js(tabId,`s.tileCount(${quoted(title)})`)).count===1,6000);await this.wait(async()=> (await this.js(tabId,`s.tileMenu(${quoted(title)})`)).ok,4000);for(const step of steps)await this.wait(async()=>{const r=await this.js(tabId,`s.menuClick(${quoted(step)})`);if(r.disabled)throw new Error('Flow action is disabled: '+step);return r.ok;},4000); }
   async submitEdit(job) {
     const req=job.request,tabId=await this.tab();job.tabId=tabId;await this.begin(tabId);

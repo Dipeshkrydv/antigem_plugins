@@ -1,8 +1,8 @@
 {
   "name": "meta-suite-automation",
   "displayName": "Meta Suite Page Management",
-  "version": "2.9.3",
-  "description": "Master Autonomous Meta Suite Production Engine (v2.9.3): Facebook Page management that posts through Meta Business Suite (business.facebook.com composer, native scheduling, Reels thumbnails, screen locked while working, asks timing / thumbnail / caption approval first, batch projects run to completion, proof screenshot after every post), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
+  "version": "2.9.4",
+  "description": "Master Autonomous Meta Suite Production Engine (v2.9.4): Facebook Page management that posts through Meta Business Suite (business.facebook.com composer, native scheduling, Reels thumbnails, screen locked while working, asks timing / thumbnail / caption approval first, batch projects run to completion, proof screenshot after every post), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
   "logo": "assets/logo.png",
   "author": {
     "name": "Dipesh Kr Yadav",

@@ -226,7 +226,7 @@ function agentOptions(args, media, extra = {}) {
     imageModel: args.image_model || (media === 'image' ? args.model : null), videoModel: args.video_model || (media === 'video' ? args.model : null),
     duration: args.duration, maxPerPart: args.max_per_part || args.max_per_batch || AGENT_MAX_PER_PART,
     customInstructions: args.custom_instructions, autopilot: args.autopilot !== false, projectId: args.project_id,
-    download: args.download !== false, styleLock: args.style_lock || args.genre_or_style || '', partTimeoutSec: args.part_timeout_sec, ...extra
+    download: args.download !== false, styleLock: args.style_lock || args.genre_or_style || '', partTimeoutSec: args.part_timeout_sec, downloadConcurrency: args.download_concurrency, ...extra
   };
 }
 

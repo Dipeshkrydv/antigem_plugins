@@ -43,6 +43,7 @@ const VIDEO_MODELS = ['Omni 1.1 Flash', 'Veo 3.1 - Lite', 'Veo 3.1 - Fast', 'Veo
 const IMAGE_KEYS = { 'Nano Banana 2.1': 'BELUGA', 'Nano Banana Pro': 'GEM_PIX_2', 'Nano Banana 2 Lite': 'HARBOR_SEAL' };
 const IMAGE_ASPECTS = { '1:1':1, '9:16':2, '16:9':3, '3:4':4, '4:3':5 };
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const DOWNLOAD_CONCURRENCY = 8;
 const quoted = JSON.stringify;
 class FlowClient {
   constructor(chrome) { this.chrome = chrome; this.uploads = new Map(); this.attached = new Set(); this.pending = 0; this.history = []; this.serial = Promise.resolve(); this.active = new Map(); this.readyTab = null; this.libraryCache = new Map(); this.debugHeld = new Set();
@@ -357,15 +358,30 @@ class FlowClient {
       job.stage=job.request.video?'submitting video':'generating image';let reply;
       try{reply=await this.wait(async()=>{const r=await this.js(tabId,`s.capResult(${sub.seq})`);if(r.lost)throw new Error('Flow page reloaded before its reply; check flow_list_media before retrying');return r.done&&r;},job.request.video?60000:240000,500,job.abort.signal);}finally{this.pending=Math.max(0,this.pending-1);}
       if(reply.error)throw new Error(reply.error);
-      if(reply.images){job.media_ids=reply.images.map(x=>x.mediaId);job.files=[];for(const image of reply.images)job.files.push(await this.file(tabId,image.mediaId,image.url));}
+      if(reply.images){job.media_ids=reply.images.map(x=>x.mediaId);job.files=[];job.files=await this.files(tabId,reply.images.map(image=>({id:image.mediaId,url:image.url})));}
       else if(reply.mediaId && !job.request.video){job.media_ids=[reply.mediaId];job.files=[await this.file(tabId,reply.mediaId)];}
       else {let ids=reply.mediaIds || [];if(!ids.length&&job.request.action==='upscale_video')ids=await this.wait(async()=>{const items=await this.contents(tabId,job.project_id);const fresh=items.filter(m=>m.type==='video'&&!job.knownMedia.includes(m.mediaId)).map(m=>m.mediaId);return fresh.length&&fresh;},120000,1000,job.abort.signal);if(!ids.length)throw new Error('Flow response contained no media ids');job.media_ids=ids;job.files=[];
-        await this.wait(async()=>{const statuses=await this.statusVideos(tabId,ids);for(const id of ids){if(job.files.some(f=>f.media_id===id))continue;const status=statuses.find(s=>s.mediaId===id)?.status;if(status===3)job.files.push(await this.file(tabId,id));else if(status!=null&&![1,2,6].includes(status))throw new Error(`Flow video ${id} failed (status ${status})`);}job.stage=`generating video (${job.files.length}/${ids.length})`;return job.files.length===ids.length;},1200000,2000,job.abort.signal);
+        await this.wait(async()=>{const statuses=await this.statusVideos(tabId,ids);const ready=[];for(const id of ids){if(job.files.some(f=>f.media_id===id))continue;const status=statuses.find(s=>s.mediaId===id)?.status;if(status===3)ready.push(id);else if(status!=null&&![1,2,6].includes(status))throw new Error(`Flow video ${id} failed (status ${status})`);}if(ready.length)job.files.push(...await this.files(tabId,ready.map(id=>({id}))));job.stage=`generating video (${job.files.length}/${ids.length})`;return job.files.length===ids.length;},1200000,2000,job.abort.signal);
       }
       this.history.push(...job.files);this.history=this.history.slice(-200);job.status='done';job.stage='done';
     } finally { await this.end(tabId); }
   }
-  async file(tabId,id,url) { const media=await this.media(tabId,id),type=media.type==='video'?'video':'image';const filename=`~/flow-media/flow_${id}.${type==='video'?'mp4':'jpg'}`;const saved=await this.chrome.antigem.download({url:url || media.url,path:filename,reuse:true});return {media_id:id,type,path:saved.path,title:media.title || ''}; }
+  async file(tabId,id,url,targetFilename,typeHint) {
+    // v1.2.4: when Flow already gave us the URL (image replies), skip the extra GET_MEDIA round-trip.
+    let media=null;if(!url||!typeHint){try{media=await this.media(tabId,id);}catch(e){if(!url)throw e;}}
+    const type=(typeHint||media?.type)==='video'?'video':'image';const ext=type==='video'?'mp4':'jpg';
+    let baseName=targetFilename || `flow_${id}.${ext}`;if(!/\.[a-z0-9]{2,4}$/i.test(baseName))baseName+=`.${ext}`;const filename=baseName.startsWith('~/') || baseName.startsWith('/') ? baseName : `~/flow-media/${baseName}`;
+    let saved,lastErr;for(let attempt=0;attempt<3;attempt++){try{saved=await this.chrome.antigem.download({url:url || media.url,path:filename,reuse:true});break;}catch(e){lastErr=e;if(attempt<2){await sleep(400*(attempt+1));if(!url||attempt===1){try{media=await this.media(tabId,id);url=media.url;}catch(_){}}}}}
+    if(!saved)throw lastErr||new Error('download failed: '+id);
+    return {media_id:id,type,path:saved.path,title:media?.title || '',filename:baseName};
+  }
+  /** Parallel, order-preserving download pool. items: [{id,url?,name?,type?}] -> files in the same order (failed entries are dropped, error kept on .errors). */
+  async files(tabId,items,concurrency=DOWNLOAD_CONCURRENCY) {
+    const out=new Array(items.length),errors=[];let next=0;
+    const worker=async()=>{while(next<items.length){const k=next++,it=items[k];try{out[k]=await this.file(tabId,it.id,it.url,it.name,it.type);}catch(e){errors.push({media_id:it.id,error:e.message});}}};
+    await Promise.all(Array.from({length:Math.max(1,Math.min(concurrency,items.length))},worker));
+    const list=out.filter(Boolean);if(errors.length)list.errors=errors;return list;
+  }
   async tileAction(tabId,title,steps) { await this.js(tabId,`s.gridSearch(${quoted(title)})`);await this.wait(async()=> (await this.js(tabId,`s.tileCount(${quoted(title)})`)).count===1,6000);await this.wait(async()=> (await this.js(tabId,`s.tileMenu(${quoted(title)})`)).ok,4000);for(const step of steps)await this.wait(async()=>{const r=await this.js(tabId,`s.menuClick(${quoted(step)})`);if(r.disabled)throw new Error('Flow action is disabled: '+step);return r.ok;},4000); }
   async submitEdit(job) {
     const req=job.request,tabId=await this.tab();job.tabId=tabId;await this.begin(tabId);
@@ -386,7 +402,7 @@ class FlowClient {
   }
 }
 
-return { IMAGE_MODELS, VIDEO_MODELS, FlowClient };
+return { IMAGE_MODELS, VIDEO_MODELS, DOWNLOAD_CONCURRENCY, FlowClient };
 })();
 __m['storyboard-analyzer'] = (function () {
 'use strict';
@@ -1158,13 +1174,12 @@ function createFlowWorkflows({chrome,client,execute,jobs,enqueue,normalize,await
     if(!args.download_folder&&!args.filename&&!args.tag_filenames)return files;
     const folder=String(args.download_folder||'flow-media').replace(/^~\//,'').replace(/^\/+|\/+$/g,'');
     if(folder.split('/').includes('..'))throw new Error('Download folder cannot contain ..');
-    const output=[];
-    for(let n=0;n<files.length;n++){
-      const file=files[n],ext=file.type==='video'?'mp4':'jpg';
+    // v1.2.4: copy all files of a scene in parallel (order kept by index).
+    return Promise.all(files.map(async(file,n)=>{
+      const ext=file.type==='video'?'mp4':'jpg';
       const name=args.filename&&files.length===1?args.filename:`${String(index+1).padStart(3,'0')}_${args.tag_filenames?safeName(args.prompt?.match(/#([\w-]+)/)?.[1]||'scene'):file.media_id}${files.length>1?'_'+(n+1):''}.${ext}`;
-      const saved=await chrome.antigem.copyFile({from:file.path,to:`~/${folder}/${safeName(name)}`});output.push({...file,path:saved.path});
-    }
-    return output;
+      const saved=await chrome.antigem.copyFile({from:file.path,to:`~/${folder}/${safeName(name)}`});return {...file,path:saved.path};
+    }));
   }
   const imageModel=value=>{
     const model=String(value||'Nano Banana 2.1').replace(/^🍌\s*/,'');
@@ -1348,7 +1363,15 @@ function createFlowWorkflows({chrome,client,execute,jobs,enqueue,normalize,await
     if(canonical==='flow_attach_references')return client.exclusive(async()=>{
       const tab=await client.tab();await client.begin(tab);try{const project=await client.project(tab,args.project_id);if(args.clear_stale)await client.clear(tab);const values=args.references||args.asset_names||[args.asset_name].filter(Boolean);if(!values.length)throw new Error('references or asset_name is required');const library=await client.contents(tab,project,true);for(const value of values){let id=await client.referenceResolver(value);if(id===value&&!/^[a-f\d-]{30,}$/i.test(value)&&!value.includes('/')){const matches=library.filter(m=>handleOf(m.title)===handleOf(value));if(matches.length!==1)throw new Error('Reference name is missing or ambiguous; use its media ID: '+value);id=matches[0].mediaId;}else id=await client.resolveReference(tab,id);const media=library.find(m=>m.mediaId===id)||await client.media(tab,id);await client.attach(tab,id,media.title||id,args.slot||null);}return {project_id:project,media_ids:await client.js(tab,'s.chipIds()')};}finally{await client.end(tab);}});
     if(canonical==='flow_download_media'){
-      if(!args.media_id&&!args.url)throw new Error('media_id or url is required');const tab=await client.tab();const file=args.media_id?await client.file(tab,args.media_id):{...(await chrome.antigem.download({url:args.url,path:`~/${args.folder||'flow-media'}/${safeName(args.filename||'download.mp4')}`,reuse:true})),type:args.url.includes('.mp4')?'video':'image'};return (await downloadFiles([file],{filename:args.filename,download_folder:args.folder||args.download_folder},0))[0];
+      if(Array.isArray(args.media_ids)&&args.media_ids.length){
+        // v1.2.4 bulk download: all media in parallel (8 at a time), saved with ordered zero-padded names 001_, 002_ ... in the given order.
+        const tab=await client.tab();const ids=args.media_ids.map(String);const folder=String(args.folder||args.download_folder||'flow-media').replace(/^~\//,'').replace(/^\/+|\/+$/g,'');
+        if(folder.split('/').includes('..'))throw new Error('Download folder cannot contain ..');
+        const pad=Math.max(2,String(ids.length+(args.start_index||0)).length,ids.length>=100?3:2);const prefix=safeName(args.prefix||'');
+        const t0=Date.now();const files=await client.files(tab,ids.map((id,k)=>({id,name:`~/${folder}/${String(k+1+(args.start_index||0)).padStart(pad,'0')}${prefix?'_'+prefix:''}_${safeName(id).slice(0,12)}${args.type==='video'?'.mp4':args.type==='image'?'.jpg':''}`,type:args.type})),Math.max(1,Math.min(12,args.concurrency||8)));
+        return {downloaded:files.length,requested:ids.length,folder:`~/${folder}`,seconds:+((Date.now()-t0)/1000).toFixed(1),files,errors:files.errors||[]};
+      }
+      if(!args.media_id&&!args.url)throw new Error('media_id, media_ids or url is required');const tab=await client.tab();const file=args.media_id?await client.file(tab,args.media_id):{...(await chrome.antigem.download({url:args.url,path:`~/${args.folder||'flow-media'}/${safeName(args.filename||'download.mp4')}`,reuse:true})),type:args.url.includes('.mp4')?'video':'image'};return (await downloadFiles([file],{filename:args.filename,download_folder:args.folder||args.download_folder},0))[0];
     }
     if(canonical==='flow_eval_script'){
       const script=args.script||args.expression||args.code;if(typeof script!=='string'||!script.trim())throw new Error('script is required');const tab=await client.tab();return client.exclusive(()=>client.evaluate(tab,source=>(0,eval)(source),[script]));
@@ -1628,7 +1651,30 @@ __m['deepx-agent'] = (function () {
 // 24-item back-to-back batch queue. Page DOM work lives in deepx-agent-page.js (MAIN world).
 
 const AGENT_MAX_PER_PART = 24;
-const AGENT_PAGE_VERSION = 5;
+const AGENT_PAGE_VERSION = 6;
+const AGENT_DOWNLOAD_CONCURRENCY = 8;
+
+/**
+ * Universal Orderly Media Filename Formatter
+ * Generates strict zero-padded chronological filenames (e.g. 01_scene_01.mp4, 02_scene_02.mp4, 001_... for >=100)
+ * to guarantee 100% alphabetical and chronological ordering in video editing tools (Premiere, CapCut, DaVinci, 2D Studio).
+ */
+function formatOrderlyFilename(promptText, index = 0, total = 0, isImage = false, customExt = null) {
+  const ext = customExt || (isImage ? 'png' : 'mp4');
+  const padDigits = total >= 100 ? 3 : 2;
+  const numPrefix = String((index ?? 0) + 1).padStart(padDigits, '0');
+  const text = String(promptText || '').trim();
+  const tagMatch = text.match(/#([a-zA-Z0-9_\-\.]+)/);
+  let tag = tagMatch ? tagMatch[1] : '';
+  tag = tag.replace(/^[0-9]+[_\-\.]*/, '');
+  if (!tag) {
+    const sceneMatch = text.match(/\b(?:scene|shot|sequence|take|image|photo|frame|दृश्य|सीन)[_\-\s]*(\d+)\b/iu);
+    if (sceneMatch) tag = `scene_${String(sceneMatch[1]).padStart(padDigits, '0')}`;
+    else tag = `scene_${numPrefix}`;
+  }
+  const cleanTag = tag.replace(/[^a-zA-Z0-9_\-]/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '') || 'scene';
+  return `${numPrefix}_${cleanTag}.${ext}`;
+}
 
 const DEFAULT_MASTER_AGENT_INSTRUCTIONS =
 `DEEPX MASTER AUTOPILOT & VISUAL CONSISTENCY MANDATE:
@@ -1786,35 +1832,60 @@ function createDeepXAgent({ chrome, client, jobs, awaitJobs }) {
     return r?.ok ? 'dom_click' : 'none';
   }
 
+  // v1.2.4: verified instant paste (panel auto-close), then send with trusted tap -> DOM click -> Enter,
+  // checking after each step whether Flow accepted it. Typical send now < 1 s instead of up to 10 s.
   async function submit(tabId, text) {
-    const filled = await page(tabId, 'fillPrompt', text);
+    let filled = await page(tabId, 'fillPrompt', text);
+    if (!filled?.ok) {
+      await page(tabId, 'closePanels').catch(() => {});
+      filled = await page(tabId, 'fillPrompt', text);
+    }
     if (!filled?.ok) {
       // Fall back to the AntiGem Flow helper's ProseMirror writer
       const alt = await client.js(tabId, `s.setPrompt(${JSON.stringify(text)})`).catch(() => null);
-      if (!alt?.ok && !filled?.length) throw new Error(filled?.error || 'Could not paste the prompt into Google Flow Agent.');
+      if (!alt?.ok && !alt?.success) throw new Error(filled?.error || 'Could not paste the prompt into Google Flow Agent.');
     }
-    const point = await page(tabId, 'submitPoint');
-    if (!point?.found || point.disabled) throw new Error(point?.error || 'Flow Agent submit button is not ready.');
-    let method = await tap(tabId, point);
     const started = async ms => {
       const end = Date.now() + ms;
       while (Date.now() < end) {
         const b = await page(tabId, 'busy').catch(() => null);
         if (b && (b.isBusy || b.boxEmpty)) return true;
-        await sleep(250);
+        await sleep(120);
       }
       return false;
     };
-    if (!(await started(4000))) {
-      const c = await page(tabId, 'clickSubmit');
-      method = c?.ok ? `${method}+dom_click` : method;
-      if (!(await started(3000))) {
-        await page(tabId, 'pressEnter');
-        method += '+enter';
-        if (!(await started(3000))) throw new Error('Google Flow Agent did not accept the prompt (submit had no effect).');
-      }
+    let point = await page(tabId, 'submitPoint');
+    let method = 'none';
+    if (point?.found && !point.disabled) {
+      method = await tap(tabId, point);
+      if (await started(1800)) return { submitted: true, method, paste: filled?.method };
     }
-    return { submitted: true, method };
+    const c = await page(tabId, 'clickSubmit');
+    if (c?.ok) { method = `${method}+dom_click`; if (await started(1500)) return { submitted: true, method, paste: filled?.method }; }
+    await page(tabId, 'pressEnter');
+    method += '+enter';
+    if (await started(1500)) return { submitted: true, method, paste: filled?.method };
+    // Last try: panel may have re-opened over the composer -> close, re-paste, tap again.
+    await page(tabId, 'closePanels').catch(() => {});
+    const again = await page(tabId, 'fillPrompt', text);
+    point = await page(tabId, 'submitPoint');
+    if (again?.ok && point?.found && !point.disabled) {
+      method += '+retry_' + await tap(tabId, point);
+      if (await started(2500)) return { submitted: true, method, paste: again.method };
+    }
+    throw new Error(point?.error || 'Google Flow Agent did not accept the prompt (submit had no effect).');
+  }
+
+  /** Wait until no fresh media of this job is still rendering (or the cap expires). */
+  async function settledFresh(tabId, projectId, known, capMs) {
+    const end = Date.now() + capMs;
+    let items = [];
+    while (true) {
+      items = (await client.contents(tabId, projectId).catch(() => [])) || [];
+      const fresh = items.filter(m => !known.has(m.mediaId) && !m.trashed);
+      if (!fresh.some(m => m.pending) || Date.now() > end) return fresh.filter(m => !m.pending);
+      await sleep(1500);
+    }
   }
 
   function startWatcher(tabId, keywords = '') {
@@ -1918,6 +1989,31 @@ function createDeepXAgent({ chrome, client, jobs, awaitJobs }) {
       try {
         const before = await knownMedia(tabId);
         job.project_id = before.projectId;
+        const known = new Set(before.ids), claimed = new Set(), downloads = [], byId = new Map();
+        const totalItems = plan.total;
+        job.items = [];
+        // Assign one part's fresh media to its prompts and start parallel, ordered downloads (not awaited here).
+        const queuePart = (part, media, rec) => {
+          const prompts = part.items || Array.from({ length: part.count }, (_, k) => `item ${part.start + k}`);
+          const { assigned, unassigned } = part.items ? assignMediaToItems(prompts, media, mediaType) : { assigned: prompts.map((_, k) => media[k] ? [media[k].mediaId] : []), unassigned: media.slice(prompts.length).map(m => m.mediaId) };
+          const list = [];
+          prompts.forEach((prompt, k) => {
+            const index = part.start - 1 + k;
+            const it = { index, prompt: String(prompt).slice(0, 160), media_ids: assigned[k], files: [] };
+            job.items[index] = it;
+            assigned[k].forEach((mid, n) => { claimed.add(mid); list.push({ id: mid, it, name: formatOrderlyFilename(it.prompt + (assigned[k].length > 1 ? `_${n + 1}` : ''), index, totalItems, mediaType === 'image'), type: mediaType }); });
+          });
+          unassigned.forEach((mid, n) => { claimed.add(mid); list.push({ id: mid, name: formatOrderlyFilename('extra_media', totalItems + (job.unassigned_media_ids || []).length + n, totalItems + 100, mediaType === 'image'), type: mediaType, extra: true }); });
+          job.unassigned_media_ids = [...(job.unassigned_media_ids || []), ...unassigned];
+          if (!list.length || opts.download === false) return;
+          rec.download = 'downloading';
+          downloads.push(client.files(tabId, list.map(x => ({ id: x.id, name: x.name, type: x.type })), opts.downloadConcurrency || AGENT_DOWNLOAD_CONCURRENCY).then(files => {
+            files.forEach(f => { const x = list.find(y => y.id === f.media_id); byId.set(f.media_id, f); if (x?.it) x.it.files.push(f); });
+            job.files.push(...files);
+            if (files.errors?.length) job.download_errors = (job.download_errors || 0) + files.errors.length;
+            rec.download = `done (${files.length}/${list.length})`;
+          }).catch(e => { rec.download = 'failed: ' + e.message; }));
+        };
         job.stage = 'switching to Agent Mode + 100% autopilot';
         job.setup = await prepare(tabId, { ...opts, mediaType });
         const keywords = String(opts.keywords || plan.parts[0]?.items?.[0] || '').slice(0, 120);
@@ -1935,26 +2031,45 @@ function createDeepXAgent({ chrome, client, jobs, awaitJobs }) {
           rec.status = idle ? 'done' : 'timeout_continued';
           rec.finished_at = new Date().toISOString();
           job.parts_done = i + 1;
-          if (i + 1 < plan.parts.length) await sleep(opts.partGapMs ?? 2500);
+          // v1.2.4: collect this part's media now and download it in parallel while the next part generates.
+          if (opts.download !== false && before.projectId) {
+            const isLast = i + 1 === plan.parts.length;
+            const fresh = await settledFresh(tabId, before.projectId, known, isLast ? 90000 : 4000);
+            fresh.sort((a, b) => String(a.created || '').localeCompare(String(b.created || '')));
+            const mine = fresh.filter(m => !claimed.has(m.mediaId) && (!m.type || m.type === mediaType) && !m.pending);
+            if (mine.length) queuePart(part, mine, rec);
+          }
+          if (i + 1 < plan.parts.length) await sleep(opts.partGapMs ?? 1200);
         }
+        await Promise.all(downloads);
         job.stage = 'collecting new media';
-        await sleep(1500);
         const after = await knownMedia(tabId);
-        const fresh = after.ids.filter(id => !before.ids.includes(id));
+        const fresh = after.ids.filter(id => !known.has(id));
         job.media_ids = fresh;
-        const itemPrompts = plan.parts.flatMap(p => p.items || []);
-        if (itemPrompts.length) {
-          const freshMedia = after.items.filter(m => fresh.includes(m.mediaId));
-          const { assigned, unassigned } = assignMediaToItems(itemPrompts, freshMedia, mediaType);
-          job.items = itemPrompts.map((prompt, index) => ({ index, prompt: prompt.slice(0, 160), media_ids: assigned[index], files: [] }));
-          job.unassigned_media_ids = unassigned;
-          job.matched_items = job.items.filter(it => it.media_ids.length).length;
+        // Late media that appeared after its part was collected: download in parallel as extras (never lost).
+        let late = after.items.filter(m => fresh.includes(m.mediaId) && !claimed.has(m.mediaId) && !m.trashed && (!m.type || m.type === mediaType));
+        if (late.some(m => m.pending)) { const settled = await settledFresh(tabId, after.projectId || before.projectId, new Set([...known, ...claimed]), 60000); late = settled.filter(m => fresh.includes(m.mediaId) || !known.has(m.mediaId)); }
+        late = late.filter(m => !m.pending).sort((a, b) => String(a.created || '').localeCompare(String(b.created || '')));
+        if (late.length && opts.download !== false) {
+          // First fill numbered slots that are still empty (same order), only the rest become extras.
+          const empty = job.items.filter(it => it && !it.media_ids.length);
+          const { assigned } = assignMediaToItems(empty.map(it => it.prompt), late, mediaType);
+          const used = new Set(assigned.flat());
+          const rest = late.filter(m => !used.has(m.mediaId));
+          empty.forEach((it, k) => { if (!assigned[k].length && rest.length && !plan.parts[0]?.items) assigned[k].push(rest.shift().mediaId); });
+          const list = [];
+          empty.forEach((it, k) => assigned[k].forEach(mid => { claimed.add(mid); it.media_ids.push(mid); list.push({ id: mid, it, name: formatOrderlyFilename(it.prompt, it.index, totalItems, mediaType === 'image'), type: mediaType }); }));
+          const base = totalItems + (job.unassigned_media_ids || []).length;
+          const extras = late.filter(m => !claimed.has(m.mediaId));
+          extras.forEach((m, n) => list.push({ id: m.mediaId, name: formatOrderlyFilename('extra_media', base + n, base + extras.length, mediaType === 'image'), type: mediaType }));
+          job.unassigned_media_ids = [...(job.unassigned_media_ids || []), ...extras.map(m => m.mediaId)];
+          const files = await client.files(tabId, list.map(x => ({ id: x.id, name: x.name, type: x.type })), opts.downloadConcurrency || AGENT_DOWNLOAD_CONCURRENCY);
+          files.forEach(f => { const x = list.find(y => y.id === f.media_id); if (x?.it) x.it.files.push(f); });
+          job.files.push(...files);
         }
-        if (opts.download && fresh.length) {
-          const byId = new Map();
-          for (const id of fresh.slice(0, 500)) { try { const f = await client.file(tabId, id); byId.set(id, f); job.files.push(f); } catch (e) { job.download_errors = (job.download_errors || 0) + 1; } }
-          for (const it of job.items || []) it.files = it.media_ids.map(id => byId.get(id)).filter(Boolean);
-        }
+        job.items = job.items.filter(Boolean);
+        job.matched_items = job.items.filter(it => it.media_ids.length).length;
+        job.files.sort((a, b) => String(a.filename || '').localeCompare(String(b.filename || '')));
         job.status = 'done';
         job.stage = `done: ${plan.parts.length} part(s), ${plan.total} item(s) sent to Flow Agent${fresh.length ? `, ${fresh.length} new media in project` : ''}`;
       } finally {
@@ -1988,7 +2103,7 @@ function createDeepXAgent({ chrome, client, jobs, awaitJobs }) {
   };
 }
 
-return { AGENT_MAX_PER_PART, AGENT_PAGE_VERSION, DEFAULT_MASTER_AGENT_INSTRUCTIONS, isBlockError, AGENT_IMAGE_MODELS, AGENT_VIDEO_MODELS, agentImageModel, agentVideoModel, expandBulkRequest, buildAgentParts, assignMediaToItems, createDeepXAgent };
+return { AGENT_MAX_PER_PART, AGENT_PAGE_VERSION, AGENT_DOWNLOAD_CONCURRENCY, formatOrderlyFilename, DEFAULT_MASTER_AGENT_INSTRUCTIONS, isBlockError, AGENT_IMAGE_MODELS, AGENT_VIDEO_MODELS, agentImageModel, agentVideoModel, expandBulkRequest, buildAgentParts, assignMediaToItems, createDeepXAgent };
 })();
 __m['deepx-core'] = (function () {
 'use strict';
@@ -2219,7 +2334,7 @@ function agentOptions(args, media, extra = {}) {
     imageModel: args.image_model || (media === 'image' ? args.model : null), videoModel: args.video_model || (media === 'video' ? args.model : null),
     duration: args.duration, maxPerPart: args.max_per_part || args.max_per_batch || AGENT_MAX_PER_PART,
     customInstructions: args.custom_instructions, autopilot: args.autopilot !== false, projectId: args.project_id,
-    download: !!args.download, styleLock: args.style_lock || args.genre_or_style || '', partTimeoutSec: args.part_timeout_sec, ...extra
+    download: args.download !== false, styleLock: args.style_lock || args.genre_or_style || '', partTimeoutSec: args.part_timeout_sec, downloadConcurrency: args.download_concurrency, ...extra
   };
 }
 
@@ -2307,7 +2422,17 @@ function runStandard(args, items, media) {
         if (parent.abort.signal.aborted) return;
         const c = enqueue(r); children.push(c); parent.child_job_ids.push(c.job_id); parent.scenes[i].job_id = c.job_id;
         c.completion.then(async () => {
-          if (c.status === 'done') { parent.completed++; parent.media_ids.push(...(c.media_ids || [])); parent.files.push(...(c.files || [])); parent.scenes[i].media_ids = c.media_ids || []; parent.scenes[i].files = c.files || []; }
+          if (c.status === 'done') {
+            parent.completed++;
+            parent.media_ids.push(...(c.media_ids || []));
+            const orderlyFiles = (c.files || []).map(f => {
+              const orderlyName = agent.formatOrderlyFilename ? agent.formatOrderlyFilename(items[i], i, items.length, media === 'image') : f.filename;
+              return { ...f, orderlyName, sceneIndex: i };
+            });
+            parent.files.push(...orderlyFiles);
+            parent.scenes[i].media_ids = c.media_ids || [];
+            parent.scenes[i].files = orderlyFiles;
+          }
           else if (c.status === 'failed') { parent.scenes[i].error = c.error; if (await looksBlocked(c.error, tabId, mark)) onBlock(c.error); }
         }).catch(() => {});
       });

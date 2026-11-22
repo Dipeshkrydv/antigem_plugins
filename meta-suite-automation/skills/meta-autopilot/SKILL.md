@@ -75,7 +75,7 @@ Send `caption_approved: true` only after a "Yes" (or after applying the user's e
 **Page id:** Business Suite uses its own `asset_id` for the Page (found automatically and cached); `target_id: "me"` is fine.
 **Diagnostics (only when a run fails):** `meta_bs_inspect` and `meta_bs_eval` read the Business Suite screen from inside the plugin.
 
-**Standard production recipe (photo post):** `deepx_meta_generate_design` (×N, poll `deepx_job_status`) → `fb_audit_caption` → `fb_publish(post_type: "carousel" | "photo", ...)`.
+**Standard production recipe (photo post):** `deepx_meta_generate_design {prompts:[...all designs...]}` (ONE call for all designs, poll `deepx_job_status`; parts download in parallel, files ordered 001_, 002_ …) → `fb_audit_caption` → `fb_publish(post_type: "carousel" | "photo", ...)`.
 **Reel / long video recipe:** video file (or `deepx_meta_generate_video`) → `deepx_meta_generate_thumbnail` (16:9 for long video, 9:16 for reel covers) → `fb_publish_reel(..., thumbnail_path)`.
 
 ---

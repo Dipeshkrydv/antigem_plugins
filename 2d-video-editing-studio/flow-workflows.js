@@ -31,13 +31,12 @@ export function createFlowWorkflows({chrome,client,execute,jobs,enqueue,normaliz
     if(!args.download_folder&&!args.filename&&!args.tag_filenames)return files;
     const folder=String(args.download_folder||'flow-media').replace(/^~\//,'').replace(/^\/+|\/+$/g,'');
     if(folder.split('/').includes('..'))throw new Error('Download folder cannot contain ..');
-    const output=[];
-    for(let n=0;n<files.length;n++){
-      const file=files[n],ext=file.type==='video'?'mp4':'jpg';
+    // v1.2.4: copy all files of a scene in parallel (order kept by index).
+    return Promise.all(files.map(async(file,n)=>{
+      const ext=file.type==='video'?'mp4':'jpg';
       const name=args.filename&&files.length===1?args.filename:`${String(index+1).padStart(3,'0')}_${args.tag_filenames?safeName(args.prompt?.match(/#([\w-]+)/)?.[1]||'scene'):file.media_id}${files.length>1?'_'+(n+1):''}.${ext}`;
-      const saved=await chrome.antigem.copyFile({from:file.path,to:`~/${folder}/${safeName(name)}`});output.push({...file,path:saved.path});
-    }
-    return output;
+      const saved=await chrome.antigem.copyFile({from:file.path,to:`~/${folder}/${safeName(name)}`});return {...file,path:saved.path};
+    }));
   }
   const imageModel=value=>{
     const model=String(value||'Nano Banana 2.1').replace(/^🍌\s*/,'');
@@ -221,7 +220,15 @@ export function createFlowWorkflows({chrome,client,execute,jobs,enqueue,normaliz
     if(canonical==='flow_attach_references')return client.exclusive(async()=>{
       const tab=await client.tab();await client.begin(tab);try{const project=await client.project(tab,args.project_id);if(args.clear_stale)await client.clear(tab);const values=args.references||args.asset_names||[args.asset_name].filter(Boolean);if(!values.length)throw new Error('references or asset_name is required');const library=await client.contents(tab,project,true);for(const value of values){let id=await client.referenceResolver(value);if(id===value&&!/^[a-f\d-]{30,}$/i.test(value)&&!value.includes('/')){const matches=library.filter(m=>handleOf(m.title)===handleOf(value));if(matches.length!==1)throw new Error('Reference name is missing or ambiguous; use its media ID: '+value);id=matches[0].mediaId;}else id=await client.resolveReference(tab,id);const media=library.find(m=>m.mediaId===id)||await client.media(tab,id);await client.attach(tab,id,media.title||id,args.slot||null);}return {project_id:project,media_ids:await client.js(tab,'s.chipIds()')};}finally{await client.end(tab);}});
     if(canonical==='flow_download_media'){
-      if(!args.media_id&&!args.url)throw new Error('media_id or url is required');const tab=await client.tab();const file=args.media_id?await client.file(tab,args.media_id):{...(await chrome.antigem.download({url:args.url,path:`~/${args.folder||'flow-media'}/${safeName(args.filename||'download.mp4')}`,reuse:true})),type:args.url.includes('.mp4')?'video':'image'};return (await downloadFiles([file],{filename:args.filename,download_folder:args.folder||args.download_folder},0))[0];
+      if(Array.isArray(args.media_ids)&&args.media_ids.length){
+        // v1.2.4 bulk download: all media in parallel (8 at a time), saved with ordered zero-padded names 001_, 002_ ... in the given order.
+        const tab=await client.tab();const ids=args.media_ids.map(String);const folder=String(args.folder||args.download_folder||'flow-media').replace(/^~\//,'').replace(/^\/+|\/+$/g,'');
+        if(folder.split('/').includes('..'))throw new Error('Download folder cannot contain ..');
+        const pad=Math.max(2,String(ids.length+(args.start_index||0)).length,ids.length>=100?3:2);const prefix=safeName(args.prefix||'');
+        const t0=Date.now();const files=await client.files(tab,ids.map((id,k)=>({id,name:`~/${folder}/${String(k+1+(args.start_index||0)).padStart(pad,'0')}${prefix?'_'+prefix:''}_${safeName(id).slice(0,12)}${args.type==='video'?'.mp4':args.type==='image'?'.jpg':''}`,type:args.type})),Math.max(1,Math.min(12,args.concurrency||8)));
+        return {downloaded:files.length,requested:ids.length,folder:`~/${folder}`,seconds:+((Date.now()-t0)/1000).toFixed(1),files,errors:files.errors||[]};
+      }
+      if(!args.media_id&&!args.url)throw new Error('media_id, media_ids or url is required');const tab=await client.tab();const file=args.media_id?await client.file(tab,args.media_id):{...(await chrome.antigem.download({url:args.url,path:`~/${args.folder||'flow-media'}/${safeName(args.filename||'download.mp4')}`,reuse:true})),type:args.url.includes('.mp4')?'video':'image'};return (await downloadFiles([file],{filename:args.filename,download_folder:args.folder||args.download_folder},0))[0];
     }
     if(canonical==='flow_eval_script'){
       const script=args.script||args.expression||args.code;if(typeof script!=='string'||!script.trim())throw new Error('script is required');const tab=await client.tab();return client.exclusive(()=>client.evaluate(tab,source=>(0,eval)(source),[script]));

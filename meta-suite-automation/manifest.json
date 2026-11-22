@@ -3,7 +3,7 @@
   "background": {
     "service_worker": "worker.js"
   },
-  "description": "Master Autonomous Meta Suite Production Engine (v2.9.3): Facebook Page management that posts through Meta Business Suite (business.facebook.com composer, native scheduling, Reels thumbnails, screen locked while working, asks timing / thumbnail / caption approval first, batch projects run to completion, proof screenshot after every post), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
+  "description": "Master Autonomous Meta Suite Production Engine (v2.9.4): Facebook Page management that posts through Meta Business Suite (business.facebook.com composer, native scheduling, Reels thumbnails, screen locked while working, asks timing / thumbnail / caption approval first, batch projects run to completion, proof screenshot after every post), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
   "entrypoint": "mcp_server/server.py",
   "host_permissions": [
     "*://*.business.facebook.com/*",
@@ -1294,11 +1294,20 @@
             "maximum": 40,
             "minimum": 0,
             "type": "integer"
+          },
+          "prompts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Many designs in ONE call (e.g. 30 quote posters): one job, Agent Mode ≤24 per part, parallel ordered downloads 001_, 002_ …. Use instead of calling this tool once per design."
+          },
+          "download_concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12
           }
         },
-        "required": [
-          "prompt"
-        ],
         "title": "deepx_meta_generate_designArguments",
         "type": "object"
       },
@@ -1613,6 +1622,12 @@
             "maximum": 45,
             "minimum": 0,
             "type": "integer"
+          },
+          "download_concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12,
+            "description": "Parallel downloads per part (default 8). Each part downloads while the next part generates."
           }
         },
         "type": "object"
@@ -1890,6 +1905,12 @@
             "maximum": 45,
             "minimum": 0,
             "type": "integer"
+          },
+          "download_concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12,
+            "description": "Parallel downloads per part (default 8). Each part downloads while the next part generates."
           }
         },
         "type": "object"
@@ -1929,7 +1950,7 @@
       "name": "deepx_upscale_media"
     },
     {
-      "description": "Chrome Flow MCP compatibility alias for flow_download_media. Download media by ID or URL into local terminal storage, with an optional filename and folder.",
+      "description": "Chrome Flow MCP compatibility alias for flow_download_media. Download media by ID, a list of IDs (media_ids — parallel, ordered names) or URL into local terminal storage, with an optional filename and folder.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -1967,6 +1988,36 @@
             "maximum": 50,
             "minimum": 0,
             "type": "number"
+          },
+          "media_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Bulk download (v1.2.4): many media IDs at once, downloaded in parallel (8 at a time) and saved with ordered names 001_, 002_ … in this exact order. Use this instead of one call per image."
+          },
+          "start_index": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number offset for ordered names (e.g. 24 -> first file is 025_)."
+          },
+          "prefix": {
+            "type": "string",
+            "description": "Optional name part after the number, e.g. 'quote' -> 001_quote_<id>.jpg."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video"
+            ],
+            "description": "Media type hint; skips a lookup per file."
+          },
+          "concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12,
+            "description": "Parallel downloads (default 8)."
           }
         },
         "type": "object"
@@ -2173,6 +2224,6 @@
   ],
   "skills": "skills",
   "tool_count": 49,
-  "version": "2.9.3",
+  "version": "2.9.4",
   "worker": "worker.js"
 }

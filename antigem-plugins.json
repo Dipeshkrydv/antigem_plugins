@@ -5,8 +5,8 @@
       "path": "2d-video-editing-studio",
       "id": "2d-video-editing-studio",
       "name": "2D Video Editing Studio",
-      "version": "3.5.3",
-      "description": "Senior Video Editor & Autonomous 2D Production Engine (v3.5.3): 6 Official Styles (Vox/Box Paper, Stickman, Sticker, Noir, Hand-Drawn Doodle, Retro Arcade), Recipe-Driven Autopilot Edits, Voice-Synced Asset Placement, built-in DeepX Google Flow asset engine (login check → one Agent/Standard question → autopilot; Agent Mode ≤24 prompts per part back-to-back; automatic Agent fallback on unusual-activity blocks), Anti-Offline Server Shield, high-speed render presets and 15-minute timeline scaling.",
+      "version": "3.5.4",
+      "description": "Senior Video Editor & Autonomous 2D Production Engine (v3.5.4): 6 Official Styles (Vox/Box Paper, Stickman, Sticker, Noir, Hand-Drawn Doodle, Retro Arcade), Recipe-Driven Autopilot Edits, Voice-Synced Asset Placement, built-in DeepX Google Flow asset engine (login check → one Agent/Standard question → autopilot; Agent Mode ≤24 prompts per part back-to-back; automatic Agent fallback on unusual-activity blocks), Anti-Offline Server Shield, high-speed render presets and 15-minute timeline scaling.",
       "icon": "icon.png",
       "logo": "assets/logo.png",
       "toolCount": 95
@@ -15,8 +15,8 @@
       "path": "facebook-automation",
       "id": "facebook-automation",
       "name": "Facebook Automation & SEO Studio",
-      "version": "1.8.3",
-      "description": "Pre-Trained Phone (Desktop-on-Phone www.facebook.com & Mobile Touch m.facebook.com) and Desktop Facebook Automation Engine (v1.8.3): Dedicated Feed Posts (Text/Photo/Carousel/Video), Anti-Comment Firewall (strictly never posts into comments), Reels (/reels/create + automatic mobile fallback + video event dispatch), Stories (/stories/create Photo/Video with overlay story_text & Text Story), Real Video/Reel Thumbnail & Cover Uploader, Multiline Formatted Caption Engine (Title + Description + Bullets + CTA + 3-6 #Hashtags), and Zero-Overthinking 1-Call Dispatch, and built-in DeepX Google Flow engine for AI thumbnails, Reel covers and post designs (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
+      "version": "1.8.4",
+      "description": "Pre-Trained Phone (Desktop-on-Phone www.facebook.com & Mobile Touch m.facebook.com) and Desktop Facebook Automation Engine (v1.8.4): Dedicated Feed Posts (Text/Photo/Carousel/Video), Anti-Comment Firewall (strictly never posts into comments), Reels (/reels/create + automatic mobile fallback + video event dispatch), Stories (/stories/create Photo/Video with overlay story_text & Text Story), Real Video/Reel Thumbnail & Cover Uploader, Multiline Formatted Caption Engine (Title + Description + Bullets + CTA + 3-6 #Hashtags), and Zero-Overthinking 1-Call Dispatch, and built-in DeepX Google Flow engine for AI thumbnails, Reel covers and post designs (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
       "icon": "icon.png",
       "logo": "icon.png",
       "toolCount": 34
@@ -25,8 +25,8 @@
       "path": "meta-suite-automation",
       "id": "meta-suite-automation",
       "name": "Meta Suite Page Management",
-      "version": "2.9.3",
-      "description": "Master Autonomous Meta Suite Production Engine (v2.9.3): Facebook Page management that posts through Meta Business Suite (business.facebook.com composer, native scheduling, Reels thumbnails, screen locked while working, asks timing / thumbnail / caption approval first, batch projects run to completion), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
+      "version": "2.9.4",
+      "description": "Master Autonomous Meta Suite Production Engine (v2.9.4): Facebook Page management that posts through Meta Business Suite (business.facebook.com composer, native scheduling, Reels thumbnails, screen locked while working, asks timing / thumbnail / caption approval first, batch projects run to completion), 1-click publishing & scheduling of Page Reels, Videos, Photos, Stories with custom thumbnails/covers, scheduled-queue manager, viral SEO + Meta algorithm audit, live trend radar (Google/YouTube, Reddit, X), anti-ad organic shield, and built-in DeepX Google Flow media engine (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
       "icon": "icon.png",
       "logo": "assets/logo.png",
       "toolCount": 44
@@ -35,8 +35,8 @@
       "path": "deepx-google-flow",
       "id": "deepx-google-flow",
       "name": "DeepX Google Flow Studio (DeepX MCP)",
-      "version": "1.2.3",
-      "description": "DeepX Google Flow Studio & DeepX MCP (v1.2.3): the complete DeepX Flow extension as an AntiGem MCP plugin — no side panel. Instant 11ms fast-path execution, full Google Flow Agent panel recognition, checks Google login, asks Agent Mode vs Standard mode before every generation; Agent Mode auto-splits big batches into ≤24-item parts pasted back-to-back with 100% autopilot approvals; Standard mode runs on AntiGem's native Flow engine and auto-switches to Agent Mode when Google shows an unusual-activity / extension block. Includes storyboard analyzer, characters, references, scene chaining, upscale, downloads and all deepx_* / flow_* tools. Google Flow Nov 2026 update — Agent spark switch in the prompt box, quick answers with auto side panel, and semantic project asset search (exact + similar results).",
+      "version": "1.2.4",
+      "description": "DeepX Google Flow Studio & DeepX MCP (v1.2.4): the complete DeepX Flow extension as an AntiGem MCP plugin — no side panel. Instant 11ms fast-path execution, full Google Flow Agent panel recognition, checks Google login, asks Agent Mode vs Standard mode before every generation; Agent Mode auto-splits big batches into ≤24-item parts pasted back-to-back with 100% autopilot approvals; Standard mode runs on AntiGem's native Flow engine and auto-switches to Agent Mode when Google shows an unusual-activity / extension block. Includes storyboard analyzer, characters, references, scene chaining, upscale, downloads and all deepx_* / flow_* tools. Google Flow Nov 2026 update — Agent spark switch in the prompt box, quick answers with auto side panel, and semantic project asset search (exact + similar results).",
       "icon": "icon.png",
       "logo": "assets/logo.png",
       "toolCount": 94

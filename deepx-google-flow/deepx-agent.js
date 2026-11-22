@@ -4,7 +4,8 @@
 // 24-item back-to-back batch queue. Page DOM work lives in deepx-agent-page.js (MAIN world).
 
 export const AGENT_MAX_PER_PART = 24;
-export const AGENT_PAGE_VERSION = 5;
+export const AGENT_PAGE_VERSION = 6;
+export const AGENT_DOWNLOAD_CONCURRENCY = 8;
 
 /**
  * Universal Orderly Media Filename Formatter
@@ -184,35 +185,60 @@ export function createDeepXAgent({ chrome, client, jobs, awaitJobs }) {
     return r?.ok ? 'dom_click' : 'none';
   }
 
+  // v1.2.4: verified instant paste (panel auto-close), then send with trusted tap -> DOM click -> Enter,
+  // checking after each step whether Flow accepted it. Typical send now < 1 s instead of up to 10 s.
   async function submit(tabId, text) {
-    const filled = await page(tabId, 'fillPrompt', text);
+    let filled = await page(tabId, 'fillPrompt', text);
+    if (!filled?.ok) {
+      await page(tabId, 'closePanels').catch(() => {});
+      filled = await page(tabId, 'fillPrompt', text);
+    }
     if (!filled?.ok) {
       // Fall back to the AntiGem Flow helper's ProseMirror writer
       const alt = await client.js(tabId, `s.setPrompt(${JSON.stringify(text)})`).catch(() => null);
-      if (!alt?.ok && !filled?.length) throw new Error(filled?.error || 'Could not paste the prompt into Google Flow Agent.');
+      if (!alt?.ok && !alt?.success) throw new Error(filled?.error || 'Could not paste the prompt into Google Flow Agent.');
     }
-    const point = await page(tabId, 'submitPoint');
-    if (!point?.found || point.disabled) throw new Error(point?.error || 'Flow Agent submit button is not ready.');
-    let method = await tap(tabId, point);
     const started = async ms => {
       const end = Date.now() + ms;
       while (Date.now() < end) {
         const b = await page(tabId, 'busy').catch(() => null);
         if (b && (b.isBusy || b.boxEmpty)) return true;
-        await sleep(250);
+        await sleep(120);
       }
       return false;
     };
-    if (!(await started(4000))) {
-      const c = await page(tabId, 'clickSubmit');
-      method = c?.ok ? `${method}+dom_click` : method;
-      if (!(await started(3000))) {
-        await page(tabId, 'pressEnter');
-        method += '+enter';
-        if (!(await started(3000))) throw new Error('Google Flow Agent did not accept the prompt (submit had no effect).');
-      }
+    let point = await page(tabId, 'submitPoint');
+    let method = 'none';
+    if (point?.found && !point.disabled) {
+      method = await tap(tabId, point);
+      if (await started(1800)) return { submitted: true, method, paste: filled?.method };
     }
-    return { submitted: true, method };
+    const c = await page(tabId, 'clickSubmit');
+    if (c?.ok) { method = `${method}+dom_click`; if (await started(1500)) return { submitted: true, method, paste: filled?.method }; }
+    await page(tabId, 'pressEnter');
+    method += '+enter';
+    if (await started(1500)) return { submitted: true, method, paste: filled?.method };
+    // Last try: panel may have re-opened over the composer -> close, re-paste, tap again.
+    await page(tabId, 'closePanels').catch(() => {});
+    const again = await page(tabId, 'fillPrompt', text);
+    point = await page(tabId, 'submitPoint');
+    if (again?.ok && point?.found && !point.disabled) {
+      method += '+retry_' + await tap(tabId, point);
+      if (await started(2500)) return { submitted: true, method, paste: again.method };
+    }
+    throw new Error(point?.error || 'Google Flow Agent did not accept the prompt (submit had no effect).');
+  }
+
+  /** Wait until no fresh media of this job is still rendering (or the cap expires). */
+  async function settledFresh(tabId, projectId, known, capMs) {
+    const end = Date.now() + capMs;
+    let items = [];
+    while (true) {
+      items = (await client.contents(tabId, projectId).catch(() => [])) || [];
+      const fresh = items.filter(m => !known.has(m.mediaId) && !m.trashed);
+      if (!fresh.some(m => m.pending) || Date.now() > end) return fresh.filter(m => !m.pending);
+      await sleep(1500);
+    }
   }
 
   function startWatcher(tabId, keywords = '') {
@@ -316,6 +342,31 @@ export function createDeepXAgent({ chrome, client, jobs, awaitJobs }) {
       try {
         const before = await knownMedia(tabId);
         job.project_id = before.projectId;
+        const known = new Set(before.ids), claimed = new Set(), downloads = [], byId = new Map();
+        const totalItems = plan.total;
+        job.items = [];
+        // Assign one part's fresh media to its prompts and start parallel, ordered downloads (not awaited here).
+        const queuePart = (part, media, rec) => {
+          const prompts = part.items || Array.from({ length: part.count }, (_, k) => `item ${part.start + k}`);
+          const { assigned, unassigned } = part.items ? assignMediaToItems(prompts, media, mediaType) : { assigned: prompts.map((_, k) => media[k] ? [media[k].mediaId] : []), unassigned: media.slice(prompts.length).map(m => m.mediaId) };
+          const list = [];
+          prompts.forEach((prompt, k) => {
+            const index = part.start - 1 + k;
+            const it = { index, prompt: String(prompt).slice(0, 160), media_ids: assigned[k], files: [] };
+            job.items[index] = it;
+            assigned[k].forEach((mid, n) => { claimed.add(mid); list.push({ id: mid, it, name: formatOrderlyFilename(it.prompt + (assigned[k].length > 1 ? `_${n + 1}` : ''), index, totalItems, mediaType === 'image'), type: mediaType }); });
+          });
+          unassigned.forEach((mid, n) => { claimed.add(mid); list.push({ id: mid, name: formatOrderlyFilename('extra_media', totalItems + (job.unassigned_media_ids || []).length + n, totalItems + 100, mediaType === 'image'), type: mediaType, extra: true }); });
+          job.unassigned_media_ids = [...(job.unassigned_media_ids || []), ...unassigned];
+          if (!list.length || opts.download === false) return;
+          rec.download = 'downloading';
+          downloads.push(client.files(tabId, list.map(x => ({ id: x.id, name: x.name, type: x.type })), opts.downloadConcurrency || AGENT_DOWNLOAD_CONCURRENCY).then(files => {
+            files.forEach(f => { const x = list.find(y => y.id === f.media_id); byId.set(f.media_id, f); if (x?.it) x.it.files.push(f); });
+            job.files.push(...files);
+            if (files.errors?.length) job.download_errors = (job.download_errors || 0) + files.errors.length;
+            rec.download = `done (${files.length}/${list.length})`;
+          }).catch(e => { rec.download = 'failed: ' + e.message; }));
+        };
         job.stage = 'switching to Agent Mode + 100% autopilot';
         job.setup = await prepare(tabId, { ...opts, mediaType });
         const keywords = String(opts.keywords || plan.parts[0]?.items?.[0] || '').slice(0, 120);
@@ -333,55 +384,45 @@ export function createDeepXAgent({ chrome, client, jobs, awaitJobs }) {
           rec.status = idle ? 'done' : 'timeout_continued';
           rec.finished_at = new Date().toISOString();
           job.parts_done = i + 1;
-          if (i + 1 < plan.parts.length) await sleep(opts.partGapMs ?? 2500);
+          // v1.2.4: collect this part's media now and download it in parallel while the next part generates.
+          if (opts.download !== false && before.projectId) {
+            const isLast = i + 1 === plan.parts.length;
+            const fresh = await settledFresh(tabId, before.projectId, known, isLast ? 90000 : 4000);
+            fresh.sort((a, b) => String(a.created || '').localeCompare(String(b.created || '')));
+            const mine = fresh.filter(m => !claimed.has(m.mediaId) && (!m.type || m.type === mediaType) && !m.pending);
+            if (mine.length) queuePart(part, mine, rec);
+          }
+          if (i + 1 < plan.parts.length) await sleep(opts.partGapMs ?? 1200);
         }
+        await Promise.all(downloads);
         job.stage = 'collecting new media';
-        await sleep(1500);
         const after = await knownMedia(tabId);
-        const fresh = after.ids.filter(id => !before.ids.includes(id));
+        const fresh = after.ids.filter(id => !known.has(id));
         job.media_ids = fresh;
-        const itemPrompts = plan.parts.flatMap(p => p.items || []);
-        if (itemPrompts.length) {
-          const freshMedia = after.items.filter(m => fresh.includes(m.mediaId));
-          const { assigned, unassigned } = assignMediaToItems(itemPrompts, freshMedia, mediaType);
-          job.items = itemPrompts.map((prompt, index) => ({ index, prompt: prompt.slice(0, 160), media_ids: assigned[index], files: [] }));
-          job.unassigned_media_ids = unassigned;
-          job.matched_items = job.items.filter(it => it.media_ids.length).length;
+        // Late media that appeared after its part was collected: download in parallel as extras (never lost).
+        let late = after.items.filter(m => fresh.includes(m.mediaId) && !claimed.has(m.mediaId) && !m.trashed && (!m.type || m.type === mediaType));
+        if (late.some(m => m.pending)) { const settled = await settledFresh(tabId, after.projectId || before.projectId, new Set([...known, ...claimed]), 60000); late = settled.filter(m => fresh.includes(m.mediaId) || !known.has(m.mediaId)); }
+        late = late.filter(m => !m.pending).sort((a, b) => String(a.created || '').localeCompare(String(b.created || '')));
+        if (late.length && opts.download !== false) {
+          // First fill numbered slots that are still empty (same order), only the rest become extras.
+          const empty = job.items.filter(it => it && !it.media_ids.length);
+          const { assigned } = assignMediaToItems(empty.map(it => it.prompt), late, mediaType);
+          const used = new Set(assigned.flat());
+          const rest = late.filter(m => !used.has(m.mediaId));
+          empty.forEach((it, k) => { if (!assigned[k].length && rest.length && !plan.parts[0]?.items) assigned[k].push(rest.shift().mediaId); });
+          const list = [];
+          empty.forEach((it, k) => assigned[k].forEach(mid => { claimed.add(mid); it.media_ids.push(mid); list.push({ id: mid, it, name: formatOrderlyFilename(it.prompt, it.index, totalItems, mediaType === 'image'), type: mediaType }); }));
+          const base = totalItems + (job.unassigned_media_ids || []).length;
+          const extras = late.filter(m => !claimed.has(m.mediaId));
+          extras.forEach((m, n) => list.push({ id: m.mediaId, name: formatOrderlyFilename('extra_media', base + n, base + extras.length, mediaType === 'image'), type: mediaType }));
+          job.unassigned_media_ids = [...(job.unassigned_media_ids || []), ...extras.map(m => m.mediaId)];
+          const files = await client.files(tabId, list.map(x => ({ id: x.id, name: x.name, type: x.type })), opts.downloadConcurrency || AGENT_DOWNLOAD_CONCURRENCY);
+          files.forEach(f => { const x = list.find(y => y.id === f.media_id); if (x?.it) x.it.files.push(f); });
+          job.files.push(...files);
         }
-        if (opts.download !== false && fresh.length) {
-          const byId = new Map();
-          const totalItems = (job.items || []).length || fresh.length;
-          // Download matched items with strict orderly zero-padded numbering
-          for (let idx = 0; idx < (job.items || []).length; idx++) {
-            const it = job.items[idx];
-            for (let mIdx = 0; mIdx < (it.media_ids || []).length; mIdx++) {
-              const mid = it.media_ids[mIdx];
-              const suffix = it.media_ids.length > 1 ? `_${mIdx + 1}` : '';
-              const orderlyName = formatOrderlyFilename(it.prompt + suffix, idx, totalItems, mediaType === 'image');
-              try {
-                const f = await client.file(tabId, mid, null, orderlyName);
-                byId.set(mid, f);
-                job.files.push(f);
-              } catch (e) {
-                job.download_errors = (job.download_errors || 0) + 1;
-              }
-            }
-          }
-          // Also download any unassigned fresh media in sequence
-          for (let uIdx = 0; uIdx < (job.unassigned_media_ids || []).length; uIdx++) {
-            const mid = job.unassigned_media_ids[uIdx];
-            if (!byId.has(mid)) {
-              const seqIdx = (job.items || []).length + uIdx;
-              const orderlyName = formatOrderlyFilename(`extra_media`, seqIdx, totalItems + job.unassigned_media_ids.length, mediaType === 'image');
-              try {
-                const f = await client.file(tabId, mid, null, orderlyName);
-                byId.set(mid, f);
-                job.files.push(f);
-              } catch (_) {}
-            }
-          }
-          for (const it of job.items || []) it.files = it.media_ids.map(id => byId.get(id)).filter(Boolean);
-        }
+        job.items = job.items.filter(Boolean);
+        job.matched_items = job.items.filter(it => it.media_ids.length).length;
+        job.files.sort((a, b) => String(a.filename || '').localeCompare(String(b.filename || '')));
         job.status = 'done';
         job.stage = `done: ${plan.parts.length} part(s), ${plan.total} item(s) sent to Flow Agent${fresh.length ? `, ${fresh.length} new media in project` : ''}`;
       } finally {

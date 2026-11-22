@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "id": "facebook-automation",
   "name": "Facebook Automation & SEO Studio",
-  "version": "1.8.3",
-  "description": "Pre-Trained Phone (Desktop-on-Phone www.facebook.com & Mobile Touch m.facebook.com) and Desktop Facebook Automation Engine (v1.8.3): Dedicated Feed Posts (Text/Photo/Carousel/Video), Anti-Comment Firewall (strictly never posts into comments), Reels (/reels/create + automatic mobile fallback + video event dispatch), Stories (/stories/create Photo/Video with overlay story_text & Text Story), Real Video/Reel Thumbnail & Cover Uploader, Multiline Formatted Caption Engine (Title + Description + Bullets + CTA + 3-6 #Hashtags), and Zero-Overthinking 1-Call Dispatch, and built-in DeepX Google Flow engine for AI thumbnails, Reel covers and post designs (login check \u2192 Agent/Standard question \u2192 autopilot, automatic Agent fallback on unusual-activity blocks).",
+  "version": "1.8.4",
+  "description": "Pre-Trained Phone (Desktop-on-Phone www.facebook.com & Mobile Touch m.facebook.com) and Desktop Facebook Automation Engine (v1.8.4): Dedicated Feed Posts (Text/Photo/Carousel/Video), Anti-Comment Firewall (strictly never posts into comments), Reels (/reels/create + automatic mobile fallback + video event dispatch), Stories (/stories/create Photo/Video with overlay story_text & Text Story), Real Video/Reel Thumbnail & Cover Uploader, Multiline Formatted Caption Engine (Title + Description + Bullets + CTA + 3-6 #Hashtags), and Zero-Overthinking 1-Call Dispatch, and built-in DeepX Google Flow engine for AI thumbnails, Reel covers and post designs (login check → Agent/Standard question → autopilot, automatic Agent fallback on unusual-activity blocks).",
   "author": "Dipesh Kr Yadav",
   "icon": "icon.png",
   "icons": {
@@ -41,7 +41,7 @@
   "mcp_tools": [
     {
       "name": "fb_status",
-      "description": "Check Facebook Automation status, automatically open Facebook in the AntiGem browser if not open, and verify one-time login state. NOTE: Do NOT call fb_status before fb_publish\u2014call fb_publish directly in 1 step! If logged_in is false (action_required='ONE_TIME_LOGIN_REQUIRED'), tell the user once to sign in to Facebook in the open AntiGem browser tab and STOP immediately.",
+      "description": "Check Facebook Automation status, automatically open Facebook in the AntiGem browser if not open, and verify one-time login state. NOTE: Do NOT call fb_status before fb_publish—call fb_publish directly in 1 step! If logged_in is false (action_required='ONE_TIME_LOGIN_REQUIRED'), tell the user once to sign in to Facebook in the open AntiGem browser tab and STOP immediately.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -55,7 +55,7 @@
     },
     {
       "name": "fb_login_status",
-      "description": "Open Facebook (https://www.facebook.com/) in the AntiGem browser if not open, verify active login session (cookies + DOM), and persist one-time login state. IMPORTANT: If logged_in is false, Facebook is already open on the login screen in the AntiGem browser\u2014ask the user once for their one-time login and STOP immediately (do not loop).",
+      "description": "Open Facebook (https://www.facebook.com/) in the AntiGem browser if not open, verify active login session (cookies + DOM), and persist one-time login state. IMPORTANT: If logged_in is false, Facebook is already open on the login screen in the AntiGem browser—ask the user once for their one-time login and STOP immediately (do not loop).",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -95,7 +95,7 @@
     },
     {
       "name": "fb_publish",
-      "description": "1-STEP FEED PUBLISHER (Text, Photo, Carousel, Feed Video \u2014 also routes Reel/Story if post_type specifies). NOTE: Prefer `fb_publish_reel` for Facebook Reels and `fb_publish_story` for Facebook Stories! ALWAYS include `title`, formatted multiline `caption` (Title -> blank line -> Description/Quote -> Bullets -> CTA, keeping \\n\\n line breaks), and 3-6 `hashtags`. For Feed Videos (`post_type=\"video\"`), pass `thumbnail_path` and it will be uploaded inside Edit Video -> Thumbnail (NEVER attached as a second feed photo). For Photos (`post_type=\"photo\"`), combine `media_paths` + deep `caption` + `title` + 3-6 `hashtags` in ONE call.",
+      "description": "1-STEP FEED PUBLISHER (Text, Photo, Carousel, Feed Video — also routes Reel/Story if post_type specifies). NOTE: Prefer `fb_publish_reel` for Facebook Reels and `fb_publish_story` for Facebook Stories! ALWAYS include `title`, formatted multiline `caption` (Title -> blank line -> Description/Quote -> Bullets -> CTA, keeping \\n\\n line breaks), and 3-6 `hashtags`. For Feed Videos (`post_type=\"video\"`), pass `thumbnail_path` and it will be uploaded inside Edit Video -> Thumbnail (NEVER attached as a second feed photo). For Photos (`post_type=\"photo\"`), combine `media_paths` + deep `caption` + `title` + 3-6 `hashtags` in ONE call.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -246,7 +246,7 @@
     },
     {
       "name": "fb_thumbnail_prompt",
-      "description": "Craft an ultra-detailed, creative Master Art Direction prompt for generating a high-CTR clickbait thumbnail using an AI Image Model (Nano Banana Pro / Google Flow / image-generator subagent). STRICT MANDATE: NEVER use Python (PIL/Pillow/OpenCV) to generate thumbnails! Always pass this tool's prompt to the AI Image Model to render the thumbnail. Then generate the image with deepx_generate in THIS plugin (Google login check \u2192 ask Agent Mode or Standard \u2192 download:true) and pass files[0].path as thumbnail_path.",
+      "description": "Craft an ultra-detailed, creative Master Art Direction prompt for generating a high-CTR clickbait thumbnail using an AI Image Model (Nano Banana Pro / Google Flow / image-generator subagent). STRICT MANDATE: NEVER use Python (PIL/Pillow/OpenCV) to generate thumbnails! Always pass this tool's prompt to the AI Image Model to render the thumbnail. Then generate the image with deepx_generate in THIS plugin (Google login check → ask Agent Mode or Standard → download:true) and pass files[0].path as thumbnail_path.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -525,7 +525,7 @@
     },
     {
       "name": "deepx_generate",
-      "description": "AI images/videos for Facebook (thumbnails, Reel covers, post designs, short clips) through the built-in DeepX Google Flow engine. Checks the Google Flow login first (LOGIN_REQUIRED \u2192 tell the user to sign in, stop). If generation_mode is missing it returns ASK_GENERATION_MODE: ask 'Agent Mode or Standard mode (without Agent)?' and call again. Pass download:true and use files[0].path from deepx_job_status as thumbnail_path/media_paths. Standard mode auto-switches to Agent Mode on Google 'unusual activity' blocks; Agent Mode sends \u226424 prompts per part back-to-back. Never ask the user to generate in Google Flow manually.",
+      "description": "AI images/videos for Facebook (thumbnails, Reel covers, post designs, short clips) through the built-in DeepX Google Flow engine. Checks the Google Flow login first (LOGIN_REQUIRED → tell the user to sign in, stop). If generation_mode is missing it returns ASK_GENERATION_MODE: ask 'Agent Mode or Standard mode (without Agent)?' and call again. Pass download:true and use files[0].path from deepx_job_status as thumbnail_path/media_paths. Standard mode auto-switches to Agent Mode on Google 'unusual activity' blocks; Agent Mode sends ≤24 prompts per part back-to-back. Never ask the user to generate in Google Flow manually.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -554,7 +554,7 @@
             "items": {
               "type": "string"
             },
-            "description": "List of prompts, one output item each (any length; Agent Mode splits into parts of \u226424, Standard mode accepts \u2264500)."
+            "description": "List of prompts, one output item each (any length; Agent Mode splits into parts of ≤24, Standard mode accepts ≤500)."
           },
           "script_text": {
             "type": "string",
@@ -593,7 +593,7 @@
           },
           "count": {
             "type": "integer",
-            "description": "Standard mode: outputs per prompt (1\u20134).",
+            "description": "Standard mode: outputs per prompt (1–4).",
             "minimum": 1,
             "maximum": 4
           },
@@ -668,13 +668,19 @@
           },
           "wait_seconds": {
             "type": "integer",
-            "description": "Seconds to wait before returning (0\u201345). Poll deepx_job_status afterwards.",
+            "description": "Seconds to wait before returning (0–45). Poll deepx_job_status afterwards.",
             "minimum": 0,
             "maximum": 45
           },
           "dry_run": {
             "type": "boolean",
             "description": "Standard mode: prepare and guard-block the request without spending credits."
+          },
+          "download_concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12,
+            "description": "Parallel downloads per part (default 8). Each part downloads while the next part generates."
           }
         },
         "additionalProperties": false
@@ -699,7 +705,7 @@
           },
           "wait_seconds": {
             "type": "integer",
-            "description": "0\u201350 seconds to wait.",
+            "description": "0–50 seconds to wait.",
             "minimum": 0,
             "maximum": 50
           }
@@ -852,7 +858,7 @@
     },
     {
       "name": "deepx_flow_agent_batch_queue",
-      "description": "Agent Mode bulk queue for 1\u20135000 items (ranges like 1 to 1000, '100 images of X', or long prompt lists): \u226424 items per part, back-to-back, autopilot approvals. Returns a job.",
+      "description": "Agent Mode bulk queue for 1–5000 items (ranges like 1 to 1000, '100 images of X', or long prompt lists): ≤24 items per part, back-to-back, autopilot approvals. Returns a job.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -869,7 +875,7 @@
             "items": {
               "type": "string"
             },
-            "description": "Explicit prompt list (split into parts of \u226424)."
+            "description": "Explicit prompt list (split into parts of ≤24)."
           },
           "media_type": {
             "type": "string",
@@ -949,9 +955,15 @@
           },
           "wait_seconds": {
             "type": "integer",
-            "description": "Seconds to wait before returning (0\u201345).",
+            "description": "Seconds to wait before returning (0–45).",
             "minimum": 0,
             "maximum": 45
+          },
+          "download_concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12,
+            "description": "Parallel downloads per part (default 8). Each part downloads while the next part generates."
           }
         },
         "additionalProperties": false
@@ -981,7 +993,7 @@
           },
           "wait_seconds": {
             "type": "integer",
-            "description": "0\u201345.",
+            "description": "0–45.",
             "minimum": 0,
             "maximum": 45
           }
@@ -991,7 +1003,7 @@
     },
     {
       "name": "deepx_download_media",
-      "description": "Chrome Flow MCP compatibility alias for flow_download_media. Download media by ID or URL into local terminal storage, with an optional filename and folder.",
+      "description": "Chrome Flow MCP compatibility alias for flow_download_media. Download media by ID, a list of IDs (media_ids — parallel, ordered names) or URL into local terminal storage, with an optional filename and folder.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -1029,6 +1041,36 @@
           },
           "media_id": {
             "type": "string"
+          },
+          "media_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Bulk download (v1.2.4): many media IDs at once, downloaded in parallel (8 at a time) and saved with ordered names 001_, 002_ … in this exact order. Use this instead of one call per image."
+          },
+          "start_index": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number offset for ordered names (e.g. 24 -> first file is 025_)."
+          },
+          "prefix": {
+            "type": "string",
+            "description": "Optional name part after the number, e.g. 'quote' -> 001_quote_<id>.jpg."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video"
+            ],
+            "description": "Media type hint; skips a lookup per file."
+          },
+          "concurrency": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12,
+            "description": "Parallel downloads (default 8)."
           }
         },
         "type": "object"

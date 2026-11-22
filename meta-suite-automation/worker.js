@@ -32,11 +32,11 @@
 importScripts("deepx-bundle.js");
 importScripts("meta-bs.js");
 const DEEPX = self.DeepXFlow;
-DEEPX.configureDeepX({ pluginId: "meta-suite-automation", version: "2.7.1" });
+DEEPX.configureDeepX({ pluginId: "meta-suite-automation", version: "2.9.4" });
 const DEEPX_TOOLS = new Set(["deepx_generate", "deepx_job_status", "deepx_check_login", "deepx_status", "deepx_cancel_job", "deepx_get_options", "deepx_flow_agent_status", "deepx_flow_agent_toggle", "deepx_flow_agent_configure", "deepx_flow_agent_set_instructions", "deepx_flow_agent_approve_all", "deepx_flow_agent_batch_queue", "deepx_upscale_media", "deepx_download_media", "deepx_upload_asset", "flow_get_last_media", "flow_get_media", "flow_list_media"]);
 
 const PLUGIN_ID = "meta-suite-automation";
-const PLUGIN_VERSION = "2.9.3";
+const PLUGIN_VERSION = "2.9.4";
 const FB_HOME_URL = "https://www.facebook.com/";
 const FB_REELS_CREATE_URL = "https://www.facebook.com/reels/create";
 const FB_STORIES_CREATE_URL = "https://www.facebook.com/stories/create";
@@ -4864,7 +4864,7 @@ function deepxNext(res) {
 }
 async function metaGenerate(kind, args = {}) {
   const common = { generation_mode: args.generation_mode, download: true, wait_seconds: args.wait_seconds ?? 20 };
-  if (kind === "design") return deepxNext(await DEEPX.deepxGenerate({ ...common, prompt: args.prompt, media_type: "image", aspect_ratio: META_IMAGE_ASPECT(args.aspect_ratio || "4:5"), image_model: META_IMAGE_MODEL(args.model), count: 1 }));
+  if (kind === "design") return deepxNext(await DEEPX.deepxGenerate({ ...common, ...(Array.isArray(args.prompts) && args.prompts.length ? { prompts: args.prompts } : { prompt: args.prompt }), download_concurrency: args.download_concurrency, media_type: "image", aspect_ratio: META_IMAGE_ASPECT(args.aspect_ratio || "4:5"), image_model: META_IMAGE_MODEL(args.model), count: 1 }));
   if (kind === "thumbnail") {
     const spec = buildAiImageModelThumbnailPrompt({ topic: args.topic || args.prompt, title_hook: args.title_hook, subtitle: args.subtitle, archetype: args.archetype, aspect_ratio: args.aspect_ratio || "16:9" });
     const res = await DEEPX.deepxGenerate({ ...common, prompt: spec.ai_image_model_prompt || String(args.topic || args.prompt), media_type: "image", aspect_ratio: META_IMAGE_ASPECT(args.aspect_ratio || "16:9"), image_model: "Nano Banana 2.1" });

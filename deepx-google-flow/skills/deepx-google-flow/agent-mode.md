@@ -7,11 +7,12 @@
 4. Build parts of **≤24 items** (`max_per_part`, hard cap 24, Google Flow Agent's per-request limit):
    - prompt list → `[Image k/N] <prompt>` lines, 24 per part, with a header like `Generate all 24 images at once using Nano Banana 2.1 in 9:16 ratio (Part 2 of 5, items 25 to 48 of 100)`.
    - bulk text (`100 images of X`, `1 to 1000 …`, `total_count`, `range_start/range_end`) → numbered ranges per part.
-5. For each part: paste → trusted Android touch on Send (falls back to a DOM click, then Enter) → confirm the agent started → wait until idle. Meanwhile it auto-clicks "Always approve in project" / "Approve", picks the matching multiple-choice option, and answers text questions such as "I can only generate up to 24…". Then it waits 2.5 s and sends the next part.
-6. At the end it lists new media in the project (`media_ids`); `download:true` saves them to `~/flow-media`.
+5. For each part: close any Settings/Instructions panel → instant verified paste → trusted Android touch on Send (falls back to a DOM click, then Enter, each checked in ~1.5 s) → confirm the agent started → wait until idle. Meanwhile it auto-clicks "Always approve in project" / "Approve", picks the matching multiple-choice option, and answers text questions such as "I can only generate up to 24…".
+6. As soon as a part is idle, its new images are matched to that part's prompts and **downloaded in parallel (8 at a time) while the next part is already generating** (1.2 s gap). Names are ordered and zero-padded: `001_scene_001.png` … `100_scene_100.png` in `~/flow-media/`.
+7. After the last part it waits (≤90 s) for still-rendering images, fills empty slots in order, and returns `job.files` sorted. `parts[].download` shows `done (24/24)` per part. `download:false` skips downloading.
 
 ## Polling
-`deepx_job_status {job_id, wait_seconds:30}` → `status` (queued/running/done/failed/cancelled), `stage`, `parts_done/total_parts`, `parts[] {part, items, status, method}`, `approvals[]`, `media_ids`.
+`deepx_job_status {job_id, wait_seconds:30}` → `status` (queued/running/done/failed/cancelled), `stage`, `parts_done/total_parts`, `parts[] {part, items, status, method, download}`, `items[] {index, prompt, media_ids, files}`, `files` (sorted), `approvals[]`, `media_ids`.
 Per-part wait limit: 480 s for images, 900 s for videos (`part_timeout_sec`). On timeout the part is marked `timeout_continued` and the next part is sent.
 
 ## Direct agent tools
