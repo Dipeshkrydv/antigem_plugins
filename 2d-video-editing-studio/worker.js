@@ -1,10 +1,10 @@
-// 2D Video Editing Studio — AntiGem worker (v3.5.3).
+// 2D Video Editing Studio — AntiGem worker (v3.5.5).
 // Google Flow asset generation uses the built-in DeepX engine (deepx-core.js): login check,
 // Agent Mode / Standard mode choice, ≤24-per-part Agent queue and automatic Agent fallback.
 import { configureDeepX, deepxExecute, deepxGenerate, loginCheck, jobs, snapshot, sleep, mcpListener } from './deepx-core.js';
 
 const PLUGIN_ID = "2d-video-editing-studio";
-const PLUGIN_VERSION = "3.5.4";
+const PLUGIN_VERSION = "3.5.5";
 configureDeepX({ pluginId: PLUGIN_ID, version: PLUGIN_VERSION });
 
 const STYLES = {

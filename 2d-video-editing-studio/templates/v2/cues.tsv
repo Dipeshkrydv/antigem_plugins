@@ -1,4 +1,4 @@
 label	kind	file	at	dur	gain_db	fade_in	fade_out
 bed	loop	audio/music/crime_and_suspense/mystery_ambient.mp3	0.0	all	-24	1.5	2.5
-stamp_1	one	audio/sfx/paper/b4_stamp_press_g.mp3	@03	-	-14	0	0
-whoosh_2	one	audio/sfx/transition/b2_film_transition_a.mp3	@03	-	-16	0	0
+hit_1	one	audio/sfx/pop/mixkit_hard_pop_click_2364.wav	@03	-	-14	0	0
+whoosh_2	one	audio/sfx/whoosh/short_whoosh_1.mp3	@03	-	-16	0	0

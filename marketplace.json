@@ -1,7 +1,7 @@
 {
   "name": "antigem-plugins",
   "displayName": "Antigem Official Plugins",
-  "description": "Official Antigem plugins repository: 2D Video Editing Studio (v3.5.4), Facebook Automation & SEO Studio (v1.8.4), Meta Suite Page Management (v2.9.4), and DeepX Google Flow Studio (v1.2.4).",
+  "description": "Official Antigem plugins repository: 2D Video Editing Studio (v3.5.5), Facebook Automation & SEO Studio (v1.8.4), Meta Suite Page Management (v2.9.4), and DeepX Google Flow Studio (v1.2.4).",
   "owner": {
     "name": "Dipesh Kr Yadav",
     "url": "https://github.com/Dipeshkrydv"
@@ -11,8 +11,8 @@
       "name": "2d-video-editing-studio",
       "source": "./2d-video-editing-studio",
       "displayName": "2D Video Editing Studio",
-      "description": "Senior Video Editor & Autonomous 2D Production Engine (v3.5.4): 6 Official Styles (Vox/Box Paper, Stickman, Sticker, Noir, Hand-Drawn Doodle, Retro Arcade), Recipe-Driven Autopilot Edits, Voice-Synced Asset Placement, built-in DeepX Google Flow asset engine (login check → one Agent/Standard question → autopilot; Agent Mode ≤24 prompts per part back-to-back; automatic Agent fallback on unusual-activity blocks), Anti-Offline Server Shield, high-speed render presets and 15-minute timeline scaling.",
-      "version": "3.5.4",
+      "description": "Senior Video Editor & Autonomous 2D Production Engine (v3.5.5): 6 Official Styles (Vox/Box Paper, Stickman, Sticker, Noir, Hand-Drawn Doodle, Retro Arcade), Recipe-Driven Autopilot Edits, Voice-Synced Asset Placement, curated zero-duplicate SFX library + CATALOG.tsv, built-in DeepX Google Flow asset engine (login check → one Agent/Standard question → autopilot; Agent Mode ≤24 prompts per part back-to-back; automatic Agent fallback on unusual-activity blocks), Anti-Offline Server Shield, high-speed render presets and 15-minute timeline scaling.",
+      "version": "3.5.5",
       "logo": "assets/logo.png",
       "icon": "icon.png",
       "author": {

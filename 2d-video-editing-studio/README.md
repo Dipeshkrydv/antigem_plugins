@@ -153,7 +153,7 @@ You can install **2D Video Editing Studio** directly inside the **AntiGem** app:
 │   ├── key.py              # Magenta chroma-keying with alpha edge recovery
 │   └── trends.py           # Real-time multi-platform trend scanner
 ├── fonts/                  # Curated static bold fonts (Anton, Khand, Baloo2, etc.)
-├── audio/                  # Broadcast Foley SFX and royalty-free music beds
+├── audio/                  # Curated zero-duplicate SFX (camera/click/pop/riser/ui/whoosh), CATALOG.tsv, and music beds
 ├── templates/              # Starter project templates
 └── skills/                 # Comprehensive video directing skills
 ```

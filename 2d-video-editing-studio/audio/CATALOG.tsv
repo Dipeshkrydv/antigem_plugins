@@ -1,0 +1,233 @@
+file	source	category	kind	seconds	peak	level_offset	use_for	licence	size	mtime
+sfx/camera/camera_13695.mp3	curated	camera	one	0.42	0.051	4.3	Photos, Polaroids, evidence flash, archival frame captures	user-provided	13374	1795698446
+sfx/camera/camera_flash.mp3	curated	camera	one	0.59	0.101	-1.0	Photos, Polaroids, evidence flash, archival frame captures	user-provided	15717	1795699640
+sfx/camera/camera_shutter.mp3	curated	camera	one	1.27	0.197	-3.0	Photos, Polaroids, evidence flash, archival frame captures	user-provided	31819	1795699641
+sfx/camera/camera_shutter.wav	curated	camera	one	1.29	0.652	3.4	Photos, Polaroids, evidence flash, archival frame captures	user-provided	248368	1795699641
+sfx/camera/camera_shutter_2.mp3	curated	camera	one	0.63	0.143	0.1	Photos, Polaroids, evidence flash, archival frame captures	user-provided	165986	1795698446
+sfx/camera/camera_shutter_2.wav	curated	camera	one	0.38	0.022	-2.1	Photos, Polaroids, evidence flash, archival frame captures	user-provided	66758	1795699641
+sfx/camera/camera_shutter_3.mp3	curated	camera	one	1.14	0.286	-3.0	Photos, Polaroids, evidence flash, archival frame captures	user-provided	28883	1795699641
+sfx/camera/camera_shutter_6305.mp3	curated	camera	one	0.34	0.134	-3.0	Photos, Polaroids, evidence flash, archival frame captures	user-provided	10867	1795698446
+sfx/camera/digital_camera_click.wav	curated	camera	one	0.13	0.029	5.6	Photos, Polaroids, evidence flash, archival frame captures	user-provided	42544	1795698400
+sfx/camera/es_camera_shutter_1_sfxprod.mp3	curated	camera	one	0.20	0.059	0.9	Photos, Polaroids, evidence flash, archival frame captures	user-provided	10560	1795698446
+sfx/camera/mixkit_camera_shutter_click_1133.wav	curated	camera	one	0.35	0.195	3.9	Photos, Polaroids, evidence flash, archival frame captures	user-provided	62562	1795698400
+sfx/camera/shutter_click.mp3	curated	camera	one	0.91	0.373	2.7	Photos, Polaroids, evidence flash, archival frame captures	user-provided	23333	1795698400
+sfx/click/am_sci_fi_click_4.mp3	curated	click	one	0.99	0.550	4.2	Number reveals, pins, mouse clicks, switch hits, transitions	user-provided	15932	1795698399
+sfx/click/click.mp3	curated	click	one	0.30	0.153	0.5	Number reveals, pins, mouse clicks, switch hits, transitions	user-provided	8851	1795699643
+sfx/click/click.wav	curated	click	one	0.84	0.046	-3.0	Number reveals, pins, mouse clicks, switch hits, transitions	user-provided	655352	1795698399
+sfx/click/click_2.wav	curated	click	one	0.38	0.113	-2.2	Number reveals, pins, mouse clicks, switch hits, transitions	user-provided	67286	1795699642
+sfx/click/click_2_2.wav	curated	click	one	1.00	0.008	-2.1	Number reveals, pins, mouse clicks, switch hits, transitions	user-provided	204570	1795698400
+sfx/click/click_3.wav	curated	click	one	1.00	0.107	15.7	Number reveals, pins, mouse clicks, switch hits, transitions	user-provided	363134	1795698400
+sfx/click/click_3_2.wav	curated	click	one	0.75	0.112	-1.9	Number reveals, pins, mouse clicks, switch hits, transitions	user-provided	137092	1795698400
+sfx/click/click_4.wav	curated	click	one	0.96	0.042	-3.0	Number reveals, pins, mouse clicks, switch hits, transitions	user-provided	747512	1795698400
+sfx/click/click_5.wav	curated	click	one	0.39	0.042	-3.0	Number reveals, pins, mouse clicks, switch hits, transitions	user-provided	148650	1795699642
+sfx/click/click_6.wav	curated	click	one	0.50	0.108	-1.9	Number reveals, pins, mouse clicks, switch hits, transitions	user-provided	108472	1795698400
+sfx/click/click_for_transitions.mp3	curated	click	one	0.34	0.131	-0.9	Number reveals, pins, mouse clicks, switch hits, transitions	user-provided	5483	1795698400
+sfx/click/click_hd.mp3	curated	click	one	0.91	0.134	-0.2	Number reveals, pins, mouse clicks, switch hits, transitions	user-provided	152734	1795698400
+sfx/click/es_apple_mouse_click_1_sfxprod.mp3	curated	click	one	0.27	0.035	9.6	Number reveals, pins, mouse clicks, switch hits, transitions	user-provided	14622	1795698400
+sfx/click/es_mouse_click_2_sfxprod.mp3	curated	click	one	0.25	0.117	2.7	Number reveals, pins, mouse clicks, switch hits, transitions	user-provided	13655	1795698400
+sfx/click/es_mouse_click_3_sfxprod.mp3	curated	click	one	0.25	0.006	-1.3	Number reveals, pins, mouse clicks, switch hits, transitions	user-provided	13655	1795698400
+sfx/click/es_pc_mouse_click_1_sfxprod.mp3	curated	click	one	0.22	0.036	3.6	Number reveals, pins, mouse clicks, switch hits, transitions	user-provided	12697	1795698400
+sfx/click/es_switch_click_1_sfxprod.mp3	curated	click	one	0.09	0.043	0.9	Number reveals, pins, mouse clicks, switch hits, transitions	user-provided	5760	1795698400
+sfx/click/mac_click.mp3	curated	click	one	0.18	0.033	15.9	Number reveals, pins, mouse clicks, switch hits, transitions	user-provided	2975	1795698400
+sfx/click/mouse_click.mp3	curated	click	one	0.34	0.073	1.5	Number reveals, pins, mouse clicks, switch hits, transitions	user-provided	16213	1795698400
+sfx/click/mouse_click_1.wav	curated	click	one	0.46	0.114	0.9	Number reveals, pins, mouse clicks, switch hits, transitions	user-provided	123116	1795698400
+sfx/click/rm_click.wav	curated	click	one	0.47	0.045	-2.4	Number reveals, pins, mouse clicks, switch hits, transitions	user-provided	136376	1795698400
+sfx/click/rm_click_2.wav	curated	click	one	0.40	0.041	-2.4	Number reveals, pins, mouse clicks, switch hits, transitions	user-provided	116360	1795698400
+sfx/click/rm_click_3.wav	curated	click	one	0.56	0.119	-2.4	Number reveals, pins, mouse clicks, switch hits, transitions	user-provided	162410	1795698400
+sfx/pop/es_mouth_pop_1_sfxprod.mp3	curated	pop	one	0.07	0.015	-1.6	Stickers, icons, cutouts, callouts, bubbles popping in	user-provided	6921	1795698415
+sfx/pop/es_suction_pop_5_sfxprod.mp3	curated	pop	one	0.61	0.123	1.4	Stickers, icons, cutouts, callouts, bubbles popping in	user-provided	28018	1795698416
+sfx/pop/icon_pop_up_ui_sfx_05.mp3	curated	pop	one	0.34	0.252	-1.7	Stickers, icons, cutouts, callouts, bubbles popping in	user-provided	6473	1795698383
+sfx/pop/mixkit_hard_pop_click_2364.wav	curated	pop	one	0.19	0.005	-2.0	Stickers, icons, cutouts, callouts, bubbles popping in	user-provided	33770	1795699646
+sfx/pop/pop.mp3	curated	pop	one	0.81	0.147	-2.7	Stickers, icons, cutouts, callouts, bubbles popping in	user-provided	32483	1795698416
+sfx/pop/pop_2.mp3	curated	pop	one	0.55	0.131	1.9	Stickers, icons, cutouts, callouts, bubbles popping in	user-provided	19714	1795698416
+sfx/pop/pop_bubble.mp3	curated	pop	one	0.27	0.045	-2.3	Stickers, icons, cutouts, callouts, bubbles popping in	user-provided	8194	1795699646
+sfx/pop/pop_sound.mp3	curated	pop	one	0.24	0.066	1.2	Stickers, icons, cutouts, callouts, bubbles popping in	user-provided	3811	1795698416
+sfx/pop/pop_up.mp3	curated	pop	one	0.23	0.044	-1.8	Stickers, icons, cutouts, callouts, bubbles popping in	user-provided	7015	1795699647
+sfx/pop/pop_up.wav	curated	pop	one	0.38	0.121	2.2	Stickers, icons, cutouts, callouts, bubbles popping in	user-provided	33540	1795699647
+sfx/pop/pop_up_2.mp3	curated	pop	one	0.94	0.532	5.7	Stickers, icons, cutouts, callouts, bubbles popping in	user-provided	15096	1795698416
+sfx/pop/pop_up_2.wav	curated	pop	one	0.43	0.014	-2.8	Stickers, icons, cutouts, callouts, bubbles popping in	user-provided	164472	1795699647
+sfx/pop/pop_up_3.wav	curated	pop	one	0.39	0.010	-2.8	Stickers, icons, cutouts, callouts, bubbles popping in	user-provided	149112	1795699647
+sfx/pop/pop_up_4.wav	curated	pop	one	0.62	0.024	-1.7	Stickers, icons, cutouts, callouts, bubbles popping in	user-provided	238942	1795699647
+sfx/pop/pop_up_5.wav	curated	pop	one	0.93	0.022	-0.1	Stickers, icons, cutouts, callouts, bubbles popping in	user-provided	357572	1795699647
+sfx/pop/pop_up_6.wav	curated	pop	one	0.35	0.029	-2.3	Stickers, icons, cutouts, callouts, bubbles popping in	user-provided	66736	1795699648
+sfx/pop/ui_pop_sound_316482.mp3	curated	pop	one	0.20	0.041	9.3	Stickers, icons, cutouts, callouts, bubbles popping in	user-provided	6313	1795699657
+sfx/pop/ui_pop_up_2_197887.mp3	curated	pop	one	0.46	0.026	-2.5	Stickers, icons, cutouts, callouts, bubbles popping in	user-provided	14592	1795698384
+sfx/riser/bass_riser.wav	curated	riser	one	6.41	1.745	3.0	Suspense build-ups, twists, dramatic swells before key reveals	user-provided	565636	1795699640
+sfx/riser/es_riser_suction_5_sfxprod.mp3	curated	riser	one	2.20	2.108	-0.6	Suspense build-ups, twists, dramatic swells before key reveals	user-provided	54328	1795699644
+sfx/riser/metallic_riser.wav	curated	riser	one	1.59	1.451	13.1	Suspense build-ups, twists, dramatic swells before key reveals	user-provided	304590	1795699645
+sfx/riser/mixkit_cinematic_riser_helicopter_engine_2719.wav	curated	riser	one	12.75	6.718	-1.4	Suspense build-ups, twists, dramatic swells before key reveals	user-provided	2249002	1795699646
+sfx/riser/mountain_audio_suspense_riser.wav	curated	riser	one	7.43	3.199	0.5	Suspense build-ups, twists, dramatic swells before key reveals	user-provided	1310730	1795699646
+sfx/riser/reverse_flicker_riser.wav	curated	riser	loop	15.04	0.000	-12.3	Suspense build-ups, twists, dramatic swells before key reveals	user-provided	4331276	1795698478
+sfx/riser/riser.wav	curated	riser	one	0.86	0.501	8.7	Suspense build-ups, twists, dramatic swells before key reveals	user-provided	165232	1795699650
+sfx/riser/riser_1.mp3	curated	riser	one	3.69	3.596	16.0	Suspense build-ups, twists, dramatic swells before key reveals	user-provided	90323	1795699650
+sfx/riser/riser_2.mp3	curated	riser	one	4.52	4.269	11.5	Suspense build-ups, twists, dramatic swells before key reveals	user-provided	72356	1795698478
+sfx/riser/riser_2.wav	curated	riser	one	1.78	0.280	14.2	Suspense build-ups, twists, dramatic swells before key reveals	user-provided	342640	1795699649
+sfx/riser/riser_3.mp3	curated	riser	one	7.88	6.165	-0.4	Suspense build-ups, twists, dramatic swells before key reveals	user-provided	190633	1795699650
+sfx/riser/riser_8.wav	curated	riser	one	8.64	2.636	6.9	Suspense build-ups, twists, dramatic swells before key reveals	user-provided	762498	1795699651
+sfx/riser/riser_deep.wav	curated	riser	one	4.74	3.854	0.3	Suspense build-ups, twists, dramatic swells before key reveals	user-provided	909966	1795699649
+sfx/riser/riser_reverse_02.mp3	curated	riser	one	2.94	2.788	5.2	Suspense build-ups, twists, dramatic swells before key reveals	user-provided	72142	1795699648
+sfx/riser/riser_short.wav	curated	riser	one	3.31	1.314	0.8	Suspense build-ups, twists, dramatic swells before key reveals	user-provided	583610	1795699649
+sfx/riser/riser_string.wav	curated	riser	one	14.73	11.707	-1.0	Suspense build-ups, twists, dramatic swells before key reveals	user-provided	2829006	1795699649
+sfx/riser/smooth_riser.mp3	curated	riser	one	2.32	2.173	11.2	Suspense build-ups, twists, dramatic swells before key reveals	user-provided	74396	1795698478
+sfx/riser/suspense_riser.wav	curated	riser	one	2.06	1.204	21.9	Suspense build-ups, twists, dramatic swells before key reveals	user-provided	394638	1795699654
+sfx/riser/suspense_riser_2.wav	curated	riser	one	1.77	1.257	7.2	Suspense build-ups, twists, dramatic swells before key reveals	user-provided	340046	1795699655
+sfx/riser/up_riser.wav	curated	riser	one	0.87	0.841	2.9	Suspense build-ups, twists, dramatic swells before key reveals	user-provided	178436	1795698478
+sfx/riser/up_riser_2_glitch.wav	curated	riser	one	0.93	0.884	1.4	Suspense build-ups, twists, dramatic swells before key reveals	user-provided	191402	1795698478
+sfx/riser/up_riser_3.wav	curated	riser	one	2.04	1.428	7.3	Suspense build-ups, twists, dramatic swells before key reveals	user-provided	403228	1795698478
+sfx/riser/vocal_riser.wav	curated	riser	one	7.67	7.521	1.3	Suspense build-ups, twists, dramatic swells before key reveals	user-provided	1472526	1795699658
+sfx/ui/es_sci_fi_games_ui_menu_very_short_close_14_epidemicsound.mp3	curated	ui	one	0.36	0.042	12.5	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	9837	1795699644
+sfx/ui/es_sci_fi_games_ui_menu_very_short_open_04_epidemicsound.mp3	curated	ui	one	0.35	0.156	7.8	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	9837	1795699644
+sfx/ui/many_icon_reveal_ui_sfx_07.mp3	curated	ui	one	0.79	0.241	7.3	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	13385	1795698383
+sfx/ui/quick_win.mp3	curated	ui	one	0.55	0.115	-1.8	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	14769	1795699648
+sfx/ui/sci_fi_ui_sounds.mp3	curated	ui	loop	24.64	0.000	-8.3	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	593128	1795699652
+sfx/ui/scroll_ui_sfx_06.mp3	curated	ui	one	0.75	0.421	-1.8	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	13001	1795698383
+sfx/ui/sfx_ui01.mp3	curated	ui	one	0.16	0.084	4.5	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	8640	1795698383
+sfx/ui/slide_in_ui_sfx_02.mp3	curated	ui	one	0.96	0.333	-1.7	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	16073	1795698383
+sfx/ui/typing_ui_sfx_04.mp3	curated	ui	one	1.43	0.073	-1.1	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	23753	1795698383
+sfx/ui/ui_01.mp3	curated	ui	one	0.96	0.160	2.5	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	16073	1795698383
+sfx/ui/ui_02.mp3	curated	ui	one	0.64	0.276	-1.5	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	11081	1795698383
+sfx/ui/ui_04.mp3	curated	ui	one	0.75	0.411	-1.5	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	13001	1795698383
+sfx/ui/ui_05.mp3	curated	ui	one	0.64	0.333	-1.7	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	10313	1795698383
+sfx/ui/ui_2.mp3	curated	ui	one	0.68	0.252	6.4	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	21733	1795698383
+sfx/ui/ui_5.wav	curated	ui	one	0.50	0.091	-0.8	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	95310	1795699656
+sfx/ui/ui_6.wav	curated	ui	one	0.50	0.088	1.3	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	101136	1795698383
+sfx/ui/ui_beep_06.wav	curated	ui	one	0.46	0.006	-2.7	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	191084	1795698364
+sfx/ui/ui_click_sfx.mp3	curated	ui	one	0.75	0.122	1.2	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	19479	1795699656
+sfx/ui/ui_click_snap.mp3	curated	ui	one	0.89	0.283	6.1	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	25925	1795699656
+sfx/ui/ui_data_loading.mp3	curated	ui	one	12.11	5.590	9.0	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	292077	1795699657
+sfx/ui/ui_glitchy_counter.wav	curated	ui	one	0.99	0.053	2.4	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	190286	1795699655
+sfx/ui/ui_sound_270349.mp3	curated	ui	one	0.87	0.397	12.3	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	25925	1795699657
+sfx/ui/ui_sounds_pack_2_sound_1_358893.mp3	curated	ui	one	0.57	0.166	9.5	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	15090	1795699658
+sfx/ui/ui_success.wav	curated	ui	one	1.17	0.169	-2.8	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	206290	1795699657
+sfx/ui/ui_tick.wav	curated	ui	one	1.55	0.140	0.3	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	272618	1795699657
+sfx/ui/ui_typing_391160.mp3	curated	ui	one	0.67	0.082	-3.0	UI popups, digital data, typing, ticks, success chimes, menu open/close	user-provided	17325	1795699658
+sfx/whoosh/01_simple_whoosh_a.wav	curated	whoosh	one	0.88	0.393	-2.6	Scene transitions, card swipes, fast reveals, impacts	user-provided	154958	1795699634
+sfx/whoosh/cinematic_whoosh.wav	curated	whoosh	one	2.71	0.391	1.7	Scene transitions, card swipes, fast reveals, impacts	user-provided	478142	1795699642
+sfx/whoosh/deep_mini_whoosh_15.wav	curated	whoosh	one	0.88	0.144	-0.4	Scene transitions, card swipes, fast reveals, impacts	user-provided	162552	1795698465
+sfx/whoosh/es_industrial_whoosh_1_sfxprod.mp3	curated	whoosh	one	2.85	1.438	-0.3	Scene transitions, card swipes, fast reveals, impacts	user-provided	69884	1795699643
+sfx/whoosh/es_whip_whoosh_swoosh_4_sfxprod.mp3	curated	whoosh	one	0.21	0.070	-2.5	Scene transitions, card swipes, fast reveals, impacts	user-provided	11738	1795698465
+sfx/whoosh/fast_whoosh.mp3	curated	whoosh	one	1.88	1.166	-0.9	Scene transitions, card swipes, fast reveals, impacts	user-provided	31066	1795698465
+sfx/whoosh/fast_whoosh_118248.mp3	curated	whoosh	one	1.20	0.558	5.4	Scene transitions, card swipes, fast reveals, impacts	user-provided	38452	1795698465
+sfx/whoosh/long_whoosh.mp3	curated	whoosh	one	8.80	4.238	-0.4	Scene transitions, card swipes, fast reveals, impacts	user-provided	212589	1795699645
+sfx/whoosh/long_whoosh.wav	curated	whoosh	one	4.87	4.676	-3.0	Scene transitions, card swipes, fast reveals, impacts	user-provided	934350	1795699645
+sfx/whoosh/low_slow_whoosh.wav	curated	whoosh	one	1.05	0.511	-1.0	Scene transitions, card swipes, fast reveals, impacts	user-provided	184480	1795699645
+sfx/whoosh/rake_swing_whoosh_close.mp3	curated	whoosh	one	1.00	0.184	14.5	Scene transitions, card swipes, fast reveals, impacts	user-provided	25816	1795699648
+sfx/whoosh/rm_whoosh.wav	curated	whoosh	one	0.82	0.273	-1.8	Scene transitions, card swipes, fast reveals, impacts	user-provided	314598	1795699651
+sfx/whoosh/short_whoosh.wav	curated	whoosh	one	1.28	0.274	0.1	Scene transitions, card swipes, fast reveals, impacts	user-provided	245838	1795699654
+sfx/whoosh/short_whoosh_1.mp3	curated	whoosh	one	1.23	0.529	1.8	Scene transitions, card swipes, fast reveals, impacts	user-provided	49208	1795698465
+sfx/whoosh/short_whoosh_12.mp3	curated	whoosh	one	0.51	0.117	3.4	Scene transitions, card swipes, fast reveals, impacts	user-provided	13928	1795699652
+sfx/whoosh/short_whoosh_13.mp3	curated	whoosh	one	1.23	0.541	8.8	Scene transitions, card swipes, fast reveals, impacts	user-provided	49208	1795698466
+sfx/whoosh/short_whoosh_14.mp3	curated	whoosh	one	1.23	0.540	2.6	Scene transitions, card swipes, fast reveals, impacts	user-provided	49208	1795698466
+sfx/whoosh/short_whoosh_15.mp3	curated	whoosh	one	0.61	0.240	4.2	Scene transitions, card swipes, fast reveals, impacts	user-provided	16436	1795699653
+sfx/whoosh/short_whoosh_16.mp3	curated	whoosh	one	1.23	0.546	7.6	Scene transitions, card swipes, fast reveals, impacts	user-provided	49208	1795698466
+sfx/whoosh/short_whoosh_2.mp3	curated	whoosh	one	0.32	0.103	5.0	Scene transitions, card swipes, fast reveals, impacts	user-provided	9353	1795699653
+sfx/whoosh/short_whoosh_5.mp3	curated	whoosh	one	1.23	0.563	0.6	Scene transitions, card swipes, fast reveals, impacts	user-provided	49208	1795698466
+sfx/whoosh/short_whoosh_6.wav	curated	whoosh	one	0.97	0.336	1.2	Scene transitions, card swipes, fast reveals, impacts	user-provided	351650	1795698466
+sfx/whoosh/short_whoosh_flutter.wav	curated	whoosh	one	0.39	0.263	2.0	Scene transitions, card swipes, fast reveals, impacts	user-provided	74574	1795699654
+sfx/whoosh/transition_by_whoosh.wav	curated	whoosh	one	0.93	0.344	3.2	Scene transitions, card swipes, fast reveals, impacts	user-provided	164678	1795699655
+sfx/whoosh/whoosh.mp3	curated	whoosh	one	0.32	0.102	7.0	Scene transitions, card swipes, fast reveals, impacts	user-provided	9448	1795699663
+sfx/whoosh/whoosh.wav	curated	whoosh	one	1.57	0.673	-1.2	Scene transitions, card swipes, fast reveals, impacts	user-provided	301168	1795699664
+sfx/whoosh/whoosh_1.wav	curated	whoosh	one	2.04	0.585	0.9	Scene transitions, card swipes, fast reveals, impacts	user-provided	587942	1795698466
+sfx/whoosh/whoosh_big_01.wav	curated	whoosh	one	1.54	0.672	16.9	Scene transitions, card swipes, fast reveals, impacts	user-provided	446074	1795698466
+sfx/whoosh/whoosh_big_02.wav	curated	whoosh	one	1.52	0.411	17.5	Scene transitions, card swipes, fast reveals, impacts	user-provided	291342	1795699660
+sfx/whoosh/whoosh_big_03.wav	curated	whoosh	one	1.11	0.450	23.3	Scene transitions, card swipes, fast reveals, impacts	user-provided	213198	1795699660
+sfx/whoosh/whoosh_big_04.wav	curated	whoosh	one	1.50	0.636	12.4	Scene transitions, card swipes, fast reveals, impacts	user-provided	288078	1795699660
+sfx/whoosh/whoosh_big_05.wav	curated	whoosh	one	1.61	0.713	9.9	Scene transitions, card swipes, fast reveals, impacts	user-provided	309966	1795699660
+sfx/whoosh/whoosh_big_07.wav	curated	whoosh	one	1.25	0.666	11.4	Scene transitions, card swipes, fast reveals, impacts	user-provided	240846	1795699660
+sfx/whoosh/whoosh_building_109596.mp3	curated	whoosh	one	2.59	2.075	0.7	Scene transitions, card swipes, fast reveals, impacts	user-provided	82755	1795698384
+sfx/whoosh/whoosh_digital_01.wav	curated	whoosh	one	0.75	0.375	21.7	Scene transitions, card swipes, fast reveals, impacts	user-provided	218196	1795698467
+sfx/whoosh/whoosh_digital_02.wav	curated	whoosh	one	0.69	0.313	19.7	Scene transitions, card swipes, fast reveals, impacts	user-provided	202106	1795698467
+sfx/whoosh/whoosh_digital_03.wav	curated	whoosh	one	0.37	0.190	23.4	Scene transitions, card swipes, fast reveals, impacts	user-provided	107460	1795698467
+sfx/whoosh/whoosh_digital_04.wav	curated	whoosh	one	0.72	0.388	12.2	Scene transitions, card swipes, fast reveals, impacts	user-provided	208494	1795698467
+sfx/whoosh/whoosh_digital_05.wav	curated	whoosh	one	0.90	0.270	19.7	Scene transitions, card swipes, fast reveals, impacts	user-provided	261164	1795698467
+sfx/whoosh/whoosh_digital_06.wav	curated	whoosh	one	0.64	0.363	18.7	Scene transitions, card swipes, fast reveals, impacts	user-provided	185214	1795698467
+sfx/whoosh/whoosh_digital_07.wav	curated	whoosh	one	0.75	0.322	20.0	Scene transitions, card swipes, fast reveals, impacts	user-provided	218196	1795698467
+sfx/whoosh/whoosh_digital_09.wav	curated	whoosh	one	1.51	0.668	18.1	Scene transitions, card swipes, fast reveals, impacts	user-provided	437722	1795698467
+sfx/whoosh/whoosh_digital_10.wav	curated	whoosh	one	0.78	0.410	23.1	Scene transitions, card swipes, fast reveals, impacts	user-provided	148878	1795699661
+sfx/whoosh/whoosh_digital_11.wav	curated	whoosh	one	0.72	0.207	20.5	Scene transitions, card swipes, fast reveals, impacts	user-provided	210820	1795698467
+sfx/whoosh/whoosh_fast.wav	curated	whoosh	one	1.33	1.079	-0.8	Scene transitions, card swipes, fast reveals, impacts	user-provided	235384	1795698467
+sfx/whoosh/whoosh_fast_02.wav	curated	whoosh	one	0.66	0.307	28.0	Scene transitions, card swipes, fast reveals, impacts	user-provided	190832	1795698467
+sfx/whoosh/whoosh_fast_03.wav	curated	whoosh	one	1.32	0.501	5.5	Scene transitions, card swipes, fast reveals, impacts	user-provided	382006	1795698467
+sfx/whoosh/whoosh_fast_04.wav	curated	whoosh	one	0.63	0.363	21.3	Scene transitions, card swipes, fast reveals, impacts	user-provided	183530	1795698467
+sfx/whoosh/whoosh_fast_05.wav	curated	whoosh	one	0.31	0.057	18.7	Scene transitions, card swipes, fast reveals, impacts	user-provided	92434	1795698467
+sfx/whoosh/whoosh_fire_transition.mp3	curated	whoosh	one	4.55	0.383	-3.0	Scene transitions, card swipes, fast reveals, impacts	user-provided	102711	1795698467
+sfx/whoosh/whoosh_hit_1.wav	curated	whoosh	one	2.14	0.898	-1.6	Scene transitions, card swipes, fast reveals, impacts	user-provided	411170	1795699662
+sfx/whoosh/whoosh_hit_2.wav	curated	whoosh	one	2.42	1.228	-2.1	Scene transitions, card swipes, fast reveals, impacts	user-provided	465314	1795699662
+sfx/whoosh/whoosh_hit_3.wav	curated	whoosh	one	2.80	1.096	-0.8	Scene transitions, card swipes, fast reveals, impacts	user-provided	538466	1795699662
+sfx/whoosh/whoosh_hit_4.wav	curated	whoosh	one	2.91	1.285	-0.6	Scene transitions, card swipes, fast reveals, impacts	user-provided	559202	1795699662
+sfx/whoosh/whoosh_hit_5.wav	curated	whoosh	one	2.31	0.507	-2.3	Scene transitions, card swipes, fast reveals, impacts	user-provided	443618	1795699662
+sfx/whoosh/whoosh_hit_pack_01.mp3	curated	whoosh	one	0.32	0.098	2.1	Scene transitions, card swipes, fast reveals, impacts	user-provided	9261	1795699663
+sfx/whoosh/whoosh_hit_pack_02.mp3	curated	whoosh	one	0.32	0.110	1.0	Scene transitions, card swipes, fast reveals, impacts	user-provided	9261	1795699663
+sfx/whoosh/whoosh_hit_pack_03.mp3	curated	whoosh	one	0.32	0.114	1.1	Scene transitions, card swipes, fast reveals, impacts	user-provided	9261	1795699663
+sfx/whoosh/whoosh_hit_pack_04.mp3	curated	whoosh	one	0.36	0.085	-1.1	Scene transitions, card swipes, fast reveals, impacts	user-provided	9837	1795699663
+sfx/whoosh/whoosh_hit_pack_05.mp3	curated	whoosh	one	0.32	0.083	0.7	Scene transitions, card swipes, fast reveals, impacts	user-provided	9261	1795699663
+sfx/whoosh/whoosh_hit_pack_06.mp3	curated	whoosh	one	0.28	0.098	2.5	Scene transitions, card swipes, fast reveals, impacts	user-provided	8109	1795699663
+sfx/whoosh/whoosh_hit_pack_07.mp3	curated	whoosh	one	0.32	0.129	-0.8	Scene transitions, card swipes, fast reveals, impacts	user-provided	9261	1795699663
+sfx/whoosh/whoosh_hit_pack_08.mp3	curated	whoosh	one	0.32	0.076	4.4	Scene transitions, card swipes, fast reveals, impacts	user-provided	9261	1795699663
+sfx/whoosh/whoosh_hit_pack_09.mp3	curated	whoosh	one	0.40	0.138	1.5	Scene transitions, card swipes, fast reveals, impacts	user-provided	10989	1795699663
+sfx/whoosh/whoosh_hit_pack_10.mp3	curated	whoosh	one	0.40	0.102	-2.2	Scene transitions, card swipes, fast reveals, impacts	user-provided	10989	1795699663
+sfx/whoosh/whoosh_hit_pack_11.mp3	curated	whoosh	one	0.40	0.137	-2.0	Scene transitions, card swipes, fast reveals, impacts	user-provided	10989	1795699664
+sfx/whoosh/whoosh_hit_pack_12.mp3	curated	whoosh	one	0.40	0.128	-1.3	Scene transitions, card swipes, fast reveals, impacts	user-provided	10989	1795699664
+sfx/whoosh/whoosh_hit_pack_13.mp3	curated	whoosh	one	0.36	0.081	3.1	Scene transitions, card swipes, fast reveals, impacts	user-provided	9837	1795699664
+sfx/whoosh/whoosh_pack2_01.wav	curated	whoosh	one	1.24	0.381	-2.8	Scene transitions, card swipes, fast reveals, impacts	user-provided	476636	1795699658
+sfx/whoosh/whoosh_pack2_02.wav	curated	whoosh	one	1.08	0.374	-2.7	Scene transitions, card swipes, fast reveals, impacts	user-provided	415196	1795699658
+sfx/whoosh/whoosh_pack2_03.wav	curated	whoosh	one	1.16	0.484	-2.3	Scene transitions, card swipes, fast reveals, impacts	user-provided	445916	1795699659
+sfx/whoosh/whoosh_pack2_04.wav	curated	whoosh	one	1.36	0.395	-3.0	Scene transitions, card swipes, fast reveals, impacts	user-provided	522716	1795699659
+sfx/whoosh/whoosh_pack3_01.wav	curated	whoosh	one	1.88	0.673	-2.4	Scene transitions, card swipes, fast reveals, impacts	user-provided	722420	1795699659
+sfx/whoosh/whoosh_pack3_02.wav	curated	whoosh	one	1.96	0.646	-2.2	Scene transitions, card swipes, fast reveals, impacts	user-provided	753140	1795699659
+sfx/whoosh/whoosh_pack3_03.wav	curated	whoosh	one	2.00	0.474	-2.3	Scene transitions, card swipes, fast reveals, impacts	user-provided	768500	1795699659
+sfx/whoosh/whoosh_pack3_04.wav	curated	whoosh	one	1.68	0.315	-2.5	Scene transitions, card swipes, fast reveals, impacts	user-provided	645620	1795699659
+sfx/whoosh/whoosh_pack4_01.wav	curated	whoosh	one	1.16	0.471	-2.5	Scene transitions, card swipes, fast reveals, impacts	user-provided	445866	1795699659
+sfx/whoosh/whoosh_pack4_02.wav	curated	whoosh	one	1.16	0.347	-2.8	Scene transitions, card swipes, fast reveals, impacts	user-provided	445866	1795699659
+sfx/whoosh/whoosh_pack4_03.wav	curated	whoosh	one	1.16	0.421	-2.5	Scene transitions, card swipes, fast reveals, impacts	user-provided	445866	1795699659
+sfx/whoosh/whoosh_pack4_04.wav	curated	whoosh	one	1.20	0.267	-2.8	Scene transitions, card swipes, fast reveals, impacts	user-provided	461226	1795699659
+sfx/whoosh/whoosh_pack5_01.wav	curated	whoosh	one	3.12	0.636	-2.2	Scene transitions, card swipes, fast reveals, impacts	user-provided	1198496	1795699660
+sfx/whoosh/whoosh_pack5_02.wav	curated	whoosh	one	2.92	0.461	-2.2	Scene transitions, card swipes, fast reveals, impacts	user-provided	1121696	1795699660
+sfx/whoosh/whoosh_pack5_03.wav	curated	whoosh	one	3.28	0.595	-2.1	Scene transitions, card swipes, fast reveals, impacts	user-provided	1259936	1795699660
+sfx/whoosh/whoosh_pack5_04.wav	curated	whoosh	one	3.16	0.448	-2.2	Scene transitions, card swipes, fast reveals, impacts	user-provided	1213856	1795699660
+sfx/whoosh/whoosh_short_pack_01.mp3	curated	whoosh	one	0.44	0.133	2.9	Scene transitions, card swipes, fast reveals, impacts	user-provided	20652	1795699653
+sfx/whoosh/whoosh_short_pack_02.mp3	curated	whoosh	one	0.32	0.100	2.4	Scene transitions, card swipes, fast reveals, impacts	user-provided	17772	1795699653
+sfx/whoosh/whoosh_short_pack_03.mp3	curated	whoosh	one	0.32	0.086	2.5	Scene transitions, card swipes, fast reveals, impacts	user-provided	17772	1795699653
+sfx/whoosh/whoosh_short_pack_04.mp3	curated	whoosh	one	0.36	0.072	2.4	Scene transitions, card swipes, fast reveals, impacts	user-provided	18348	1795699653
+sfx/whoosh/whoosh_short_pack_05.mp3	curated	whoosh	one	0.36	0.109	3.9	Scene transitions, card swipes, fast reveals, impacts	user-provided	18348	1795699653
+sfx/whoosh/whoosh_short_pack_06.mp3	curated	whoosh	one	0.28	0.095	2.1	Scene transitions, card swipes, fast reveals, impacts	user-provided	16620	1795699653
+sfx/whoosh/whoosh_short_pack_07.mp3	curated	whoosh	one	0.36	0.132	2.7	Scene transitions, card swipes, fast reveals, impacts	user-provided	18348	1795699654
+sfx/whoosh/whoosh_short_pack_08.mp3	curated	whoosh	one	0.68	0.173	2.7	Scene transitions, card swipes, fast reveals, impacts	user-provided	26412	1795699654
+sfx/whoosh/whoosh_swoosh_01.wav	curated	whoosh	one	1.65	0.891	-0.9	Scene transitions, card swipes, fast reveals, impacts	user-provided	290278	1795699634
+sfx/whoosh/whoosh_swoosh_02.wav	curated	whoosh	one	0.91	0.317	3.7	Scene transitions, card swipes, fast reveals, impacts	user-provided	159932	1795699637
+sfx/whoosh/whoosh_swoosh_03.wav	curated	whoosh	one	0.32	0.117	-1.6	Scene transitions, card swipes, fast reveals, impacts	user-provided	56560	1795699639
+sfx/whoosh/whoosh_swoosh_04.wav	curated	whoosh	one	1.06	0.449	-2.3	Scene transitions, card swipes, fast reveals, impacts	user-provided	186216	1795699639
+sfx/whoosh/whoosh_swoosh_05.wav	curated	whoosh	one	1.01	0.443	2.7	Scene transitions, card swipes, fast reveals, impacts	user-provided	178790	1795699639
+sfx/whoosh/whoosh_swoosh_06.wav	curated	whoosh	one	0.73	0.307	5.2	Scene transitions, card swipes, fast reveals, impacts	user-provided	127990	1795699639
+sfx/whoosh/whoosh_swoosh_07.wav	curated	whoosh	one	1.74	1.186	1.1	Scene transitions, card swipes, fast reveals, impacts	user-provided	307034	1795699640
+sfx/whoosh/whoosh_swoosh_08.wav	curated	whoosh	one	1.84	0.835	4.9	Scene transitions, card swipes, fast reveals, impacts	user-provided	324498	1795699640
+sfx/whoosh/whoosh_swoosh_10.wav	curated	whoosh	one	2.67	0.627	1.0	Scene transitions, card swipes, fast reveals, impacts	user-provided	508190	1795698464
+sfx/whoosh/whoosh_swoosh_11.wav	curated	whoosh	one	0.32	0.097	-0.1	Scene transitions, card swipes, fast reveals, impacts	user-provided	56546	1795699635
+sfx/whoosh/whoosh_swoosh_12.wav	curated	whoosh	one	1.94	0.934	4.8	Scene transitions, card swipes, fast reveals, impacts	user-provided	342138	1795699635
+sfx/whoosh/whoosh_swoosh_13.wav	curated	whoosh	one	1.69	0.549	-2.1	Scene transitions, card swipes, fast reveals, impacts	user-provided	297700	1795699635
+sfx/whoosh/whoosh_swoosh_14.wav	curated	whoosh	one	0.27	0.063	3.5	Scene transitions, card swipes, fast reveals, impacts	user-provided	47022	1795699635
+sfx/whoosh/whoosh_swoosh_15.wav	curated	whoosh	one	0.81	0.337	11.7	Scene transitions, card swipes, fast reveals, impacts	user-provided	142116	1795699636
+sfx/whoosh/whoosh_swoosh_16.wav	curated	whoosh	one	3.32	0.826	6.3	Scene transitions, card swipes, fast reveals, impacts	user-provided	586098	1795699636
+sfx/whoosh/whoosh_swoosh_17.wav	curated	whoosh	one	3.14	0.527	1.8	Scene transitions, card swipes, fast reveals, impacts	user-provided	590382	1795698465
+sfx/whoosh/whoosh_swoosh_18.wav	curated	whoosh	one	0.54	0.177	12.8	Scene transitions, card swipes, fast reveals, impacts	user-provided	95530	1795699636
+sfx/whoosh/whoosh_swoosh_19.wav	curated	whoosh	one	0.67	0.125	0.7	Scene transitions, card swipes, fast reveals, impacts	user-provided	117948	1795699636
+sfx/whoosh/whoosh_swoosh_20.wav	curated	whoosh	one	2.24	0.791	3.4	Scene transitions, card swipes, fast reveals, impacts	user-provided	431674	1795698465
+sfx/whoosh/whoosh_swoosh_21.wav	curated	whoosh	one	0.72	0.258	7.9	Scene transitions, card swipes, fast reveals, impacts	user-provided	126416	1795699637
+sfx/whoosh/whoosh_swoosh_22.wav	curated	whoosh	one	2.19	0.601	4.1	Scene transitions, card swipes, fast reveals, impacts	user-provided	386780	1795699637
+sfx/whoosh/whoosh_swoosh_23.wav	curated	whoosh	one	1.00	0.450	3.9	Scene transitions, card swipes, fast reveals, impacts	user-provided	175970	1795699637
+sfx/whoosh/whoosh_swoosh_24.wav	curated	whoosh	one	0.86	0.314	0.1	Scene transitions, card swipes, fast reveals, impacts	user-provided	151098	1795699638
+sfx/whoosh/whoosh_swoosh_25.wav	curated	whoosh	one	0.88	0.168	7.5	Scene transitions, card swipes, fast reveals, impacts	user-provided	154802	1795699638
+sfx/whoosh/whoosh_swoosh_26.wav	curated	whoosh	one	2.06	0.351	0.2	Scene transitions, card swipes, fast reveals, impacts	user-provided	363144	1795699638
+sfx/whoosh/whoosh_swoosh_27.wav	curated	whoosh	one	2.14	0.718	3.8	Scene transitions, card swipes, fast reveals, impacts	user-provided	414014	1795698465
+sfx/whoosh/whoosh_swoosh_28.wav	curated	whoosh	one	0.84	0.319	3.5	Scene transitions, card swipes, fast reveals, impacts	user-provided	147584	1795699638
+sfx/whoosh/whoosh_swoosh_29.wav	curated	whoosh	one	1.90	0.318	-1.3	Scene transitions, card swipes, fast reveals, impacts	user-provided	372814	1795698465
+sfx/whoosh/whoosh_swoosh_30.wav	curated	whoosh	one	0.31	0.108	-2.1	Scene transitions, card swipes, fast reveals, impacts	user-provided	54620	1795699639
+music/crime_and_suspense/mystery_ambient.mp3	curated	crime_and_suspense	music	172.14	0.000	1.1	Background music bed	user-provided	2066434	1795699106
+music/crime_and_suspense/tension_build.mp3	curated	crime_and_suspense	music	167.50	0.000	1.1	Background music bed	user-provided	2010950	1795699107
+music/documentary_and_history/ES_Desert Whispers - Tellsonic.mp3	curated	documentary_and_history	music	169.97	0.000	-1.4	Background music bed	user-provided	2040399	1795699107
+music/documentary_and_history/history_serious.mp3	curated	documentary_and_history	music	174.96	0.000	0.9	Background music bed	user-provided	2100288	1795699107
+music/epic_and_action/Energetic_Drum_Background_Music_NO_COPYRIGHT_Action_Drums_Background.mp3	curated	epic_and_action	music	88.05	0.000	-1.9	Background music bed	user-provided	1057469	1795699107
+music/lifestyle_and_acoustic/The Score - Revolution (Acoustic Cover) by Ryderboy.mp3	curated	lifestyle_and_acoustic	music	225.30	0.000	-2.3	Background music bed	user-provided	2704437	1795699107
+music/tech_and_corporate/No_Copyright_Music_Dark_Synthwave_Stranger_Things_Type_Music_by.mp3	curated	tech_and_corporate	music	118.56	0.000	-1.0	Background music bed	user-provided	1423601	1795699107
+music/tech_and_corporate/tech_modern.mp3	curated	tech_and_corporate	music	152.67	0.000	0.8	Background music bed	user-provided	1832899	1795699107
+music/viral_and_hiphop/Tommy Richman - Million Dollar Baby [Instrumental].mp3	curated	viral_and_hiphop	music	155.24	0.000	-3.3	Background music bed	user-provided	1863692	1795699107

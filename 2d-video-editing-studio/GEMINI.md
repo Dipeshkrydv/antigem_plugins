@@ -335,7 +335,7 @@ Whenever a user requests a **Crime Documentary, True Crime, Murder Mystery, Poli
 8. **Professional & Meaningful Motion**: Subtle 4% slow drift camera zoom, smooth cubic fades, spring pops with settle (0.88 -> 1.0), gentle rise, drawing reveals. ZERO irritating continuous shaking or jitter loops.
 9. **0.000s Attack Synchronization**: Audio Sample 0 (first spoken consonant) == Video Frame 0. Instant opacity = 1.0 on attack frame.
 10. **Mobile Safe Zones & Desktop Framing**: Strict clearance for phone notches (160px top), TikTok/Reels caption marquee (300px bottom), and button rail (130px right).
-11. **Broadcast Audio Engineering & Compulsory Foley/Music Law**: Mastered to -14 LUFS with dynamic music ducking (-18dB during voiceover) and tactile Foley SFX on every visual hit. The engine and agent MUST NEVER omit or bypass sound design. cues.tsv is automatically populated with rich BGM and Foley cues for every scene entrance and micro-asset hit via python studio.py mix --autocues. mix.wav is strictly mandatory.
+11. **Broadcast Audio Engineering & Curated Foley/Music Law**: Mastered to -14 LUFS with dynamic music ducking (-18dB during voiceover) and tactile Foley SFX on every visual hit. The engine and agent MUST ALWAYS use the curated, deduplicated sound library in `audio/sfx/` (`camera/`, `click/`, `pop/`, `riser/`, `ui/`, `whoosh/` — 223 verified single-hit SFX indexed in `audio/CATALOG.tsv`) and `audio/music/`. NEVER use duplicate SFX back-to-back (rotate variants per beat), and NEVER reference deleted legacy `b2_/b3_/b4_/b5_` or `drop_00*` files. `cues.tsv` is automatically populated with rich BGM and Foley cues for every scene entrance and micro-asset hit via `python studio.py mix --autocues`. `mix.wav` is strictly mandatory.
 12. **Mandatory Google Flow Asset Engine & Zero API Key Leaks**: All assets generated on Google Flow (`Banana Nano 2.1` / `Pro` / `Imagen 3`) via the built-in DeepX Google Flow engine (`studio_generate_assets`, $0 API cost). Never hardcode, commit, or leak private API keys.
 13. **Zero Duplicate Generation & Idempotent Flow Dispatch Law**: Every prompt dispatched to Google Flow is tracked with its unique hash and timestamp in `flow_manifest.json` before submission. Client socket/tool timeouts (e.g. 150s) are client transport timeouts, NOT Google Flow execution failures (Google Flow continues generating queued prompts on its cloud cluster). The AI agent or script MUST NEVER blind re-submit a prompt after a timeout. Check the Flow project library / canvas first. If an asset is already in-flight or generated, NEVER re-dispatch it.
 14. **Autonomous Media Ingestion & Zero User Download Burden Law**: The user must NEVER be asked to manually click download buttons or select tiles in Google Flow. The engine autonomously harvests, ingests, converts (WebP to PNG), and keys all generated media directly into `elements/raw/<id>.png` via in-browser canvas capture or automated background download (`python studio.py harvest`).
@@ -1400,6 +1400,11 @@ Doodle: drawing sounds, soft clicks and illustrative effects.
 Retro 8-Bit: pixel sounds, arcade effects and synthesized music.
 
 Never allow music or effects to overpower narration.
+
+Mandatory SFX Library Rules:
+- Always pick sound effects exclusively from `audio/sfx/` (`camera/`, `click/`, `pop/`, `riser/`, `ui/`, `whoosh/`) using `audio/CATALOG.tsv` (and `audio/music/` for BGM beds).
+- Rotate distinct variants across beats — never repeat the same SFX file on consecutive cues.
+- Use `python studio.py mix --autocues` (or write `cues.tsv` pointing to `audio/sfx/...`) so `core/mix.py` applies exact peak timing and `CATALOG.tsv` loudness normalization.
 
 ---
 

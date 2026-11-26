@@ -1,7 +1,7 @@
 label	kind	file	at	dur	gain_db	fade_in	fade_out
-bed	loop	audio/music/history_serious.mp3	0.0	all	-24	1.5	2.5
-paper_01	one	audio/sfx/paper/b4_book_slam_a.mp3	@01	-	-14	0	0
-boots_02	one	audio/sfx/conflict/b2_marching_boots_a.mp3	@02	-	-14	0	0
-drop_03	one	audio/sfx/transition/b2_sub_drop_b.mp3	@03	-	-12	0	0
-cannon_04	one	audio/sfx/conflict/b2_cannon_distant_a.mp3	@04	-	-12	0	0
-sword_05	one	audio/sfx/conflict/b2_sword_draw_a.mp3	@05	-	-12	0	0
+bed	loop	audio/music/documentary_and_history/history_serious.mp3	0.0	all	-24	1.5	2.5
+pop_01	one	audio/sfx/pop/pop_up.wav	@01	-	-14	0	0
+click_02	one	audio/sfx/click/click_2.wav	@02	-	-14	0	0
+riser_03	one	audio/sfx/riser/up_riser.wav	@03	-	-14	0	0
+photo_04	one	audio/sfx/camera/camera_shutter_2.wav	@04	-	-14	0	0
+whoosh_05	one	audio/sfx/whoosh/whoosh_hit_1.wav	@05	-	-14	0	0

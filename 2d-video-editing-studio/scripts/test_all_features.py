@@ -224,13 +224,19 @@ try:
     audio_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "audio")
     hist_bed = os.path.join(audio_dir, "music", "documentary_and_history", "history_serious.mp3")
     mystery_bed = os.path.join(audio_dir, "music", "crime_and_suspense", "mystery_ambient.mp3")
-    paper_sfx = os.path.join(audio_dir, "sfx", "paper", "b4_paper_slide_g.mp3")
+    catalog_tsv = os.path.join(audio_dir, "CATALOG.tsv")
+    whoosh_sfx = os.path.join(audio_dir, "sfx", "whoosh", "short_whoosh_1.mp3")
+    pop_sfx = os.path.join(audio_dir, "sfx", "pop", "pop_up.wav")
+    click_sfx = os.path.join(audio_dir, "sfx", "click", "click_2.wav")
     assert os.path.exists(hist_bed), "history_serious.mp3 missing"
     assert os.path.exists(mystery_bed), "mystery_ambient.mp3 missing"
-    assert os.path.exists(paper_sfx), "paper slide SFX missing"
+    assert os.path.exists(catalog_tsv), "audio/CATALOG.tsv missing"
+    assert os.path.exists(whoosh_sfx), "curated whoosh SFX missing"
+    assert os.path.exists(pop_sfx), "curated pop SFX missing"
+    assert os.path.exists(click_sfx), "curated click SFX missing"
 
     log_test("7. Audio Mixing & Sidechain Ducking", True,
-             f"mix.py verified, -14 LUFS target, History bed ({os.path.getsize(hist_bed)//1024}KB), SFX verified")
+             f"mix.py verified, -14 LUFS target, History bed ({os.path.getsize(hist_bed)//1024}KB), curated SFX + CATALOG.tsv verified")
 except Exception as e:
     log_test("7. Audio Mixing & Sidechain Ducking", False, str(e))
 

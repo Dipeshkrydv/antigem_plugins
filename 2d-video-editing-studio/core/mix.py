@@ -47,7 +47,7 @@ Mix chain:
 import argparse, csv, os, re, subprocess, sys
 
 KIT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ROLLING = re.compile(r"(?i)/Numbers/|counter|counting|odometer|ticking")   # start on the cue, not peak
+ROLLING = re.compile(r"(?i)/Numbers/|counter|counting|odometer|ticking|ui_tick|ui_typing|typing_ui|ui_data_loading")   # start on the cue, not peak
 
 
 
@@ -126,7 +126,16 @@ def catalog():
                  os.path.join(KIT, "audio", "CATALOG.tsv"),
                  os.path.join(KIT, "skills", "vox-doc-sound", "CATALOG.tsv")]:
         if os.path.exists(cand):
-            return {r["file"]: (float(r["peak"] or 0), float(r.get("level_offset") or 0)) for r in tsv(cand)}
+            out = {}
+            for r in tsv(cand):
+                key = r["file"].replace("\\", "/")
+                val = (float(r["peak"] or 0), float(r.get("level_offset") or 0))
+                out[key] = val
+                if key.startswith("audio/"):
+                    out[key[len("audio/"):]] = val
+                else:
+                    out[f"audio/{key}"] = val
+            return out
     return {}
 
 
@@ -235,21 +244,32 @@ def selfcheck():
         pass
     finally:
         os.environ.pop("MIX_STRICT", None)
-    assert start_time(5.0, 0.3, "sfx/StableAudio/Paper/page_turn_a.mp3") == 4.7          # peak on the word
-    assert start_time(5.0, 0.762, "sfx/StableAudio/Numbers/b5_odometer_roll_a.mp3") == 5.0  # counter: starts on it
-    assert start_time(5.0, 1.258, "sfx\\StableAudio\\Data\\b3_money_counter_a.mp3") == 5.0
+    assert start_time(5.0, 0.3, "sfx/pop/pop_up.wav") == 4.7                 # peak on the word
+    assert start_time(5.0, 0.762, "sfx/ui/ui_glitchy_counter.wav") == 5.0  # counter: starts on it
+    assert start_time(5.0, 1.258, "sfx\\ui\\ui_tick.wav") == 5.0
     print("selfcheck ok")
 
 
+def _resolve_sfx_pool(candidates, category):
+    """Filter candidate SFX paths to existing files, falling back to audio/sfx/<category>/."""
+    valid = [p for p in candidates if os.path.exists(os.path.join(KIT, p))]
+    if valid:
+        return valid
+    cat_dir = os.path.join(KIT, "audio", "sfx", category)
+    if os.path.isdir(cat_dir):
+        found = [f"audio/sfx/{category}/{fn}" for fn in sorted(os.listdir(cat_dir))
+                 if fn.lower().endswith((".wav", ".mp3", ".ogg", ".flac", ".m4a"))]
+        if found:
+            return found
+    return candidates
+
+
 def auto_generate_cues(out_path="cues.tsv", edit_file="EDIT.json", lines_file="VO.tsv", words_file="WORDS.tsv", style=None):
-    """Automatically generates cues.tsv with matching background music bed and foley SFX:
+    """Automatically generates cues.tsv with matching background music bed and curated,
+    non-duplicate Foley SFX from audio/sfx/ (camera, click, pop, riser, ui, whoosh):
     - Analyzes EDIT.json (or VO.tsv) to detect video style and timeline structure
     - Selects fitting background music bed from audio/music/
-    - Adds ducked transition whooshes/sweeps at scene transitions
-    - Adds paper slides / pops for cutout asset entrances
-    - Adds odometer rolls for number counters / stats
-    - Adds stamp press SFX for stamps / seals
-    - Adds pin drops for maps and callouts
+    - Rotates through distinct SFX files per beat so consecutive cues never repeat
     """
     import json
     spec = {}
@@ -265,12 +285,115 @@ def auto_generate_cues(out_path="cues.tsv", edit_file="EDIT.json", lines_file="V
     # Select background music bed
     if any(k in st for k in ("noir", "crime", "suspense")):
         bed = "audio/music/crime_and_suspense/mystery_ambient.mp3"
-    elif any(k in st for k in ("tech", "box", "editorial")):
+    elif any(k in st for k in ("tech", "box", "editorial", "arcade")):
         bed = "audio/music/tech_and_corporate/tech_modern.mp3"
     elif any(k in st for k in ("stickman", "cute", "fast", "action")):
         bed = "audio/music/epic_and_action/Energetic_Drum_Background_Music_NO_COPYRIGHT_Action_Drums_Background.mp3"
     else:
         bed = "audio/music/documentary_and_history/ES_Desert Whispers - Tellsonic.mp3"
+
+    # Curated, verified single-hit SFX pools (zero duplicates)
+    intro_pool = _resolve_sfx_pool([
+        "audio/sfx/whoosh/whoosh_hit_1.wav",
+        "audio/sfx/whoosh/whoosh_hit_5.wav",
+        "audio/sfx/whoosh/whoosh_big_04.wav",
+    ], "whoosh")
+
+    if any(k in st for k in ("noir", "crime", "suspense")):
+        trans_pool = _resolve_sfx_pool([
+            "audio/sfx/riser/up_riser.wav",
+            "audio/sfx/whoosh/cinematic_whoosh.wav",
+            "audio/sfx/riser/es_riser_suction_5_sfxprod.mp3",
+            "audio/sfx/whoosh/low_slow_whoosh.wav",
+            "audio/sfx/riser/smooth_riser.mp3",
+            "audio/sfx/whoosh/whoosh_hit_2.wav",
+        ], "whoosh")
+    elif any(k in st for k in ("tech", "arcade")):
+        trans_pool = _resolve_sfx_pool([
+            "audio/sfx/whoosh/whoosh_digital_01.wav",
+            "audio/sfx/riser/up_riser_2_glitch.wav",
+            "audio/sfx/whoosh/whoosh_digital_05.wav",
+            "audio/sfx/whoosh/whoosh_fast_03.wav",
+            "audio/sfx/whoosh/whoosh_digital_09.wav",
+            "audio/sfx/whoosh/whoosh_digital_11.wav",
+        ], "whoosh")
+    else:
+        trans_pool = _resolve_sfx_pool([
+            "audio/sfx/whoosh/short_whoosh_1.mp3",
+            "audio/sfx/whoosh/es_whip_whoosh_swoosh_4_sfxprod.mp3",
+            "audio/sfx/whoosh/whoosh_fast_03.wav",
+            "audio/sfx/whoosh/short_whoosh_6.wav",
+            "audio/sfx/whoosh/whoosh_swoosh_04.wav",
+            "audio/sfx/whoosh/deep_mini_whoosh_15.wav",
+            "audio/sfx/whoosh/whoosh_pack2_01.wav",
+            "audio/sfx/whoosh/transition_by_whoosh.wav",
+        ], "whoosh")
+
+    pop_pool = _resolve_sfx_pool([
+        "audio/sfx/pop/pop_up.wav",
+        "audio/sfx/pop/icon_pop_up_ui_sfx_05.mp3",
+        "audio/sfx/pop/pop_bubble.mp3",
+        "audio/sfx/pop/ui_pop_up_2_197887.mp3",
+        "audio/sfx/pop/pop_sound.mp3",
+        "audio/sfx/pop/es_suction_pop_5_sfxprod.mp3",
+        "audio/sfx/pop/pop_up_2.wav",
+        "audio/sfx/pop/pop_up_3.wav",
+    ], "pop")
+
+    photo_pool = _resolve_sfx_pool([
+        "audio/sfx/camera/camera_shutter_2.wav",
+        "audio/sfx/camera/es_camera_shutter_1_sfxprod.mp3",
+        "audio/sfx/camera/camera_flash.mp3",
+        "audio/sfx/camera/camera_13695.mp3",
+        "audio/sfx/camera/shutter_click.mp3",
+        "audio/sfx/camera/camera_shutter_6305.mp3",
+    ], "camera")
+
+    counter_pool = _resolve_sfx_pool([
+        "audio/sfx/ui/ui_glitchy_counter.wav",
+        "audio/sfx/ui/ui_tick.wav",
+        "audio/sfx/ui/typing_ui_sfx_04.mp3",
+        "audio/sfx/ui/ui_beep_06.wav",
+    ], "ui")
+
+    stamp_pool = _resolve_sfx_pool([
+        "audio/sfx/pop/mixkit_hard_pop_click_2364.wav",
+        "audio/sfx/click/click_2.wav",
+        "audio/sfx/whoosh/whoosh_hit_pack_04.mp3",
+        "audio/sfx/ui/ui_success.wav",
+        "audio/sfx/click/click_4.wav",
+    ], "click")
+
+    callout_pool = _resolve_sfx_pool([
+        "audio/sfx/click/es_apple_mouse_click_1_sfxprod.mp3",
+        "audio/sfx/click/es_mouse_click_2_sfxprod.mp3",
+        "audio/sfx/click/es_mouse_click_3_sfxprod.mp3",
+        "audio/sfx/click/mouse_click.mp3",
+        "audio/sfx/ui/ui_02.mp3",
+        "audio/sfx/ui/ui_click_snap.mp3",
+    ], "click")
+
+    note_pool = _resolve_sfx_pool([
+        "audio/sfx/ui/slide_in_ui_sfx_02.mp3",
+        "audio/sfx/ui/many_icon_reveal_ui_sfx_07.mp3",
+        "audio/sfx/ui/ui_5.wav",
+        "audio/sfx/ui/ui_6.wav",
+        "audio/sfx/pop/es_mouth_pop_1_sfxprod.mp3",
+        "audio/sfx/click/click_for_transitions.mp3",
+    ], "ui")
+
+    pool_cursors = {}
+    last_file = [None]
+
+    def next_from(key, pool):
+        idx = pool_cursors.get(key, 0)
+        chosen = pool[idx % len(pool)]
+        if chosen == last_file[0] and len(pool) > 1:
+            idx += 1
+            chosen = pool[idx % len(pool)]
+        pool_cursors[key] = idx + 1
+        last_file[0] = chosen
+        return chosen
 
     rows = []
     # 1. Background Music Bed (ducked under VO and SFX)
@@ -290,12 +413,11 @@ def auto_generate_cues(out_path="cues.tsv", edit_file="EDIT.json", lines_file="V
     if scenes:
         for i, sc in enumerate(scenes):
             sc_cue = sc.get("at") or sc.get("cue") or f"@{i+1:02d}"
-            # Transition sound on scene entrance
             if i == 0:
                 rows.append({
-                    "label": "intro_subdrop",
+                    "label": "intro_impact",
                     "kind": "one",
-                    "file": "audio/sfx/transition/b2_sub_drop_a.mp3",
+                    "file": next_from("intro", intro_pool),
                     "at": sc_cue,
                     "dur": "",
                     "gain_db": "-16",
@@ -303,15 +425,10 @@ def auto_generate_cues(out_path="cues.tsv", edit_file="EDIT.json", lines_file="V
                     "fade_out": "0"
                 })
             else:
-                sfx_trans = (
-                    "audio/sfx/transition/b4_sweep_up_h.mp3",
-                    "audio/sfx/transition/b4_riser_short_g.mp3",
-                    "audio/sfx/transition/b4_shimmer_g.mp3"
-                )[i % 3]
                 rows.append({
                     "label": f"trans_{i+1:02d}",
                     "kind": "one",
-                    "file": sfx_trans,
+                    "file": next_from("trans", trans_pool),
                     "at": sc_cue,
                     "dur": "",
                     "gain_db": "-18",
@@ -324,9 +441,9 @@ def auto_generate_cues(out_path="cues.tsv", edit_file="EDIT.json", lines_file="V
                 at = item.get("cue") or item.get("at") or sc_cue
                 if t in ("asset", "cutout"):
                     rows.append({
-                        "label": f"cut_{len(rows):02d}",
+                        "label": f"pop_{len(rows):02d}",
                         "kind": "one",
-                        "file": "audio/sfx/paper/b3_cutout_slide_a.mp3",
+                        "file": next_from("pop", pop_pool),
                         "at": at,
                         "dur": "",
                         "gain_db": "-16",
@@ -337,7 +454,7 @@ def auto_generate_cues(out_path="cues.tsv", edit_file="EDIT.json", lines_file="V
                     rows.append({
                         "label": f"photo_{len(rows):02d}",
                         "kind": "one",
-                        "file": "audio/sfx/paper/b3_photo_drop_a.mp3",
+                        "file": next_from("photo", photo_pool),
                         "at": at,
                         "dur": "",
                         "gain_db": "-15",
@@ -348,18 +465,18 @@ def auto_generate_cues(out_path="cues.tsv", edit_file="EDIT.json", lines_file="V
                     rows.append({
                         "label": f"counter_{len(rows):02d}",
                         "kind": "one",
-                        "file": "audio/sfx/ui/b5_odometer_roll_a.mp3",
+                        "file": next_from("counter", counter_pool),
                         "at": at,
                         "dur": "",
                         "gain_db": "-16",
                         "fade_in": "0",
                         "fade_out": "0"
                     })
-                elif t in ("stamp", "seal"):
+                elif t in ("stamp", "seal", "bigtext", "redact"):
                     rows.append({
-                        "label": f"stamp_{len(rows):02d}",
+                        "label": f"hit_{len(rows):02d}",
                         "kind": "one",
-                        "file": "audio/sfx/paper/b4_stamp_press_j.mp3",
+                        "file": next_from("stamp", stamp_pool),
                         "at": at,
                         "dur": "",
                         "gain_db": "-14",
@@ -368,20 +485,20 @@ def auto_generate_cues(out_path="cues.tsv", edit_file="EDIT.json", lines_file="V
                     })
                 elif t in ("callout", "pin"):
                     rows.append({
-                        "label": f"pin_{len(rows):02d}",
+                        "label": f"click_{len(rows):02d}",
                         "kind": "one",
-                        "file": "audio/sfx/map/drop_001.ogg",
+                        "file": next_from("callout", callout_pool),
                         "at": at,
                         "dur": "",
                         "gain_db": "-15",
                         "fade_in": "0",
                         "fade_out": "0"
                     })
-                elif t in ("note", "sticky", "tag"):
+                elif t in ("note", "sticky", "tag", "list", "timeline", "quote"):
                     rows.append({
-                        "label": f"note_{len(rows):02d}",
+                        "label": f"ui_{len(rows):02d}",
                         "kind": "one",
-                        "file": "audio/sfx/paper/b4_postit_flip_a.mp3",
+                        "file": next_from("note", note_pool),
                         "at": at,
                         "dur": "",
                         "gain_db": "-16",
@@ -394,9 +511,9 @@ def auto_generate_cues(out_path="cues.tsv", edit_file="EDIT.json", lines_file="V
             cid = l.get("id", f"{i+1:02d}")
             if i == 0:
                 rows.append({
-                    "label": "intro_subdrop",
+                    "label": "intro_impact",
                     "kind": "one",
-                    "file": "audio/sfx/transition/b2_sub_drop_a.mp3",
+                    "file": next_from("intro", intro_pool),
                     "at": f"@{cid}",
                     "dur": "",
                     "gain_db": "-16",
@@ -404,7 +521,7 @@ def auto_generate_cues(out_path="cues.tsv", edit_file="EDIT.json", lines_file="V
                     "fade_out": "0"
                 })
             else:
-                sfx = ("audio/sfx/transition/b4_sweep_up_h.mp3", "audio/sfx/paper/b3_cutout_slide_a.mp3")[i % 2]
+                sfx = next_from("trans", trans_pool) if i % 2 == 1 else next_from("pop", pop_pool)
                 rows.append({
                     "label": f"sfx_{cid}",
                     "kind": "one",
@@ -420,7 +537,7 @@ def auto_generate_cues(out_path="cues.tsv", edit_file="EDIT.json", lines_file="V
         writer = csv.DictWriter(f, fieldnames=["label", "kind", "file", "at", "dur", "gain_db", "fade_in", "fade_out"], delimiter="\t")
         writer.writeheader()
         writer.writerows(rows)
-    print(f"Auto-generated sound design cues -> {out_path} ({len(rows)} cues with ducked BGM and Foley SFX)")
+    print(f"Auto-generated sound design cues -> {out_path} ({len(rows)} cues with ducked BGM and curated Foley SFX)")
     return out_path
 
 
